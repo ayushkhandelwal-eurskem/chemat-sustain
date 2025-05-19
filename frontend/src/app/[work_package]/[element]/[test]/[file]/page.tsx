@@ -2,7 +2,7 @@
 
 import MTTDataViewer from '@/components/tests/mtt/page';
 import { FC } from 'react';
-
+import DLSDataViewer from '@/components/tests/dls/page';
 // Define the props type for the page component
 interface PageProps {
   params: {
@@ -26,6 +26,9 @@ const DynamicRoutePage: FC<PageProps> = async ({ params }) => {
   
   if (test.toLowerCase() === "mtt") {
     return (<MTTDataViewer work_package={work_package} element={element} test={test} file={file} />);
+  }
+  if (test.toLocaleLowerCase() === "dls"){
+    return (<DLSDataViewer work_package={work_package} element={element} test={test} file={file}></DLSDataViewer>)
   }
 };
 

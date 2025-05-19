@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 import os 
 from typing import List
 from parsers.mtt import parse_excel_mtt
+from parsers.dls import parse_excel_dls
 # Base directory for folder navigation - change to your target path
 BASE_DIR = os.path.join(os.getcwd(), "data")
 
@@ -83,9 +84,8 @@ async def get_file(folder_name: str, subfolder_name: str, nested_subfolder: str,
             data = parse_excel_mtt(file_path)
             return data
         elif nested_subfolder.lower() == "dls":
-            # data_dls = parse_excel_dls(file_path)
-            # return data_dls
-            return {"message": "DLS file parsing not implemented yet."}
+            data_dls = parse_excel_dls(file_path)
+            return data_dls
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse file: {str(e)}")

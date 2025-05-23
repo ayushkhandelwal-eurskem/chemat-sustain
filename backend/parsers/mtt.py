@@ -728,11 +728,10 @@ class MTTParser:
             row_data = []
             for cell in rows:
                 if cell.value is not None:
-                    if isinstance(cell.value, (int, float)):
-                        formatted = f"{cell.value * 100:.0f}%"
+                    if cell.number_format.endswith('%') or 'percent' in cell.number_format.lower():  # Check if cell is in column 2
+                        formatted = str((100 * cell.value)) + "%"
                     else:
-                        formatted = cell.value  # in case it's already a string or something else
-                    
+                        formatted = cell.value
                     row_data.append(formatted)
             final_table["rows"].append(row_data)  
 

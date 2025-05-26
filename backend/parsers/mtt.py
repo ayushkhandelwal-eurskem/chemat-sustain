@@ -140,6 +140,10 @@ class PercentViabilityVsNC:
     concentrations: List[Union[float, str]] = field(default_factory=list)
     mean: List[float] = field(default_factory=list)
     std_dev: List[float] = field(default_factory=list)
+    reverse_mean: List[float] = field(default_factory=list)
+    reverse_std_dev: List[float] = field(default_factory=list)
+    reverse_mean_without_pc: List[float] = field(default_factory=list)
+    reverse_std_dev_without_pc: List[float] = field(default_factory=list)
 
 @dataclass
 class FinalResults:
@@ -653,7 +657,11 @@ class MTTParser:
         percent_viability_vs_nc = PercentViabilityVsNC(
             concentrations=concentrations,
             mean=mean_values,
-            std_dev=std_dev_values
+            std_dev=std_dev_values,
+            reverse_mean=[mean_values[0]] + mean_values[-2:0:-1] + [mean_values[-1]],  # Reverse middle elements only
+            reverse_std_dev=[std_dev_values[0]] + std_dev_values[-2:0:-1] + [std_dev_values[-1]],  # Reverse middle elements only  
+            reverse_mean_without_pc=[mean_values[0]] + mean_values[-2:0:-1],  # Reverse middle elements only
+            reverse_std_dev_without_pc=[std_dev_values[0]] + std_dev_values[-2:0:-1]  # Reverse middle elements only
         )
 
         reverse_concentrations = []

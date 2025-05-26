@@ -1140,40 +1140,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 </table>
               </div>
 
-              {/* Second Table: % of viability vs. NC (particles/mL) */}
-              <div>
-                <ResponsiveContainer width="100%" height={400}>
-                  <ScatterChart
-                    margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                  >
-                    <CartesianGrid />
-                    <XAxis
-                      type="number"
-                      dataKey="x"
-                      name="Log Dose"
-                      label={{ value: "Log Dose", position: "insideBottomRight", offset: -10 }}
-                      domain={['auto', 'auto']}
-                    />
-                    <YAxis
-                      type="number"
-                      dataKey="y"
-                      name="Mean Viability (%)"
-                      label={{ value: "Mean Viability (%)", angle: -90, position: "insideLeft" }}
-                      domain={['auto', 'auto']}
-                    />
-                    <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                    <Scatter name="Viability" data={dataPoints} fill="#8884d8">
-                      <ErrorBar
-                        dataKey="y"
-                        width={4}
-                        strokeWidth={1}
-                        direction="y"
-                        data={dataPoints.map(p => [p.error, p.error])}
-                      />
-                    </Scatter>
-                  </ScatterChart>
-                </ResponsiveContainer>
-              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse border border-gray-300">
                   <thead>
@@ -1196,7 +1162,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.mean[index].toFixed(2)}
+                          {data.final_results.percent_viability_vs_nc.reverse_mean[index].toFixed(2)}
                         </td>
                       ))}
                     </tr>
@@ -1204,7 +1170,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2)}
+                          {data.final_results.percent_viability_vs_nc.reverse_std_dev[index].toFixed(2)}
                         </td>
                       ))}
                     </tr>
@@ -1356,7 +1322,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.mean[index].toFixed(2)}
+                          {data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index].toFixed(2)}
                         </td>
                       ))}
                     </tr>
@@ -1364,7 +1330,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2)}
+                          {data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index].toFixed(2)}
                         </td>
                       ))}
                     </tr>
@@ -1485,7 +1451,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                         {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.mean[index].toFixed(2)}
+                            {data.final_results.percent_viability_vs_nc.reverse_mean[index].toFixed(1)}
                           </td>
                         ))}
                       </tr>
@@ -1493,7 +1459,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                         {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2)}
+                            {data.final_results.percent_viability_vs_nc.reverse_std_dev[index].toFixed(1)}
                           </td>
                         ))}
                       </tr>
@@ -1595,7 +1561,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                         {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.mean[index].toFixed(2)}
+                            {data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index].toFixed(2)}
                           </td>
                         ))}
                       </tr>
@@ -1603,7 +1569,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                         {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2)}
+                            {data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index].toFixed(2)}
                           </td>
                         ))}
                       </tr>
@@ -1666,61 +1632,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
 
               </div>
 
-              <div className="overflow-x-auto ">
-                <h1 className="font-bold">Log dose response</h1>
-                <h2 className="font-bold">no of particles x10<sup>{getExponent(data.material.treatment_concentration_unit)}</sup>/mL</h2>
-                <hr />
-
-                <div className="border-2 border-black p-4 w-64 bg-white mt-8">
-                  <div className="flex flex-col items-center">
-                    <div className="w-full text-center mb-1">
-                      <span className="font-medium">R² = {data.final_results.r_squared.toFixed(4)}</span>
-                    </div>
-                    <div className="w-full text-center">
-                      <span className="font-medium">R = {data.final_results.r.toFixed(4)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto mt-4">
-                  <table className="min-w-full border-collapse border border-gray-300">
-                    <tbody>
-                      <tr>
-                        <td className="px-2 py-1 border border-gray-300 font-bold text-center">Log dose</td>
-                        {data.final_results.log_dose_dash.map((conc: number, index: number) => (
-                          <td key={index} className="px-2 py-1 border border-gray-300 text-center bg-gray-100">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
-                          </td>
-                        ))}
-                      </tr>
-                      <tr>
-                        <td className="px-2 py-1 border border-gray-300 font-bold text-center">Dose</td>
-                        {data.final_results.dose_dash.map((conc: number, index: number) => (
-                          <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
-                          </td>
-                        ))}
-                      </tr>
-                      <tr>
-                        <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
-                        {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
-                          <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.mean[index].toFixed(2)}
-                          </td>
-                        ))}
-                      </tr>
-                      <tr>
-                        <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
-                        {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
-                          <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2)}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
+              <div className="overflow-x-auto">
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">

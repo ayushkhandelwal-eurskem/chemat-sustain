@@ -47,6 +47,9 @@ interface RunData {
   peak_3_std_dev: number;
   peak_3_intensity: number;
   derived_count_rate: number;
+  test_identifier_number: string;
+  test_start_date: string;
+  test_end_date: string;
 }
 
 interface DLSData {
@@ -104,11 +107,6 @@ interface DLSData {
     refractive_index_medium: number;
     viscosity_medium: string;
   };
-  replications: {
-    test_identifier_number: string;
-    test_start_date: string;
-    test_end_date: string;
-  }[];
   run_data: RunData[];
   results: {
     z_ave_hydrodynamic_diameter: number;
@@ -148,18 +146,18 @@ function mapRunToPoints(run: RunData): {
   const correlationPoints: Point[] =
     Array.isArray(corr?.time_us) && Array.isArray(corr.correlation_coefficient)
       ? corr.time_us.map((t, i) => ({
-          x: t,
-          y: corr.correlation_coefficient[i] ?? 0,
-        }))
+        x: t,
+        y: corr.correlation_coefficient[i] ?? 0,
+      }))
       : [];
 
   const sd = run.size_distribution;
   const sizeDistributionPoints: Point[] =
     Array.isArray(sd?.size_nm) && Array.isArray(sd.mean_intensity_percent)
       ? sd.size_nm.map((s, i) => ({
-          x: s,
-          y: sd.mean_intensity_percent[i] ?? 0,
-        }))
+        x: s,
+        y: sd.mean_intensity_percent[i] ?? 0,
+      }))
       : [];
 
   return { correlationPoints, sizeDistributionPoints };
@@ -325,11 +323,10 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               (tab) => (
                 <li key={tab} className="z-30 flex-auto text-center">
                   <a
-                    className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${
-                      activeTab === tab
-                        ? "bg-blue-600 text-white shadow-md"
-                        : "text-slate-600 bg-inherit"
-                    }`}
+                    className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === tab
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-slate-600 bg-inherit"
+                      }`}
                     onClick={() => setActiveTab(tab)}
                     role="tab"
                     aria-selected={activeTab === tab}
@@ -337,10 +334,10 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     {tab === "test-conditions"
                       ? "Test Conditions"
                       : tab === "raw-data"
-                      ? "Raw Data"
-                      : tab === "processed-data"
-                      ? "Processed Data"
-                      : "Final Results"}
+                        ? "Raw Data"
+                        : tab === "processed-data"
+                          ? "Processed Data"
+                          : "Final Results"}
                   </a>
                 </li>
               )
@@ -574,7 +571,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 htmlFor="run-select"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Select Run:
+                Select Replication:
               </label>
               <select
                 id="run-select"
@@ -584,7 +581,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               >
                 {data.run_data.map((run, index) => (
                   <option key={index} value={index}>
-                    Run {run.run_number}
+                    Replication {run.run_number} - WP2_DLS_1aR{run.run_number}
                   </option>
                 ))}
               </select>
@@ -644,8 +641,6 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     <th className="py-2 px-4 border text-left">
                       Correlation Coefficient
                     </th>
-                    <th className="py-2 px-4 border text-left">Size (nm)</th>
-                    <th className="py-2 px-4 border text-left">Intensity (%)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -663,15 +658,6 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         <td className="py-2 px-4 border">
                           {data.run_data[selectedRun].correlation_data
                             .correlation_coefficient[index]?.toFixed(4) || "-"}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {data.run_data[selectedRun].size_distribution.size_nm[
-                            index
-                          ]?.toFixed(2) || "-"}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {data.run_data[selectedRun].size_distribution
-                            .mean_intensity_percent[index]?.toFixed(2) || "-"}
                         </td>
                       </tr>
                     )
@@ -706,7 +692,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 htmlFor="run-select-processed"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Select Run:
+                Select Replication:
               </label>
               <select
                 id="run-select-processed"
@@ -716,16 +702,15 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               >
                 {data.run_data.map((run, index) => (
                   <option key={index} value={index}>
-                    Run {run.run_number}
+                    Replication {run.run_number} - WP2_DLS_1aR{run.run_number}
                   </option>
                 ))}
               </select>
             </div>
-
             {/* Run Metrics */}
             <div className="mb-6 bg-blue-50 p-4 rounded-md">
               <h3 className="text-lg font-semibold mb-3">
-                Run {selectedRun + 1} Metrics
+                Results {selectedRun + 1}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -749,66 +734,54 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     kcps
                   </p>
                 </div>
-              </div>
-            </div>
-
-            {/* Peak Data */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">Peak Data</h3>
-              <div className="overflow-x-auto">
-                <table
-                  id="processedDataTable"
-                  className="min-w-full bg-white border border-gray-200"
-                >
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="py-2 px-4 border text-left">Peak</th>
-                      <th className="py-2 px-4 border text-left">
-                        Diameter (nm)
-                      </th>
-                      <th className="py-2 px-4 border text-left">
-                        Std Dev (nm)
-                      </th>
-                      <th className="py-2 px-4 border text-left">
-                        Intensity (%)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="py-2 px-4 border">Peak 1</td>
-                      <td className="py-2 px-4 border">
-                        {data.run_data[selectedRun].peak_1_diameter?.toFixed(2) ||
-                          "N/A"}
-                      </td>
-                      <td className="py-2 px-4 border">
-                        {data.run_data[selectedRun].peak_1_std_dev?.toFixed(2) ||
-                          "N/A"}
-                      </td>
-                      <td className="py-2 px-4 border">
-                        {data.run_data[selectedRun].peak_1_intensity?.toFixed(2) ||
-                          "N/A"}
-                      </td>
-                    </tr>
-                    {data.run_data[selectedRun].peak_2_diameter && (
-                      <tr>
-                        <td className="py-2 px-4 border">Peak 2</td>
-                        <td className="py-2 px-4 border">
-                          {data.run_data[selectedRun].peak_2_diameter?.toFixed(2) ||
-                            "N/A"}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {data.run_data[selectedRun].peak_2_std_dev?.toFixed(2) ||
-                            "N/A"}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {data.run_data[selectedRun].peak_2_intensity?.toFixed(2) ||
-                            "N/A"}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                <div>
+                  <p className="font-semibold">Peak 1 diameter by intensity:</p>
+                  <p>
+                    {data.run_data[selectedRun].peak_1_diameter?.toFixed(2) ||
+                      "N/A"}{" "}
+                    nm
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold">Standard deviation peak 1:</p>
+                  <p>
+                    {data.run_data[selectedRun].peak_1_std_dev?.toFixed(2) ||
+                      "N/A"}{" "}
+                    nm
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold">Peak 1 relative intensity:</p>
+                  <p>
+                    {data.run_data[selectedRun].peak_1_intensity?.toFixed(2) ||
+                      "N/A"}{" "}
+                    %
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold">Peak 2 diameter by intensity:</p>
+                  <p>
+                    {data.run_data[selectedRun].peak_2_diameter?.toFixed(2) ||
+                      "N/A"}{" "}
+                    nm
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold">Standard deviation peak 2:</p>
+                  <p>
+                    {data.run_data[selectedRun].peak_2_std_dev?.toFixed(2) ||
+                      "N/A"}{" "}
+                    nm
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold">Peak 2 relative intensity:</p>
+                  <p>
+                    {data.run_data[selectedRun].peak_2_intensity?.toFixed(2) ||
+                      "N/A"}{" "}
+                    %
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -889,56 +862,6 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 </table>
               </div>
             </div>
-
-            {/* Peak Intensities Table */}
-            <div className="mb-8">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Peak Intensities</h3>
-                <button
-                  onClick={() =>
-                    downloadTable(
-                      "peakIntensitiesTable",
-                      `Run_${selectedRun + 1}_Peak_Intensities`
-                    )
-                  }
-                  className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-                >
-                  <Download size={16} />
-                  <span>Download</span>
-                </button>
-              </div>
-              <div className="overflow-x-auto">
-                <table
-                  id="peakIntensitiesTable"
-                  className="min-w-full bg-white border border-gray-200"
-                >
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="py-2 px-4 border text-left">Peak</th>
-                      <th className="py-2 px-4 border text-left">Intensity (%)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="py-2 px-4 border">Peak 1</td>
-                      <td className="py-2 px-4 border">
-                        {data.run_data[selectedRun].peak_1_intensity?.toFixed(2) ||
-                          "N/A"}
-                      </td>
-                    </tr>
-                    {data.run_data[selectedRun].peak_2_intensity && (
-                      <tr>
-                        <td className="py-2 px-4 border">Peak 2</td>
-                        <td className="py-2 px-4 border">
-                          {data.run_data[selectedRun].peak_2_intensity?.toFixed(2) ||
-                            "N/A"}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </div>
         )}
 
@@ -958,7 +881,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
 
             {/* Summary Metrics */}
             <div className="mb-6 bg-blue-50 p-4 rounded-md">
-              <h3 className="text-lg font-semibold mb-3">Summary Metrics</h3>
+              <h3 className="text-lg font-semibold mb-3">Final Results</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <p className="font-semibold">Z-Average Diameter:</p>
@@ -979,73 +902,42 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                   <p className="font-semibold">Derived Count Rate:</p>
                   <p>{data.results.derived_count_rate?.toFixed(2)} kcps</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Peak Data */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">Peak Data</h3>
-              <div className="overflow-x-auto">
-                <table
-                  id="resultsTable"
-                  className="min-w-full bg-white border border-gray-200"
-                >
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="py-2 px-4 border text-left">Peak</th>
-                      <th className="py-2 px-4 border text-left">
-                        Mean Diameter (nm)
-                      </th>
-                      <th className="py-2 px-4 border text-left">
-                        Pooled Std Dev (nm)
-                      </th>
-                      <th className="py-2 px-4 border text-left">
-                        Std Dev Between Measurements (nm)
-                      </th>
-                      <th className="py-2 px-4 border text-left">
-                        Mean Intensity (%)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="py-2 px-4 border">Peak 1</td>
-                      <td className="py-2 px-4 border">
-                        {data.results.mean_peak_1_diameter?.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-4 border">
-                        {data.results.pooled_std_dev_peak_1?.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-4 border">
-                        {data.results.std_dev_between_measurements_peak_1?.toFixed(
-                          2
-                        )}
-                      </td>
-                      <td className="py-2 px-4 border">
-                        {data.results.mean_peak_1_intensity?.toFixed(2)}
-                      </td>
-                    </tr>
-                    {data.results.mean_peak_2_diameter && (
-                      <tr>
-                        <td className="py-2 px-4 border">Peak 2</td>
-                        <td className="py-2 px-4 border">
-                          {data.results.mean_peak_2_diameter?.toFixed(2)}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {data.results.pooled_std_dev_peak_2?.toFixed(2)}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {data.results.std_dev_between_measurements_peak_2?.toFixed(
-                            2
-                          )}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {data.results.mean_peak_2_intensity?.toFixed(2)}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                <div>
+                  <p className="font-semibold">Mean peak 1 diameter by intensity:</p>
+                  <p>{data.results.mean_peak_1_diameter?.toFixed(2)} nm</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Pooled standard deviation peak 1:</p>
+                  <p>{data.results.pooled_std_dev_peak_1?.toFixed(2)} nm</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Standard deviation between measurements peak 1:</p>
+                  <p>{data.results.std_dev_between_measurements_peak_1?.toFixed(
+                    2
+                  )} kcps</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Mean peak 1 relative intensity:</p>
+                  <p>{data.results.mean_peak_1_intensity?.toFixed(2)} %</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Mean peak 2 diameter by intensity:</p>
+                  <p>{data.results.mean_peak_2_diameter?.toFixed(2)} nm</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Pooled standard deviation peak 2:</p>
+                  <p>{data.results.pooled_std_dev_peak_2?.toFixed(2)} %</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Standard deviation between measurements peak 2:</p>
+                  <p>{data.results.std_dev_between_measurements_peak_2?.toFixed(
+                    2
+                  )}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Mean peak 2 relative intensity:</p>
+                  <p>{data.results.mean_peak_2_intensity?.toFixed(2)} %</p>
+                </div>
               </div>
             </div>
 
@@ -1084,48 +976,6 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 </table>
               </div>
             </div>
-
-            {/* Peak Intensity Bar Chart */}
-            {typeof window !== "undefined" && (
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Peak Intensities</h3>
-                <Chart
-                  options={{
-                    chart: { id: "peak-intensities", type: "bar" },
-                    title: { text: "Mean Peak Intensities", align: "center" },
-                    plotOptions: { bar: { columnWidth: "20%", horizontal: false } },
-                    dataLabels: { enabled: false },
-                    colors: ["#2E8DEF"],
-                    yaxis: { title: { text: "Intensity (%)" } },
-                    xaxis: {
-                      title: { text: "Peak" },
-                      categories: ["Peak 1", "Peak 2", "Peak 3"].slice(
-                        0,
-                        [
-                          data.results.mean_peak_1_intensity,
-                          data.results.mean_peak_2_intensity,
-                          data.results.mean_peak_3_intensity,
-                        ].filter(Boolean).length
-                      ),
-                    },
-                  }}
-                  series={[
-                    {
-                      name: "Intensity",
-                      data: [
-                        data.results.mean_peak_1_intensity,
-                        data.results.mean_peak_2_intensity,
-                        data.results.mean_peak_3_intensity,
-                      ]
-                        .filter(Boolean)
-                        .map((v) => Number(v?.toFixed(1))),
-                    },
-                  ]}
-                  type="bar"
-                  height={365}
-                />
-              </div>
-            )}
           </div>
         )}
       </div>

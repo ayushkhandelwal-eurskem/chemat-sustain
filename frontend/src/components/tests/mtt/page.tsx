@@ -265,8 +265,12 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="py-2 px-4 border font-medium">Identifier</td>
-                        <td className="py-2 px-4 border">{data.material.material_identifier}</td>
+                        <td className="py-2 px-4 border font-medium">Material Identifier</td>
+                        <td className="py-2 px-4 border">{element}</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 border font-medium">ERM Identifier</td>
+                        <td className="py-2 px-4 border">{data.material.erm_id}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Core Chemistry</td>

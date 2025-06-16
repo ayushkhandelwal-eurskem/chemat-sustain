@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import HTTPException, Depends
+from utils.custom_router import APIRouter
 import os 
 from typing import List
 from parsers.mtt import parse_excel_mtt

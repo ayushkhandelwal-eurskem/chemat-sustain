@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from fastapi import Depends, HTTPException, status, Request, Response
+from utils.custom_router import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.schemas.user import (
     UserCreate, UserOut, LoginRequest, VerifyOTPRequest, 

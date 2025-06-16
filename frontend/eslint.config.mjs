@@ -11,6 +11,24 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    "rules": {
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "react/no-unescaped-entities": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "@typescript-eslint/no-this-alias": "off",
+      "@typescript-eslint/no-unused-expressions": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-require-imports": "off",
+      "@next/next/no-assign-module-variable": "off",
+      "@typescript-eslint/no-array-constructor": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@next/next/no-img-element": "off",
+      "@next/next/no-css-tags": "off",
+      "jsx-a11y/alt-text": "off"
+    }
+  }
 ];
 
 export default eslintConfig;

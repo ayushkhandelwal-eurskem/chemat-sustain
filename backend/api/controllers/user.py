@@ -1,0 +1,147 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from api.schemas.user import (
+    UserCreate, UserOut, LoginRequest, VerifyOTPRequest, 
+    ChangePasswordRequest, TokenResponse, MessageResponse, Role
+)
+from api.services.user import (
+    create_user, authenticate_user, send_otp, verify_otp,
+    change_password, update_last_activity, get_user_by_email
+)
+from utils.auth import get_current_user, get_user_by_role, create_session, invalidate_session
+from utils.db import get_db
+from api.models.user import User
+from typing import List
+
+router = APIRouter()
+
+@router.post("/", response_model=UserOut)
+async def create_new_user(user: UserCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Create a new user (admin only)"""
+    if current_user.role != Role.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    db_user = await create_user(db=db, user=user)
+    return db_user
+
+@router.post("/login", response_model=MessageResponse)
+async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """User login with email and password"""
+    user = await authenticate_user(db=db, email=login_data.email, password=login_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+
+    # Send OTP
+    success, message = await send_otp(db, login_data.email)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=message
+        )
+
+    return MessageResponse(msg="OTP sent to email")
+
+@router.post("/verify-otp", response_model=MessageResponse)
+async def verify_otp_endpoint(otp_data: VerifyOTPRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    """Verify OTP code and create session"""
+    print(f"OTP verification attempt for email: {otp_data.email} with code: {otp_data.otp_code}")
+    
+    # First check if user exists
+    user = await get_user_by_email(db, otp_data.email)
+    if not user:
+        print(f"User not found during OTP verification: {otp_data.email}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Verify OTP
+    is_valid = await verify_otp(db, otp_data.email, otp_data.otp_code)
+    if not is_valid:
+        print(f"OTP verification failed for user: {otp_data.email}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OTP"
+        )
+
+    print(f"OTP verification successful for user: {otp_data.email}")
+    
+    # Update last activity
+    await update_last_activity(db=db, email=otp_data.email)
+
+    # Create session
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    session = await create_session(db, user.id, user_agent, ip_address)
+    
+    # Set session cookie
+    response.set_cookie(
+        key="session_id",
+        value=session.session_id,
+        max_age=7*24*60*60,  # 7 days in seconds
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax"
+    )
+    
+    print(f"Session created successfully for user: {otp_data.email}")
+    return MessageResponse(msg="Login successful")
+
+@router.post("/logout", response_model=MessageResponse)
+async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Logout user and invalidate session"""
+    # Get session ID from cookie
+    session_id = request.cookies.get("session_id")
+    if session_id:
+        await invalidate_session(db, session_id)
+    
+    # Clear session cookie
+    response.delete_cookie(key="session_id")
+    
+    return MessageResponse(msg="Logout successful")
+
+@router.post("/change-password", response_model=MessageResponse)
+async def change_user_password(password_data: ChangePasswordRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Change user's password (admin or self)"""
+    # Admin can change any user's password, user can only change their own
+    if current_user.role != Role.admin and current_user.email != password_data.email:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden"
+        )
+
+    user = await change_password(db=db, email=password_data.email, new_password=password_data.new_password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return MessageResponse(msg="Password changed successfully")
+
+@router.get("/me", response_model=UserOut)
+def read_users_me(current_user: User = Depends(get_current_user)):
+    """Get current user info"""
+    return current_user
+
+@router.get("/admin", response_model=List[UserOut])
+async def read_all_users(db: AsyncSession = Depends(get_db),
+                   current_user: User = Depends(get_user_by_role(Role.admin))):
+    """Get all users (admin only)"""
+    from api.services.user import get_users
+    users = await get_users(db)
+    return users
+
+
+@router.get("/{email}", response_model=UserOut)
+async def read_user_by_email(email: str, db: AsyncSession = Depends(get_db),
+                       current_user: User = Depends(get_user_by_role(Role.admin))):
+    """Get user info by email (admin only)"""
+    db_user = await get_user_by_email(db, email)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return db_user

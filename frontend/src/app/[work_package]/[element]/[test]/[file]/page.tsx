@@ -5,12 +5,12 @@ import { FC } from 'react';
 import DLSDataViewer from '@/components/tests/dls/page';
 // Define the props type for the page component
 interface PageProps {
-  params: {
+  params: Promise<{
     work_package: string;
     element: string;
     test: string;
     file: string;
-  };
+  }>;
 }
 
 // Create the page component

@@ -1,18 +1,46 @@
-"use client"
+'use client';
+
+import { useAuth } from '@/contexts/AuthContext';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowUpDown, FileText, Download, Eye } from 'lucide-react';
 import { api } from '@/lib/axios';
 import Link from 'next/link';
 
 export default function Home() {
+  const { user, loading } = useAuth();
+
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center bg-white">
+  //       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+  //     </div>
+  //   );
+  // }
+
   return (
-    <div className="bg-white">
-      <div className="container mx-auto min-h-screen">
-        <h1 className="text-4xl font-bold text-center px-16 pt-15 text-blue-900">Chemat Sustain Database</h1>
-        <p className="text-center text-blue-300 pt-8">Search data</p>
-        <ProtocolFilters />
+    <ProtectedRoute>
+      <div className="bg-white">
+        <div className="container mx-auto min-h-screen">
+          <h1 className="text-4xl font-bold text-center px-16 pt-15 text-blue-900">Chemat Sustain Database</h1>
+          <p className="text-center text-blue-300 pt-8">Search data</p>
+          
+          {/* User Welcome Section */}
+          {user && (
+            <div className="text-center mb-8 bg-blue-50 p-4 rounded-lg mx-4">
+              <p className="text-blue-800">
+                Welcome back, <span className="font-semibold">{user.email}</span>
+                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {user.role}
+                </span>
+              </p>
+            </div>
+          )}
+          
+          <ProtocolFilters />
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }
 

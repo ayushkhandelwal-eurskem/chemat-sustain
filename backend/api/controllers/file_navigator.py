@@ -1,12 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 import os 
 from typing import List
 from parsers.mtt import parse_excel_mtt
 from parsers.dls import parse_excel_dls
+from utils.auth import get_current_user
 # Base directory for folder navigation - change to your target path
 BASE_DIR = os.path.join(os.getcwd(), "data")
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.get("/", response_model=List[str])

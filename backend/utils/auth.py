@@ -102,7 +102,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db),
     from sqlalchemy import select
     result = await db.execute(select(User).filter(User.id == session.user_id))
     user = result.scalars().first()
-    
+    user.last_activity = datetime.now()
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -113,7 +113,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db),
 
 def get_user_by_role(role: Role):
     async def check_role(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-        current_user.last_activity = datetime.utcnow()
+        current_user.last_activity = datetime.now()
         await db.commit()
         if current_user.role != role:
             raise HTTPException(

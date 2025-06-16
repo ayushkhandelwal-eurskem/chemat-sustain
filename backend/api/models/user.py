@@ -11,7 +11,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password = Column(String)
     role = Column(Enum(Role), default=Role.user)
-    last_activity = Column(DateTime(timezone=True), server_default=func.now())
+    last_activity = Column(DateTime(timezone=True))
     otp_secret = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
 

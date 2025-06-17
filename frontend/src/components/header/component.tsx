@@ -50,7 +50,7 @@ export default function Header() {
   return (
     <header className="bg-sky-100 shadow-sm">
       {/* Top bar with newsletter and social links */}
-      <div className="w-full bg-white">
+      {/* <div className="w-full bg-white">
         <div className="max-w-7xl mx-auto px-4 py-2 flex flex-row items-center justify-between">
           <div className="w-full flex items-center space-x-4">
             <p className="text-xs text-blue-800 text-left">
@@ -84,7 +84,7 @@ export default function Header() {
 
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Main navigation */}
       <nav className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between">

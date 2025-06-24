@@ -134,8 +134,8 @@ async def update_last_activity(db: AsyncSession, email: str):
 
 async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100, search_email: str = None):
     """Get a list of users with pagination and optional email search"""
-    query = select(User)
+    query = select(User).order_by(User.id)
     if search_email:
-        query = query.filter(User.email.ilike(f"%{search_email}%")).order_by(User.id)
+        query = query.filter(User.email.ilike(f"%{search_email}%"))
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()

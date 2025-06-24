@@ -136,6 +136,6 @@ async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100, search_em
     """Get a list of users with pagination and optional email search"""
     query = select(User)
     if search_email:
-        query = query.filter(User.email.ilike(f"%{search_email}%"))
+        query = query.filter(User.email.ilike(f"%{search_email}%")).order_by(User.id)
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()

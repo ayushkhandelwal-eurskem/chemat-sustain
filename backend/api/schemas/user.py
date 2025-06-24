@@ -19,7 +19,7 @@ class UserCreate(UserBase):
 
 class UserOut(UserBase):
     id: int
-    last_activity: datetime
+    last_activity:  Optional[datetime] = None
     is_active: bool
 
     class Config:

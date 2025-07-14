@@ -21,7 +21,6 @@ interface PageProps {
   work_package: string;
   element: string;
   test: string;
-  file: string;
 }
 
 interface Replication {
@@ -45,7 +44,7 @@ interface RawData {
   p650: number;
 }
 
-const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => {
+const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -59,25 +58,31 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/files/${work_package}/${element}/${test}/${file}`);
+        const response = await api.post(`/tests/listings`, {
+          "work_package_name": work_package,
+          "element_cms_id": element,
+          "test_name": test
+        });
         if (response.status !== 200) {
           throw new Error('Network response was not ok');
         }
         const result = response.data;
         setData(result);
-        const dataPoints = result.final_results.log_dose
-          .map((x: number, i: number) => {
-            if (typeof x === "number") {
-              return {
-                x,
-                y: result.final_results.percent_viability_vs_nc.mean[i],
-                error: result.final_results.percent_viability_vs_nc.std_dev[i],
-              };
-            }
-            return null;
-          })
-          .filter(Boolean) as { x: number; y: number; error: number }[];
-        console.log("Data Points:", dataPoints);
+        if (result.final_results) {
+          const dataPoints = result.final_results.log_dose
+            .map((x: number, i: number) => {
+              if (typeof x === "number") {
+                return {
+                  x,
+                  y: result.final_results.percent_viability_vs_nc.mean[i],
+                  error: result.final_results.percent_viability_vs_nc.std_dev[i],
+                };
+              }
+              return null;
+            })
+            .filter(Boolean) as { x: number; y: number; error: number }[];
+        }
+
         setDataPoints(dataPoints);
         setLoading(false);
       } catch (error) {
@@ -87,7 +92,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
       }
     };
     fetchData();
-  }, [work_package, element, test, file]);
+  }, [work_package, element, test]);
 
   const downloadTable = (tableId: string, filename: string) => {
     const table = document.getElementById(tableId);
@@ -131,7 +136,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="bg-white flex items-center justify-center min-h-screen">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>{error}</p>
         </div>
@@ -160,33 +165,30 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 <p className="mb-2">
                   <span className="font-semibold">Test:</span> {test}
                 </p>
-                <p>
-                  <span className="font-semibold">File:</span> {file}
-                </p>
               </div>
             </div>
 
-            {data.work_package && (
+            {data.test_details && data.test_details.work_package && (
               <div>
                 <h2 className="text-lg font-semibold mb-3">Test Information</h2>
                 <div className="bg-blue-50 p-4 rounded-md">
                   <p className="mb-2">
-                    <span className="font-semibold">Full Test Name:</span> {data.work_package.full_test_name}
+                    <span className="font-semibold">Full Test Name:</span> {data.test_details.work_package.full_test_name}
                   </p>
                   <p className="mb-2">
-                    <span className="font-semibold">ERM Identifier:</span> {data.material.erm_id}
+                    <span className="font-semibold">ERM Identifier:</span> {data.test_details.material.erm_id}
                   </p>
                   <p className="mb-2">
-                    <span className="font-semibold">Test Acronym:</span> {data.work_package.test_acronym}
+                    <span className="font-semibold">Test Acronym:</span> {data.test_details.work_package.test_acronym}
                   </p>
                   <p className="mb-2">
-                    <span className="font-semibold">Test Type:</span> {data.work_package.test_type}
+                    <span className="font-semibold">Test Type:</span> {data.test_details.work_package.test_type}
                   </p>
                   <p className="mb-2">
-                    <span className="font-semibold">Endpoint:</span> {data.work_package.endpoint}
+                    <span className="font-semibold">Endpoint:</span> {data.test_details.work_package.endpoint}
                   </p>
                   <p>
-                    <span className="font-semibold">SOP:</span> {data.work_package.sop}
+                    <span className="font-semibold">SOP:</span> {data.test_details.work_package.sop}
                   </p>
                 </div>
               </div>
@@ -196,7 +198,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
         <div className="w-full mb-8">
           <div className="relative">
             <ul className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100" role="list">
-              <li className="z-30 flex-auto text-center">
+              {data.test_details && <li className="z-30 flex-auto text-center">
                 <a
                   className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === "test-conditions" ? "bg-blue-600 text-white shadow-md" : "text-slate-600 bg-inherit"}`}
                   onClick={() => setActiveTab("test-conditions")}
@@ -205,8 +207,8 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 >
                   Test Conditions
                 </a>
-              </li>
-              <li className="z-30 flex-auto text-center">
+              </li>}
+              {data.raw_data && <li className="z-30 flex-auto text-center">
                 <a
                   className={`z-30 flex items-center justify-center w-full px-0 py-2 mb-0 text-sm transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === "raw-data" ? "bg-blue-600 text-white shadow-md" : "text-slate-600 bg-inherit"}`}
                   onClick={() => setActiveTab("raw-data")}
@@ -215,8 +217,8 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 >
                   Raw Data
                 </a>
-              </li>
-              <li className="z-30 flex-auto text-center">
+              </li>}
+              {data.processed_data && <li className="z-30 flex-auto text-center">
                 <a
                   className={`z-30 flex items-center justify-center w-full px-0 py-2 mb-0 text-sm transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === "processed-data" ? "bg-blue-600 text-white shadow-md" : "text-slate-600 bg-inherit"}`}
                   onClick={() => setActiveTab("processed-data")}
@@ -225,8 +227,8 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 >
                   Processed Data
                 </a>
-              </li>
-              <li className="z-30 flex-auto text-center">
+              </li>}
+              {data.final_results && <li className="z-30 flex-auto text-center">
                 <a
                   className={`z-30 flex items-center justify-center w-full px-0 py-2 mb-0 text-sm transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === "final-results" ? "bg-blue-600 text-white shadow-md" : "text-slate-600 bg-inherit"}`}
                   onClick={() => setActiveTab("final-results")}
@@ -235,7 +237,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 >
                   Final results
                 </a>
-              </li>
+              </li>}
             </ul>
           </div>
         </div>
@@ -243,7 +245,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
         {activeTab === "test-conditions" && (
           <>
             {/* Material Information */}
-            {data.material && (
+            {data.test_details.material && (
               <div className="bg-white rounded-lg shadow-md p-6 mb-8">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-blue-800">Material Information</h2>
@@ -270,35 +272,35 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">ERM Identifier</td>
-                        <td className="py-2 px-4 border">{data.material.erm_id}</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.erm_id}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Core Chemistry</td>
-                        <td className="py-2 px-4 border">{data.material.core_chemistry}</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.core_chemistry}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Material State</td>
-                        <td className="py-2 px-4 border">{data.material.material_state}</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.material_state}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Batch</td>
-                        <td className="py-2 px-4 border">{data.material.batch}</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.batch}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Preparation Date</td>
-                        <td className="py-2 px-4 border">{new Date(data.material.preparation_date).toLocaleDateString()}</td>
+                        <td className="py-2 px-4 border">{new Date(data.test_details.material.preparation_date).toLocaleDateString()}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Endotoxin Absent</td>
-                        <td className="py-2 px-4 border">{data.material.endotoxin_absent}</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.endotoxin_absent}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Particles Stock</td>
-                        <td className="py-2 px-4 border">{data.material.particles_stock}</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.particles_stock}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Aids to Disperse</td>
-                        <td className="py-2 px-4 border">{data.material.aids_to_disperse}</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.aids_to_disperse}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -325,7 +327,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       <tr className="bg-gray-100">
                         <th className="py-2 px-4 border text-left">Label</th>
                         <th className="py-2 px-4 border text-left">Concentration (μg/mL)</th>
-                        <th className="py-2 px-4 border text-left">Particles (×10<sup>{getExponent(data.material.treatment_concentration_unit)}</sup> /mL)</th>
+                        <th className="py-2 px-4 border text-left">Particles (×10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup> /mL)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -336,7 +338,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                             {data.treatment_concentration_data.treatment_concentration_series_c_in_g_ml_[index]}
                           </td>
                           <td className="py-2 px-4 border">
-                            {data.treatment_concentration_data["treatment_concentration_series_c_no_of_particles_x10_" + getExponent(data.material.treatment_concentration_unit) + "_ml_"][index]}
+                            {data.treatment_concentration_data["treatment_concentration_series_c_no_of_particles_x10_" + getExponent(data.test_details.material.treatment_concentration_unit) + "_ml_"][index]}
                           </td>
                         </tr>
                       ))}
@@ -441,7 +443,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
             )}
 
             {/* Scientists Information */}
-            {data.work_package && (
+            {data.test_details.work_package && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-blue-800">Scientists Information</h2>
@@ -464,7 +466,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         </tr>
                       </thead>
                       <tbody>
-                        {data.work_package.lead_scientists.map((scientist: any, index: number) => (
+                        {data.test_details.work_package.lead_scientists.map((scientist: any, index: number) => (
                           <tr key={index}>
                             <td className="py-2 px-4 border">{scientist.name}</td>
                             <td className="py-2 px-4 border">{scientist.email}</td>
@@ -483,7 +485,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         </tr>
                       </thead>
                       <tbody>
-                        {data.work_package.assay_scientists.map((scientist: any, index: number) => (
+                        {data.test_details.work_package.assay_scientists.map((scientist: any, index: number) => (
                           <tr key={index}>
                             <td className="py-2 px-4 border">{scientist.name}</td>
                             <td className="py-2 px-4 border">{scientist.email}</td>
@@ -499,7 +501,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
         )}
 
         {/* Raw Data Tab Content */}
-        {activeTab === "raw-data" && data.replications && (
+        {activeTab === "raw-data" && data.raw_data && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-blue-800">Raw Test Data</h2>
@@ -512,7 +514,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               </button>
             </div>
 
-            {data.replications.length > 0 && (
+            {data.raw_data.length > 0 && (
               <>
                 <div className="mb-6">
                   <label htmlFor="replication-select" className="block text-sm font-medium text-gray-700 mb-2">
@@ -524,7 +526,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     onChange={(e) => setSelectedReplication(Number(e.target.value))}
                     className="w-full md:w-1/3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
                   >
-                    {data.replications.map((rep: any, index: number) => (
+                    {data.raw_data.map((rep: any, index: number) => (
                       <option key={index} value={index}>
                         {rep.replication.no_of_replicate} - {rep.replication.test_identifier_number}
                       </option>
@@ -537,15 +539,15 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <p className="font-semibold">Test Identifier:</p>
-                      <p>{data.replications[selectedReplication].replication.test_identifier_number}</p>
+                      <p>{data.raw_data[selectedReplication].replication.test_identifier_number}</p>
                     </div>
                     <div>
                       <p className="font-semibold">Start Date:</p>
-                      <p>{new Date(data.replications[selectedReplication].replication.test_start_date).toLocaleDateString()}</p>
+                      <p>{new Date(data.raw_data[selectedReplication].replication.test_start_date).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <p className="font-semibold">End Date:</p>
-                      <p>{new Date(data.replications[selectedReplication].replication.test_end_date).toLocaleDateString()}</p>
+                      <p>{new Date(data.raw_data[selectedReplication].replication.test_end_date).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </div>
@@ -565,7 +567,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       </tr>
                     </thead>
                     <tbody>
-                      {data.replications[selectedReplication].raw_data.map((row: RawData, index: number) => (
+                      {data.raw_data[selectedReplication].raw_data.map((row: RawData, index: number) => (
                         <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                           <td className="py-2 px-4 border">{row.plate}</td>
                           <td className="py-2 px-4 border">{row.repeat}</td>
@@ -586,7 +588,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
         )}
 
         {/* Processed Data Tab Content */}
-        {activeTab === "processed-data" && data.replications && (
+        {activeTab === "processed-data" && data.raw_data && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-blue-800">Processed Data</h2>
@@ -1277,7 +1279,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         </td>
                       ))}
                       <td className="px-2 py-1 border border-gray-300 text-center">
-                        ×10<sup>{getExponent(data.material.treatment_concentration_unit)}</sup> particles/mL
+                        ×10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup> particles/mL
                       </td>
                     </tr>
                     <tr>
@@ -1306,7 +1308,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                   <thead>
                     <tr className="bg-gray-100">
                       <th colSpan={10} className="px-2 py-1 border border-gray-300 text-center">
-                        No of particles x10<sup>{getExponent(data.material.treatment_concentration_unit)}</sup>/mL
+                        No of particles x10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup>/mL
                       </th>
                     </tr>
                   </thead>
@@ -1319,7 +1321,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         </td>
                       ))}
                       <td className="px-2 py-1 border border-gray-300 text-center">
-                        ×10<sup>{getExponent(data.material.treatment_concentration_unit)}</sup> particles/mL
+                        ×10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup> particles/mL
                       </td>
                     </tr>
                     <tr>
@@ -1388,7 +1390,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     },
                     xaxis: {
                       title: {
-                        text: `no of particles x10^${getExponent(data.material.treatment_concentration_unit)}/AL`,
+                        text: `no of particles x10^${getExponent(data.test_details.material.treatment_concentration_unit)}/AL`,
                         style: {
                           fontSize: '12px'
                         }
@@ -1528,7 +1530,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
 
               <div className="overflow-x-auto ">
                 <h1 className="font-bold">Log dose response</h1>
-                <h2 className="font-bold">no of particles x10<sup>{getExponent(data.material.treatment_concentration_unit)}</sup>/mL</h2>
+                <h2 className="font-bold">no of particles x10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup>/mL</h2>
                 <hr />
 
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">

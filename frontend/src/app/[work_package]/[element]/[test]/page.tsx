@@ -22,13 +22,12 @@ const DynamicRoutePage: FC<PageProps> = async ({ params }) => {
   const work_package = decodeURIComponent(decodedParams.work_package);
   const element = decodeURIComponent(decodedParams.element);
   const test = decodeURIComponent(decodedParams.test);
-  const file = decodeURIComponent(decodedParams.file);
   
   if (test.toLowerCase() === "mtt") {
-    return (<MTTDataViewer work_package={work_package} element={element} test={test} file={file} />);
+    return (<MTTDataViewer work_package={work_package} element={element} test={test} />);
   }
   if (test.toLocaleLowerCase() === "dls"){
-    return (<DLSDataViewer work_package={work_package} element={element} test={test} file={file}></DLSDataViewer>)
+    return (<DLSDataViewer work_package={work_package} element={element} test={test} file={""}></DLSDataViewer>)
   }
 };
 

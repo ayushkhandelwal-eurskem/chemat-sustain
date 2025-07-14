@@ -6,7 +6,7 @@ from utils.db import get_db
 from api.models.user import User
 from api.schemas.user import UserOut, Role
 import os
-import uuid
+from sqlalchemy import select
 import secrets
 from dotenv import load_dotenv
 # Load environment variables from .env file
@@ -99,7 +99,6 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db),
         )
     
     # Get user
-    from sqlalchemy import select
     result = await db.execute(select(User).filter(User.id == session.user_id))
     user = result.scalars().first()
     user.last_activity = datetime.now()
@@ -121,3 +120,22 @@ def get_user_by_role(role: Role):
             )
         return current_user
     return check_role
+
+async def check_if_private_user(request: Request, db: AsyncSession = Depends(get_db), session_id: str = Cookie(None, alias="session_id")):
+    if not session_id:
+        return False
+    session = await get_session_by_id(db, session_id)
+
+    if not session or not session.is_valid():
+        return False
+    
+    # Get user
+    result = await db.execute(select(User).filter(User.id == session.user_id))
+    user = result.scalars().first()
+    user.last_activity = datetime.now()
+    if not user or not user.is_active:
+        return False
+    
+    return True
+
+

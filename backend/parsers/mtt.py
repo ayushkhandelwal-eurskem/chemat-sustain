@@ -216,14 +216,14 @@ class MTTParser:
                     entry["Email"] = email_cell
 
                 if key and "lead_scientist_contact_for_test_" in key:
-                    lead_scientists.append(Scientist(name=value_cell, email=email_cell))
+                    lead_scientists.append(asdict(Scientist(name=value_cell, email=email_cell)))
 
                 if key and "assay_test_work_conducted_by_" in key:
-                    assay_scientists.append(Scientist(name=value_cell, email=email_cell))
+                    assay_scientists.append(asdict(Scientist(name=value_cell, email=email_cell)))
 
                 data.append(entry)
 
-        wp_data = WorkPackageData(
+        wp_data = asdict(WorkPackageData(
             wp_name=next((d["Value"] for d in data if d["Key"] == "project_work_package_"), None),
             partner=next((d["Value"] for d in data if d["Key"] == "partner_conducting_test_assay_"), None),
             full_test_name=next((d["Value"] for d in data if d["Key"] == "full_name_of_test_assay_add_oecd_test_ref_id_if_app_"), None),
@@ -234,7 +234,7 @@ class MTTParser:
             path=next((d["Value"] for d in data if d["Key"] == "path_link_to_sop_protocol_on_proj_server_web_where_applic_"), None),
             lead_scientists=lead_scientists,
             assay_scientists=assay_scientists
-        )
+        ))
 
         return wp_data
 
@@ -249,7 +249,7 @@ class MTTParser:
             key = self.normalize_key(key_cell)
             data.append({"Key": key, "Value": value_cell})
 
-        material_data = MaterialData(
+        material_data = asdict(MaterialData(
             material_identifier=next((d["Value"] for d in data if d["Key"] == "test_material_details"), None),
             erm_id=next((d["Value"] for d in data if d["Key"] == "erm_identifier_number_"), None),
             core_chemistry=next((d["Value"] for d in data if d["Key"] == "core_chemistry_"), None),
@@ -262,7 +262,7 @@ class MTTParser:
             time_point_unit=next((d["Value"] for d in data if d["Key"] == "time_point_unit_"), None),
             treatment_concentration_unit=next((d["Value"] for d in data if d["Key"] == "treatment_concentration_series_unit_"), None),
             positive_controls_abbr=next((d["Value"] for d in data if d["Key"] == "positive_controls_abbreviations_"), None)
-        )
+        ))
 
         return material_data
     
@@ -295,12 +295,12 @@ class MTTParser:
             if row[0].value is None or not str(row[0].value).startswith("WP"):
                 break
             
-            replication = ReplicationData(
+            replication = asdict(ReplicationData(
                 test_identifier_number=row[0].value,
                 test_start_date=row[1].value,
                 test_end_date=row[2].value,
                 no_of_replicate=row[3].value
-            )
+            ))
             replications.append(replication)
 
         return replications
@@ -317,7 +317,7 @@ class MTTParser:
             if all(cell.value is None for cell in row):
                 break
             
-            raw_record = RawData(
+            raw_record = asdict(RawData(
                 plate=row[0].value,
                 repeat=row[1].value,
                 well=row[2].value,
@@ -326,7 +326,7 @@ class MTTParser:
                 p570=row[5].value,
                 time_2=row[6].value,
                 p650=row[7].value
-            )
+            ))
             raw_data.append(raw_record)
 
         return raw_data
@@ -426,7 +426,7 @@ class MTTParser:
         # Convert labels to LabelData objects
         label_objects = []
         for label in labels:
-            label_obj = LabelData(
+            label_obj = asdict(LabelData(
                 name=label.get("name_of_the_label"),
                 technology=label.get("label_technology"),
                 clamp_filter_name=label.get("cw_lamp_filter_name"),
@@ -434,11 +434,11 @@ class MTTParser:
                 measurement_time=label.get("measurement_time_value"),
                 absorbance_mode=label.get("absorbance_mode"),
                 excitation_aperture=label.get("excitation_aperture")
-            )
+            ))
             label_objects.append(label_obj)
 
         # Convert plate map to PlateMapData
-        plate_map_data = PlateMapData(
+        plate_map_data = asdict(PlateMapData(
             column_1=plate_map[0] if len(plate_map) > 0 else None,
             column_2=plate_map[1] if len(plate_map) > 1 else None,
             column_3=plate_map[2] if len(plate_map) > 2 else None,
@@ -447,10 +447,10 @@ class MTTParser:
             column_6=plate_map[5] if len(plate_map) > 5 else None,
             column_7=plate_map[6] if len(plate_map) > 6 else None,
             column_8=plate_map[7] if len(plate_map) > 7 else None
-        )
+        ))
 
         protocol_details = {
-            'protocol': ProtocolData(
+            'protocol': asdict(ProtocolData(
                 protocol_name=protocol_desc_data["protocol_name"],
                 protocol_number=protocol_desc_data["protocol_number"],
                 name_of_the_plate_type=protocol_desc_data["name_of_the_plate_type"],
@@ -462,7 +462,7 @@ class MTTParser:
                 shaking_diameter=protocol_desc_data["shaking_diameter"],
                 shaking_type=protocol_desc_data["shaking_type"],
                 repeated_operation=protocol_desc_data["repeated_operation"]
-            ),
+            )),
             'labels': label_objects,
             'plate_map': plate_map_data
         }
@@ -507,11 +507,11 @@ class MTTParser:
                     for idx, conc in enumerate(concentrations)}
             
             # Get acceptance status for CV
-            cv_acceptance = AcceptanceCriteria(
+            cv_acceptance = asdict(AcceptanceCriteria(
                 criteria_type="CV",
                 threshold=20.0,
                 status=sheet.cell(row=17, column=7).value
-            )
+            ))
             
             # Parse 650nm absorbance data
             absorbance_650_readings = {}
@@ -550,11 +550,11 @@ class MTTParser:
             }
             
             # OD criteria
-            od_criteria = AcceptanceCriteria(
+            od_criteria = asdict(AcceptanceCriteria(
                 criteria_type="OD570",
                 threshold=">0.2 for NC",
                 status=sheet.cell(row=42, column=9).value
-            )
+            ))
             
             # Viability data
             viability_readings = {}
@@ -581,7 +581,7 @@ class MTTParser:
                     viability_percent_std[str(conc)] = sheet.cell(row=61, column=col_idx).value
             
             # Create data objects
-            absorbance_570 = AbsorbanceMeasurement(
+            absorbance_570 = asdict(AbsorbanceMeasurement(
                 wavelength=570,
                 concentrations=[float(c) if isinstance(c, (int, float)) else c for c in concentrations],
                 readings=absorbance_570_readings,
@@ -590,26 +590,26 @@ class MTTParser:
                 cv_values=cv_570,
                 acceptance_criteria=[cv_acceptance],
                 mean_nc=absorbance_570_readings["mean_nc"],
-            )
+            ))
             
-            absorbance_650 = AbsorbanceMeasurement(
+            absorbance_650 = asdict(AbsorbanceMeasurement(
                 wavelength=650,
                 concentrations=[float(c) if isinstance(c, (int, float)) else c for c in concentrations],
                 readings=absorbance_650_readings,
                 std_dev={},  # These values aren't visible in the image
                 cv_values={},  # These values aren't visible in the image
-            )
+            ))
             #print([float(c) if isinstance(c, (int, float)) else c for c in concentrations])
-            viability_data = ViabilityData(
+            viability_data = asdict(ViabilityData(
                 concentrations=[float(c) if isinstance(c, (int, float)) else c for c in concentrations],
                 readings=viability_readings,
                 mean_values=viability_means,
                 std_dev=viability_std,
                 percentage_values=viability_percentages,
                 percentage_std=viability_percent_std
-            )
+            ))
             
-            experiment_data = ExperimentData(
+            experiment_data = asdict(ExperimentData(
                 processed_sheet_name=sheet_name,
                 experiment_id=experiment_id,
                 absorbance_570=absorbance_570,
@@ -619,7 +619,7 @@ class MTTParser:
                 nc_status=nc_status,
                 od_criteria=od_criteria,
                 viability_data=viability_data
-            )
+            ))
             processed_data.append(experiment_data)
         return processed_data
 
@@ -654,7 +654,7 @@ class MTTParser:
                 std_dev_values.append(cell.value)
         
         
-        percent_viability_vs_nc = PercentViabilityVsNC(
+        percent_viability_vs_nc = asdict(PercentViabilityVsNC(
             concentrations=concentrations,
             mean=mean_values,
             std_dev=std_dev_values,
@@ -662,7 +662,7 @@ class MTTParser:
             reverse_std_dev=[std_dev_values[0]] + std_dev_values[-2:0:-1] + [std_dev_values[-1]],  # Reverse middle elements only  
             reverse_mean_without_pc=[mean_values[0]] + mean_values[-2:0:-1],  # Reverse middle elements only
             reverse_std_dev_without_pc=[std_dev_values[0]] + std_dev_values[-2:0:-1]  # Reverse middle elements only
-        )
+        ))
 
         reverse_concentrations = []
         for cell in self.ws[80][3:12]:  # 0-based indexing, so column D is index 3
@@ -745,7 +745,7 @@ class MTTParser:
 
 
 
-        return FinalResults(excluded_sheets=excluded_sheets, 
+        return asdict(FinalResults(excluded_sheets=excluded_sheets, 
                             percent_viability_vs_nc=percent_viability_vs_nc, 
                             reverse_concentrations=reverse_concentrations,
                             concentrations_dash=concentrations_dash,
@@ -767,7 +767,7 @@ class MTTParser:
                             ec25_dash=ec25_dash,
                             ec50_dash=ec50_dash,
                             final_table=final_table
-                            )
+                            ))
             
 
 
@@ -791,9 +791,11 @@ class MTTParser:
         treatment_concentration_data = self.extract_treatment_concentration_data()
         final_resluts = self.extract_final_results()
         parsed_data = {
-            'work_package': work_package_data,
-            'material': material_data,
-            'treatment_concentration_data': treatment_concentration_data,
+            'test_details' : {
+                'work_package': work_package_data,
+                'material': material_data,
+                'treatment_concentration_data': treatment_concentration_data,
+            },
             'replications': [],
             'processed_data': processed_data,
             'final_results': final_resluts
@@ -801,7 +803,7 @@ class MTTParser:
         
         # Process each replication
         for replication in replications:
-            test_identifier = replication.test_identifier_number
+            test_identifier = replication["test_identifier_number"]
             
             # Extract raw data for this replication
             raw_data = self.extract_raw_data(test_identifier)

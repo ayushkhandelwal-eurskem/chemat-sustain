@@ -16,21 +16,23 @@ export default function BackofficeLayout({ children }: BackofficeLayoutProps) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'admin')) {
-      router.push('/login');
+    console.log(loading, user);
+    
+    if (!loading) {
+      if (user && user.role != "admin") {
+        window.location.assign("/")
+      } else if(!user) {
+        window.location.assign("/login")
+      }
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  if (loading || (!user || user.role !== 'admin')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-900"></div>
       </div>
     );
-  }
-
-  if (!user || user.role !== 'admin') {
-    return null;
   }
 
   const sidebarItems = [
@@ -53,6 +55,15 @@ export default function BackofficeLayout({ children }: BackofficeLayoutProps) {
         </svg>
       ),
     },
+    {
+      name: 'Tests',
+      href: '/backoffice/tests',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M9 4h6a1 1 0 011 1v1a1 1 0 001 1h1a1 1 0 011 1v12a2 2 0 01-2 2H6a2 2 0 01-2-2V7a1 1 0 011-1h1a1 1 0 001-1V5a1 1 0 011-1z" />
+        </svg>
+      ),
+    },
   ];
 
   return (
@@ -64,7 +75,7 @@ export default function BackofficeLayout({ children }: BackofficeLayoutProps) {
             <h2 className="text-xl font-bold text-gray-800">Back Office</h2>
             <p className="text-sm text-gray-600 mt-1">Admin Panel</p>
           </div>
-          
+
           <nav className="mt-6">
             {sidebarItems.map((item) => {
               const isActive = pathname === item.href;
@@ -72,11 +83,10 @@ export default function BackofficeLayout({ children }: BackofficeLayoutProps) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                  className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${isActive
+                    ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
                 >
                   <span className={`mr-3 ${isActive ? 'text-blue-700' : 'text-gray-400'}`}>
                     {item.icon}

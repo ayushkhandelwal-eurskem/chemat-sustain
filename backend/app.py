@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from utils.db import Base, engine
 from api.controllers.user import router as user_router
 from api.services.user import create_user, get_user_by_email
+from utils.auth import get_current_user
 from api.schemas.user import UserCreate
 from utils.db import get_db
 from dotenv import load_dotenv
@@ -20,6 +21,7 @@ async def init_models():
 # Run database initialization
 @app.on_event("startup")
 async def startup_event():
+    print("Running startup")
     await init_models()
     
     # Read admin credentials from environment variables
@@ -41,7 +43,7 @@ async def startup_event():
                 )
                 
                 await create_user(db, admin_user)
-                print(f"Admin user created with email: {admin_email}")
+                print(f"Admin user created with email: {admin_email}, {admin_password}")
             else:
                 print(f"Admin user already exists with email: {admin_email}")
             
@@ -52,7 +54,7 @@ async def startup_event():
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://database.eurskem.com/"],  # Your Next.js frontend URL
+    allow_origins=["http://localhost:3000", "https://database.eurskem.com/", "http://localhost", "https://localhost"],  # Your Next.js frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,6 +68,8 @@ async def health_check():
 
 
 from api.controllers.file_navigator import router as file_navigator_router
+from api.controllers.test import router as test_router
 
+app.include_router(test_router, prefix="/tests", tags=["Tests"])
 app.include_router(file_navigator_router, prefix="/files", tags=["File Navigator"])
 app.include_router(user_router, prefix="/users", tags=["User Management"])

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
+// import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowUpDown, FileText, Download, Eye } from 'lucide-react';
@@ -8,7 +8,7 @@ import { api } from '@/lib/axios';
 import Link from 'next/link';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  // const { user, loading } = useAuth();
 
   // if (loading) {
   //   return (
@@ -19,14 +19,14 @@ export default function Home() {
   // }
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requireAuth={false}>
       <div className="bg-white">
         <div className="container mx-auto min-h-screen">
           <h1 className="text-4xl font-bold text-center px-16 pt-15 text-blue-900">CheMatSustain Database</h1>
           <p className="text-center text-blue-300 pt-8">Search data</p>
-          
+
           {/* User Welcome Section */}
-          {user && (
+          {/* {user && (
             <div className="text-center mb-8 bg-blue-50 p-4 rounded-lg mx-4">
               <p className="text-blue-800">
                 Welcome back, <span className="font-semibold">{user.email}</span>
@@ -35,8 +35,8 @@ export default function Home() {
                 </span>
               </p>
             </div>
-          )}
-          
+          )} */}
+
           <ProtocolFilters />
         </div>
       </div>
@@ -48,9 +48,9 @@ export default function Home() {
 const apiService = {
   async fetchWorkPackages() {
     try {
-      const response = await api.get('/files');
+      const response = await api.post('/tests/listings', {});
       if (response.status !== 200) throw new Error('Failed to fetch work packages');
-      return response.data;
+      return response.data.work_packages;
     } catch (error) {
       console.error('Error fetching work packages:', error);
       return [];
@@ -60,9 +60,9 @@ const apiService = {
   async fetchElements(workPackage: string) {
     if (!workPackage) return [];
     try {
-      const response = await api.get(`/files/${workPackage}`);
+      const response = await api.post("/tests/listings", { "work_package_name": workPackage });
       if (response.status !== 200) throw new Error('Failed to fetch elements');
-      return response.data;
+      return response.data.element_cms_ids;
     } catch (error) {
       console.error('Error fetching elements:', error);
       return [];
@@ -72,21 +72,25 @@ const apiService = {
   async fetchTests(workPackage: string, element: string) {
     if (!workPackage || !element) return [];
     try {
-      const response = await api.get(`/files/${workPackage}/${element}`);
+      const response = await api.post(`/tests/listings`, {
+        "work_package_name": workPackage,
+        "element_cms_id": element
+      });
       if (response.status !== 200) throw new Error('Failed to fetch tests');
-      return response.data;
+      return response.data.test_names;
     } catch (error) {
       console.error('Error fetching tests:', error);
       return [];
     }
   },
 
-  async fetchTestData(workPackage: string, element: string, test: string) {
+  fetchTestData(workPackage: string, element: string, test: string) {
     if (!workPackage || !element || !test) return [];
     try {
-      const response = await api.get(`/files/${workPackage}/${element}/${test}`);
-      if (response.status !== 200) throw new Error('Failed to fetch test data');
-      return response.data;
+      return [{
+        "name": element + "_" + test,
+        "type": "xlsx",
+      }];
     } catch (error) {
       console.error('Error fetching test data:', error);
       return [];
@@ -105,7 +109,6 @@ interface FilterColumn {
 interface TestDataItem {
   name: string;
   type: string;
-  size: number;
   [key: string]: any;
 }
 
@@ -198,12 +201,12 @@ const ProtocolFilters: React.FC = () => {
       const fetchAndSetTestData = async () => {
         setIsLoading(true);
         try {
-          const data = await apiService.fetchTestData(
+          const data = apiService.fetchTestData(
             selectedFilters['Work package']!,
             selectedFilters['Element']!,
             selectedFilters['Test']!
           );
-          setTestData(Array.isArray(data) ? data : []);
+          setTestData(data);
         } catch (error) {
           console.error('Error fetching test data:', error);
           setTestData([]);
@@ -291,13 +294,6 @@ const ProtocolFilters: React.FC = () => {
     );
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -404,7 +400,6 @@ const ProtocolFilters: React.FC = () => {
                   <tr>
                     <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">File Name</th>
                     <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Type</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Size</th>
                     <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
@@ -415,11 +410,9 @@ const ProtocolFilters: React.FC = () => {
                         <FileText className="w-4 h-4 mr-2 text-blue-500" /> {item.name || 'Untitled'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">{item.type || 'Unknown'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{formatFileSize(item.size || 0)}</td>
                       <td className="px-4 py-3 text-sm flex">
-                        
-                        <Link className='p-1 rounded hover:bg-blue-100 text-blue-600' target='blank' href={
-                          item.type === '.xlsx' ? '/' + selectedFilters['Work package'] + '/' + selectedFilters['Element'] + '/' + selectedFilters['Test'] + '/' + item.name + item.type : '#'}
+
+                        <Link className='p-1 rounded hover:bg-blue-100 text-blue-600' target='blank' href={'/' + selectedFilters['Work package'] + '/' + selectedFilters['Element'] + '/' + selectedFilters['Test']}
                         >
                           <Eye className="w-4 h-4" />
                         </Link>

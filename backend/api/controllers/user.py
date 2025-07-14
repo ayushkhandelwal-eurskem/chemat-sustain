@@ -94,7 +94,7 @@ async def verify_otp_endpoint(otp_data: VerifyOTPRequest, request: Request, resp
     return MessageResponse(msg="Login successful")
 
 @router.post("/logout", response_model=MessageResponse)
-async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     """Logout user and invalidate session"""
     # Get session ID from cookie
     session_id = request.cookies.get("session_id")

@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { redirect } from 'next/navigation';
-
 
 export const getBaseUrl = (): string => {
     if (typeof window === 'undefined') {
@@ -42,13 +40,14 @@ export const api = axios.create({
 // );
 
 // Response interceptor
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        // Handle specific error cases
-        if (error.response?.status === 401) {
-            redirect("/backoffice/login")
-        }
-        return Promise.reject(error);
-    }
-);
+// api.interceptors.response.use(
+//     async (response) => response,
+//     (error) => {
+//         // Handle specific error cases
+//         if (error.response?.status === 401) {   
+//             if(window.location.pathname != "/login") 
+//             window.location.assign('/login');
+//         }
+//         return Promise.reject(error);
+//     }
+// );

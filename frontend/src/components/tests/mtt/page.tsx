@@ -12,6 +12,9 @@ import {
   Tooltip,
   ErrorBar,
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell
 } from "recharts";
 
 
@@ -69,21 +72,16 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
         const result = response.data;
         setData(result);
         if (result.final_results) {
-          const dataPoints = result.final_results.log_dose
-            .map((x: number, i: number) => {
-              if (typeof x === "number") {
-                return {
-                  x,
-                  y: result.final_results.percent_viability_vs_nc.mean[i],
-                  error: result.final_results.percent_viability_vs_nc.std_dev[i],
-                };
-              }
-              return null;
-            })
-            .filter(Boolean) as { x: number; y: number; error: number }[];
+          const dataPoints = result.final_results.concentrations_dash
+            .map((concentration: number, i: number) => ({
+              x: concentration,
+              y: result.final_results.percent_viability_vs_nc.reverse_mean_without_pc[i],
+              error: result.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[i],
+            }))
+            .filter((point: any) => point.y !== undefined && point.error !== undefined);
+          
+          setDataPoints(dataPoints);
         }
-
-        setDataPoints(dataPoints);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -1184,7 +1182,67 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </table>
               </div>
 
-              {(typeof window !== 'undefined') &&
+{(typeof window !== 'undefined') && (
+                <ResponsiveContainer width="100%" height={365}>
+                  <BarChart
+                    data={data.final_results.percent_viability_vs_nc.concentrations
+                      .filter((item: string) => item !== "NC'")
+                      .map((item: string, index: number) => {
+                        const num = parseFloat(item);
+                        const label = isNaN(num) ? item : num;
+                        return {
+                          name: label,
+                          viability: data.final_results.percent_viability_vs_nc.mean[index],
+                          sd: data.final_results.percent_viability_vs_nc.std_dev[index],
+                          error: [0, data.final_results.percent_viability_vs_nc.std_dev[index]], // [negative error, positive error]
+                          isControl: item === "NC",
+                          isPositiveControl: item === "PC"
+                        };
+                      })}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 40,
+                      bottom: 5,
+                    }}
+                    barCategoryGap="20%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={true}
+                      tickLine={true}
+                      tick={{ fontSize: 12 }}
+                      label={{ value: 'NPs concentration [μg/mL]', position: 'insideBottom', offset: -5 }}
+                    />
+                    <YAxis 
+                      domain={[0, 150]}
+                      axisLine={true}
+                      tickLine={true}
+                      tick={{ fontSize: 12 }}
+                      label={{ value: '% of viability vs. NC', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Bar dataKey="viability" fill="#2E8DEF" barSize={50}>
+                      {data.final_results.percent_viability_vs_nc.concentrations
+                        .filter((item: string) => item !== "NC'")
+                        .map((item: string, index: number) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={item === "NC" ? '#3b82f6' : item === "PC" ? '#ef4444' : '#6b7280'} 
+                          />
+                        ))}
+                      <ErrorBar
+                        dataKey="error"
+                        width={4}
+                        stroke="#000000"
+                        strokeWidth={1.5}
+                        direction="y"
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              {/* {(typeof window !== 'undefined') &&
                 <Chart
                   options={{
                     chart: {
@@ -1197,7 +1255,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     },
                     plotOptions: {
                       bar: {
-                        columnWidth: "20%",
+                        columnWidth: "40%",
                         horizontal: false,
                       },
                     },
@@ -1256,7 +1314,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   type="bar"
                   height={365}
                 />
-              }
+              } */}
 
 
 
@@ -1345,78 +1403,64 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               </div>
 
 
-              {(typeof window !== 'undefined') &&
-                <Chart
-                  options={{
-                    chart: {
-                      id: "bar",
-                      type: "scatter",
-                    },
-                    title: {
-                      text: element,
-                      align: "center",
-                    },
-                    plotOptions: {
-                      bar: {
-                        columnWidth: "20%",
-                        horizontal: false,
-                      },
-                    },
-                    dataLabels: {
-                      enabled: false,
-                    },
-                    legend: {
-                      show: false // Hide legend since we're using custom colors
-                    },
-                    stroke: {
-                      width: 1,
-                      dashArray: 0,
-                      curve: "straight",
-                    },
-                    markers: {
-                      size: 6,
-                      colors: ['#555555'],
-                      strokeWidth: 2,
-                      strokeColors: '#555555',
-                      hover: {
-                        size: 8
-                      }
-                    },
-                    colors: ["#2E8DEF", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9"],
-                    yaxis: {
-                      title: {
-                        text: "% of viability vs. NC"
-                      }
-                    },
-                    xaxis: {
-                      title: {
-                        text: `no of particles x10^${getExponent(data.test_details.material.treatment_concentration_unit)}/AL`,
-                        style: {
-                          fontSize: '12px'
-                        }
-                      },
-                      tickAmount: 6,
-                      categories: data.final_results.reverse_concentrations_dash,
-                      labels: {
-                        formatter: function (value) {
-                          return value;
-                        }
-                      }
-                    },
-                  }}
-                  series={[
-                    {
-                      name: "Viability",
-                      data: data.final_results.percent_viability_vs_nc.mean
-                        .map((mean: number) =>
-                          mean.toFixed(1)
-                        ),
-                    },
-                  ]}
-                  type="scatter"
-                  height={365}
-                />
-              }
+              {(typeof window !== 'undefined') && dataPoints && dataPoints.length > 0 && (
+                <ResponsiveContainer width="100%" height={365}>
+                  <ScatterChart
+                    data={dataPoints}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 40,
+                      bottom: 60,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="x"
+                      type="number"
+                      axisLine={true}
+                      tickLine={true}
+                      tick={{ fontSize: 12 }}
+                      label={{
+                        value: `no of particles x10^${getExponent(data.test_details.material.treatment_concentration_unit)}/AL`,
+                        position: 'insideBottom',
+                        offset: -10,
+                        style: { fontSize: '12px' }
+                      }}
+                    />
+                    <YAxis
+                      domain={[0, 120]}
+                      axisLine={true}
+                      tickLine={true}
+                      tick={{ fontSize: 12 }}
+                      label={{
+                        value: '% of viability vs. NC',
+                        angle: -90,
+                        position: 'insideLeft'
+                      }}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => [`${typeof value === 'number' ? value.toFixed(2) : value}%`, 'Viability']}
+                      labelFormatter={(label) => `Point: ${label}`}
+                    />
+                    <Scatter
+                      dataKey="y"
+                      fill="#555555"
+                      stroke="#555555"
+                      strokeWidth={2}
+                      r={6}
+                    >
+                      <ErrorBar
+                        dataKey="error"
+                        width={4}
+                        stroke="#000000"
+                        strokeWidth={1.5}
+                        direction="y"
+                      />
+                    </Scatter>
+                  </ScatterChart>
+                </ResponsiveContainer>
+              )}
 
               <div className="overflow-x-auto ">
                 <h1 className="font-bold">Log dose response</h1>

@@ -125,10 +125,10 @@ export default function TestsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Test Name
+                  Work Package
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Work Package
+                  Test Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Element ID
@@ -147,12 +147,12 @@ export default function TestsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {tests.map((test) => (
                 <tr key={test.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{test.test_name}</div>
-                    <div className="text-sm text-gray-500">ID: {test.id}</div>
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {test.work_package_name}
+                    <div className="text-sm text-gray-500">ID: {test.id}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{test.test_name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {test.element_cms_id}

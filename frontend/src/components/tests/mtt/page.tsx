@@ -14,8 +14,13 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  Cell
+  Cell,
+  Line,
+  ComposedChart,
+  Legend,
+  Area
 } from "recharts";
+import { log } from "console";
 
 
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -79,7 +84,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               error: result.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[i],
             }))
             .filter((point: any) => point.y !== undefined && point.error !== undefined);
-          
+
           setDataPoints(dataPoints);
         }
         setLoading(false);
@@ -123,6 +128,20 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     }
     return null; // Return null if no match found
   }
+
+  const generateRegressionLine = (intercept: number, slope: number, xMin: number, xMax: number, numPoints = 100) => {
+    const points = [];
+    const step = (xMax - xMin) / (numPoints - 1);
+
+    for (let i = 0; i < numPoints; i++) {
+      const x = xMin + (step * i);
+      const y = intercept + (slope * x);
+      points.push({ logDose: x, mean: y });
+    }
+
+    return points;
+  };
+
 
   if (loading) {
     return (
@@ -1182,7 +1201,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </table>
               </div>
 
-{(typeof window !== 'undefined') && (
+              {(typeof window !== 'undefined') && (
                 <ResponsiveContainer width="100%" height={365}>
                   <BarChart
                     data={data.final_results.percent_viability_vs_nc.concentrations
@@ -1208,14 +1227,14 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     barCategoryGap="20%"
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="name" 
+                    <XAxis
+                      dataKey="name"
                       axisLine={true}
                       tickLine={true}
                       tick={{ fontSize: 12 }}
                       label={{ value: 'NPs concentration [μg/mL]', position: 'insideBottom', offset: -5 }}
                     />
-                    <YAxis 
+                    <YAxis
                       domain={[0, 150]}
                       axisLine={true}
                       tickLine={true}
@@ -1226,9 +1245,9 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       {data.final_results.percent_viability_vs_nc.concentrations
                         .filter((item: string) => item !== "NC'")
                         .map((item: string, index: number) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={item === "NC" ? '#3b82f6' : item === "PC" ? '#ef4444' : '#6b7280'} 
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={item === "NC" ? '#3b82f6' : item === "PC" ? '#ef4444' : '#6b7280'}
                           />
                         ))}
                       <ErrorBar
@@ -1467,6 +1486,98 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <h2 className="font-bold">NPs concentration [μg/mL]</h2>
                 <hr />
 
+                {/* Log Dose Response Chart and regression line */}
+                {(typeof window !== 'undefined') && data.final_results && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-bold mb-4">Log Dose Response</h3>
+                    {(() => {
+                      // Build scatter points excluding first and last index as before
+                      const scatterPoints = data.final_results.log_dose
+                        .map((logDose: number, i: number) => ({
+                          name: i,              // categorical name not used but required by ComposedChart when needed
+                          logDose,
+                          mean: data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[i],
+                          index: i
+                        }))
+                        .filter((p: any) =>
+                          typeof p.mean === 'number' &&
+                          typeof p.logDose === 'number' &&
+                          !Number.isNaN(p.mean) &&
+                          !Number.isNaN(p.logDose) &&
+                          p.index !== 0 &&
+                          p.index !== data.final_results.log_dose.length - 1
+                        )
+                        .map(({ index, ...rest }: any) => rest);
+
+                      // Regression points over the visible domain
+                      const regPoints = generateRegressionLine(
+                        Number(data.final_results.intercept),
+                        Number(data.final_results.slope),
+                        -0.3,
+                        0.9
+                      );
+
+                      // Compose a single dataset so ComposedChart lines and scatter share same data prop
+                      // We only need it for X/Y numeric axes; ComposedChart allows child components to have their own data,
+                      // but providing a common 'data' improves axis binding consistency.
+                      // We'll still pass explicit data to Scatter and Line to avoid unintended joins.
+                      const composedData = scatterPoints;
+
+                      return (
+                        <ResponsiveContainer width="100%" height={400}>
+                          <ComposedChart
+                            data={composedData}
+                            margin={{ top: 20, right: 30, left: 40, bottom: 60 }}
+                          >
+                            <CartesianGrid stroke="#f5f5f5" />
+                            <XAxis
+                              type="number"
+                              dataKey="logDose"
+                              domain={[-0.6, 1.0]}
+                              tickCount={9}
+                              ticks={[-0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0]}
+                              tickFormatter={(v: number) => v.toFixed(1)}
+                              label={{ value: 'Log Dose Concentration', position: 'insideBottom', offset: -10, style: { fontSize: '12px' } }}
+                            />
+                            <YAxis
+                              type="number"
+                              dataKey="mean"
+                              domain={[0, 120]}
+                              tickCount={7}
+                              ticks={[0, 20, 40, 60, 80, 100, 120]}
+                              tickFormatter={(v: number) => v.toFixed(0)}
+                              label={{ value: '% of viability vs. NC (Mean)', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
+                            />
+                            <Tooltip />
+                            <Legend />
+
+                            {/* Scatter of means */}
+                            <Scatter
+                              name="Data Points"
+                              data={scatterPoints}
+                              fill="#3b82f6"
+                            />
+
+                            {/* Regression line over same axes */}
+                            <Line
+                              name="Regression Line"
+                              type="linear"
+                              data={regPoints}
+                              dataKey="mean"
+                              stroke="#ff7300"
+                              strokeWidth={2}
+                              dot={false}
+                              xAxisId={0}
+                              yAxisId={0}
+                            />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </div>
+                )}
+
+
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
@@ -1576,6 +1687,98 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <h1 className="font-bold">Log dose response</h1>
                 <h2 className="font-bold">no of particles x10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup>/mL</h2>
                 <hr />
+
+
+                {/* Log Dose Response Chart and regression line */}
+                {(typeof window !== 'undefined') && data.final_results && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-bold mb-4">Log Dose Response</h3>
+                    {(() => {
+                      // Build scatter points excluding first and last index as before
+                      const scatterPoints = data.final_results.log_dose_dash
+                        .map((logDose: number, i: number) => ({
+                          name: i,              // categorical name not used but required by ComposedChart when needed
+                          logDose,
+                          mean: data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[i],
+                          index: i
+                        }))
+                        .filter((p: any) =>
+                          typeof p.mean === 'number' &&
+                          typeof p.logDose === 'number' &&
+                          !Number.isNaN(p.mean) &&
+                          !Number.isNaN(p.logDose) &&
+                          p.index !== 0 &&
+                          p.index !== data.final_results.log_dose.length - 1
+                        )
+                        .map(({ index, ...rest }: any) => rest);
+
+                      // Regression points over the visible domain
+                      const regPoints = generateRegressionLine(
+                        Number(data.final_results.intercept),
+                        Number(data.final_results.slope),
+                        -0.6,
+                        0.9
+                      );
+
+                      // Compose a single dataset so ComposedChart lines and scatter share same data prop
+                      // We only need it for X/Y numeric axes; ComposedChart allows child components to have their own data,
+                      // but providing a common 'data' improves axis binding consistency.
+                      // We'll still pass explicit data to Scatter and Line to avoid unintended joins.
+                      const composedData = scatterPoints;
+
+                      return (
+                        <ResponsiveContainer width="100%" height={400}>
+                          <ComposedChart
+                            data={composedData}
+                            margin={{ top: 20, right: 30, left: 40, bottom: 60 }}
+                          >
+                            <CartesianGrid stroke="#f5f5f5" />
+                            <XAxis
+                              type="number"
+                              dataKey="logDose"
+                              domain={[-0.6, 1.0]}
+                              tickCount={9}
+                              ticks={[-0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0]}
+                              tickFormatter={(v: number) => v.toFixed(1)}
+                              label={{ value: 'Log Dose Concentration', position: 'insideBottom', offset: -10, style: { fontSize: '12px' } }}
+                            />
+                            <YAxis
+                              type="number"
+                              dataKey="mean"
+                              domain={[0, 120]}
+                              tickCount={7}
+                              ticks={[0, 20, 40, 60, 80, 100, 120]}
+                              tickFormatter={(v: number) => v.toFixed(0)}
+                              label={{ value: '% of viability vs. NC (Mean)', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
+                            />
+                            <Tooltip />
+                            <Legend />
+
+                            {/* Scatter of means */}
+                            <Scatter
+                              name="Data Points"
+                              data={scatterPoints}
+                              fill="#3b82f6"
+                            />
+
+                            {/* Regression line over same axes */}
+                            <Line
+                              name="Regression Line"
+                              type="linear"
+                              data={regPoints}
+                              dataKey="mean"
+                              stroke="#ff7300"
+                              strokeWidth={2}
+                              dot={false}
+                              xAxisId={0}
+                              yAxisId={0}
+                            />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </div>
+                )}
 
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">

@@ -312,10 +312,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="py-2 px-4 border">{data.test_details.material.endotoxin_absent}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-4 border font-medium">Particles Stock</td>
-                        <td className="py-2 px-4 border">{data.test_details.material.particles_stock}</td>
-                      </tr>
-                      <tr>
                         <td className="py-2 px-4 border font-medium">Aids to Disperse</td>
                         <td className="py-2 px-4 border">{data.test_details.material.aids_to_disperse}</td>
                       </tr>
@@ -1204,16 +1200,16 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               {(typeof window !== 'undefined') && (
                 <ResponsiveContainer width="100%" height={365}>
                   <BarChart
-                    data={data.final_results.percent_viability_vs_nc.concentrations
+                    data={data.final_results.reverse_concentrations
                       .filter((item: string) => item !== "NC'")
                       .map((item: string, index: number) => {
                         const num = parseFloat(item);
                         const label = isNaN(num) ? item : num;
                         return {
                           name: label,
-                          viability: data.final_results.percent_viability_vs_nc.mean[index],
-                          sd: data.final_results.percent_viability_vs_nc.std_dev[index],
-                          error: [0, data.final_results.percent_viability_vs_nc.std_dev[index]], // [negative error, positive error]
+                          viability: data.final_results.percent_viability_vs_nc.reverse_mean[index],
+                          sd: data.final_results.percent_viability_vs_nc.reverse_std_dev[index],
+                          error: [0, data.final_results.percent_viability_vs_nc.reverse_std_dev[index]], // [negative error, positive error]
                           isControl: item === "NC",
                           isPositiveControl: item === "PC"
                         };
@@ -1232,7 +1228,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       axisLine={true}
                       tickLine={true}
                       tick={{ fontSize: 12 }}
-                      label={{ value: 'NPs concentration [μg/mL]', position: 'insideBottom', offset: -5 }}
+                      label={{ value: 'NPs concentration [μg/mL]', position: 'insideBottom', offset: 1 }}
                     />
                     <YAxis
                       domain={[0, 150]}
@@ -1436,12 +1432,14 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                       dataKey="x"
+                      domain={[0, 1, 2, 3, 4, 5]}
                       type="number"
                       axisLine={true}
                       tickLine={true}
+                      ticks={[1, 2, 3, 4, 5]}
                       tick={{ fontSize: 12 }}
                       label={{
-                        value: `no of particles x10^${getExponent(data.test_details.material.treatment_concentration_unit)}/AL`,
+                        value: `no of particles x10^${getExponent(data.test_details.material.treatment_concentration_unit)}/mL`,
                         position: 'insideBottom',
                         offset: -10,
                         style: { fontSize: '12px' }
@@ -1486,109 +1484,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <h2 className="font-bold">NPs concentration [μg/mL]</h2>
                 <hr />
 
-                {/* Log Dose Response Chart and regression line */}
-                {(typeof window !== 'undefined') && data.final_results && (
-                  <div className="mt-8">
-                    <h3 className="text-lg font-bold mb-4">Log Dose Response</h3>
-                    {(() => {
-                      // Build scatter points excluding first and last index as before
-                      const scatterPoints = data.final_results.log_dose
-                        .map((logDose: number, i: number) => ({
-                          name: i,              // categorical name not used but required by ComposedChart when needed
-                          logDose,
-                          mean: data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[i],
-                          index: i
-                        }))
-                        .filter((p: any) =>
-                          typeof p.mean === 'number' &&
-                          typeof p.logDose === 'number' &&
-                          !Number.isNaN(p.mean) &&
-                          !Number.isNaN(p.logDose) &&
-                          p.index !== 0 &&
-                          p.index !== data.final_results.log_dose.length - 1
-                        )
-                        .map(({ index, ...rest }: any) => rest);
-
-                      // Regression points over the visible domain
-                      const regPoints = generateRegressionLine(
-                        Number(data.final_results.intercept),
-                        Number(data.final_results.slope),
-                        -0.3,
-                        0.9
-                      );
-
-                      // Compose a single dataset so ComposedChart lines and scatter share same data prop
-                      // We only need it for X/Y numeric axes; ComposedChart allows child components to have their own data,
-                      // but providing a common 'data' improves axis binding consistency.
-                      // We'll still pass explicit data to Scatter and Line to avoid unintended joins.
-                      const composedData = scatterPoints;
-
-                      return (
-                        <ResponsiveContainer width="100%" height={400}>
-                          <ComposedChart
-                            data={composedData}
-                            margin={{ top: 20, right: 30, left: 40, bottom: 60 }}
-                          >
-                            <CartesianGrid stroke="#f5f5f5" />
-                            <XAxis
-                              type="number"
-                              dataKey="logDose"
-                              domain={[-0.6, 1.0]}
-                              tickCount={9}
-                              ticks={[-0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0]}
-                              tickFormatter={(v: number) => v.toFixed(1)}
-                              label={{ value: 'Log Dose Concentration', position: 'insideBottom', offset: -10, style: { fontSize: '12px' } }}
-                            />
-                            <YAxis
-                              type="number"
-                              dataKey="mean"
-                              domain={[0, 120]}
-                              tickCount={7}
-                              ticks={[0, 20, 40, 60, 80, 100, 120]}
-                              tickFormatter={(v: number) => v.toFixed(0)}
-                              label={{ value: '% of viability vs. NC (Mean)', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
-                            />
-                            <Tooltip />
-                            <Legend />
-
-                            {/* Scatter of means */}
-                            <Scatter
-                              name="Data Points"
-                              data={scatterPoints}
-                              fill="#3b82f6"
-                            />
-
-                            {/* Regression line over same axes */}
-                            <Line
-                              name="Regression Line"
-                              type="linear"
-                              data={regPoints}
-                              dataKey="mean"
-                              stroke="#ff7300"
-                              strokeWidth={2}
-                              dot={false}
-                              xAxisId={0}
-                              yAxisId={0}
-                            />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      );
-                    })()}
-                  </div>
-                )}
-
-
-                <div className="border-2 border-black p-4 w-64 bg-white mt-8">
-                  <div className="flex flex-col items-center">
-                    <div className="w-full text-center mb-1">
-                      <span className="font-medium">R² = {data.final_results.r_squared.toFixed(4)}</span>
-                    </div>
-                    <div className="w-full text-center">
-                      <span className="font-medium">R = {data.final_results.r.toFixed(4)}</span>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="overflow-x-auto mt-4">
                   <table className="min-w-full border-collapse border border-gray-300">
                     <tbody>
@@ -1627,18 +1522,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     </tbody>
                   </table>
                 </div>
-
-                <div className="border-2 border-black p-4 w-64 bg-white mt-8">
-                  <div className="flex flex-col items-center">
-                    <div className="w-full text-center mb-1">
-                      <span className="font-medium">a = {data.final_results.slope.toFixed(4)}</span>
-                    </div>
-                    <div className="w-full text-center">
-                      <span className="font-medium">b = {data.final_results.intercept.toFixed(4)}</span>
-                    </div>
-                  </div>
-                </div>
-
 
                 <div className="overflow-x-auto mt-4">
                   <table className="min-w-full border-collapse border border-gray-300">
@@ -1681,105 +1564,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </table>
                 </div>
 
-              </div>
-
-              <div className="overflow-x-auto ">
-                <h1 className="font-bold">Log dose response</h1>
-                <h2 className="font-bold">no of particles x10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup>/mL</h2>
-                <hr />
-
-
-                {/* Log Dose Response Chart and regression line */}
-                {(typeof window !== 'undefined') && data.final_results && (
-                  <div className="mt-8">
-                    <h3 className="text-lg font-bold mb-4">Log Dose Response</h3>
-                    {(() => {
-                      // Build scatter points excluding first and last index as before
-                      const scatterPoints = data.final_results.log_dose_dash
-                        .map((logDose: number, i: number) => ({
-                          name: i,              // categorical name not used but required by ComposedChart when needed
-                          logDose,
-                          mean: data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[i],
-                          index: i
-                        }))
-                        .filter((p: any) =>
-                          typeof p.mean === 'number' &&
-                          typeof p.logDose === 'number' &&
-                          !Number.isNaN(p.mean) &&
-                          !Number.isNaN(p.logDose) &&
-                          p.index !== 0 &&
-                          p.index !== data.final_results.log_dose.length - 1
-                        )
-                        .map(({ index, ...rest }: any) => rest);
-
-                      // Regression points over the visible domain
-                      const regPoints = generateRegressionLine(
-                        Number(data.final_results.intercept),
-                        Number(data.final_results.slope),
-                        -0.6,
-                        0.9
-                      );
-
-                      // Compose a single dataset so ComposedChart lines and scatter share same data prop
-                      // We only need it for X/Y numeric axes; ComposedChart allows child components to have their own data,
-                      // but providing a common 'data' improves axis binding consistency.
-                      // We'll still pass explicit data to Scatter and Line to avoid unintended joins.
-                      const composedData = scatterPoints;
-
-                      return (
-                        <ResponsiveContainer width="100%" height={400}>
-                          <ComposedChart
-                            data={composedData}
-                            margin={{ top: 20, right: 30, left: 40, bottom: 60 }}
-                          >
-                            <CartesianGrid stroke="#f5f5f5" />
-                            <XAxis
-                              type="number"
-                              dataKey="logDose"
-                              domain={[-0.6, 1.0]}
-                              tickCount={9}
-                              ticks={[-0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0]}
-                              tickFormatter={(v: number) => v.toFixed(1)}
-                              label={{ value: 'Log Dose Concentration', position: 'insideBottom', offset: -10, style: { fontSize: '12px' } }}
-                            />
-                            <YAxis
-                              type="number"
-                              dataKey="mean"
-                              domain={[0, 120]}
-                              tickCount={7}
-                              ticks={[0, 20, 40, 60, 80, 100, 120]}
-                              tickFormatter={(v: number) => v.toFixed(0)}
-                              label={{ value: '% of viability vs. NC (Mean)', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
-                            />
-                            <Tooltip />
-                            <Legend />
-
-                            {/* Scatter of means */}
-                            <Scatter
-                              name="Data Points"
-                              data={scatterPoints}
-                              fill="#3b82f6"
-                            />
-
-                            {/* Regression line over same axes */}
-                            <Line
-                              name="Regression Line"
-                              type="linear"
-                              data={regPoints}
-                              dataKey="mean"
-                              stroke="#ff7300"
-                              strokeWidth={2}
-                              dot={false}
-                              xAxisId={0}
-                              yAxisId={0}
-                            />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      );
-                    })()}
-                  </div>
-                )}
-
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
@@ -1790,7 +1574,22 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     </div>
                   </div>
                 </div>
+                <div className="border-2 border-black p-4 w-64 bg-white mt-8">
+                  <div className="flex flex-col items-center">
+                    <div className="w-full text-center mb-1">
+                      <span className="font-medium">a = {data.final_results.slope.toFixed(4)}</span>
+                    </div>
+                    <div className="w-full text-center">
+                      <span className="font-medium">b = {data.final_results.intercept.toFixed(4)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
+              <div className="overflow-x-auto ">
+                <h1 className="font-bold">Log dose response</h1>
+                <h2 className="font-bold">no of particles x10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup>/mL</h2>
+                <hr />
                 <div className="overflow-x-auto mt-4">
                   <table className="min-w-full border-collapse border border-gray-300">
                     <tbody>
@@ -1829,18 +1628,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     </tbody>
                   </table>
                 </div>
-
-                <div className="border-2 border-black p-4 w-64 bg-white mt-8">
-                  <div className="flex flex-col items-center">
-                    <div className="w-full text-center mb-1">
-                      <span className="font-medium">a = {data.final_results.slope_dash.toFixed(4)}</span>
-                    </div>
-                    <div className="w-full text-center">
-                      <span className="font-medium">b = {data.final_results.intercept_dash.toFixed(4)}</span>
-                    </div>
-                  </div>
-                </div>
-
 
                 <div className="overflow-x-auto mt-4">
                   <table className="min-w-full border-collapse border border-gray-300">
@@ -1883,9 +1670,16 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </table>
                 </div>
 
-              </div>
-
-              <div className="overflow-x-auto">
+                <div className="border-2 border-black p-4 w-64 bg-white mt-8">
+                  <div className="flex flex-col items-center">
+                    <div className="w-full text-center mb-1">
+                      <span className="font-medium">R² = {data.final_results.r_squared.toFixed(4)}</span>
+                    </div>
+                    <div className="w-full text-center">
+                      <span className="font-medium">R = {data.final_results.r.toFixed(4)}</span>
+                    </div>
+                  </div>
+                </div>
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
@@ -1897,7 +1691,9 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </div>
                 </div>
 
+              </div>
 
+              <div className="overflow-x-auto">
                 <div className="overflow-x-auto mt-4">
                   <table className="min-w-full border-collapse border border-gray-300">
                     <tbody>

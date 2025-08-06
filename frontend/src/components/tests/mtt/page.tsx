@@ -881,6 +881,28 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           })}
                         </tr>
                       ))}
+                      <tr className="bg-green-100">
+                        <td className="py-2 px-4 border border-gray-300 font-medium">Mean</td>
+                        {data.processed_data[selectedProcessedSheet].viability_data.concentrations.map((conc: any, index: number) => {
+                          const key = typeof conc === 'number' ? conc.toString() : conc;
+                          return (
+                            <td key={index} className="py-2 px-4 border border-gray-300 text-center font-medium">
+                              {data.processed_data[selectedProcessedSheet].viability_data.mean_values[key]?.toFixed(1)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 border border-gray-300">SD</td>
+                        {data.processed_data[selectedProcessedSheet].viability_data.concentrations.map((conc: any, index: number) => {
+                          const key = typeof conc === 'number' ? conc.toString() : conc;
+                          return (
+                            <td key={index} className="py-2 px-4 border border-gray-300 text-center">
+                              {data.processed_data[selectedProcessedSheet].viability_data.std_dev[key]?.toFixed(1)}
+                            </td>
+                          );
+                        })}
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -1037,8 +1059,8 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     <table className="min-w-full bg-white border border-gray-300">
                       <thead>
                         <tr>
-                          <th className="py-2 px-4 border border-gray-300 text-left"></th>
-                          {sheet.absorbance_570.concentrations.map((conc: string, index: number) => (
+                          <th className="py-2 px-4 border border-gray-300 text-left">% of viability vs. NC</th>
+                          {sheet.viability_data.concentrations.map((conc: string, index: number) => (
                             <th
                               key={index}
                               className={`py-2 px-4 border border-gray-300 text-center ${conc === "NC" || conc === "NC'" ? 'bg-blue-500 text-white' :
@@ -1053,14 +1075,14 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       </thead>
                       <tbody>
                         {/* Create rows based on the number of readings */}
-                        {Array.from({ length: sheet.absorbance_570.readings["NC"].length }).map((_, rowIndex) => (
+                        {Array.from({ length: sheet.viability_data.readings["NC"].length }).map((_, rowIndex) => (
                           <tr key={rowIndex}>
                             <td className="py-2 px-4 border border-gray-300"></td>
-                            {sheet.absorbance_570.concentrations.map((conc: number, colIndex: number) => {
+                            {sheet.viability_data.concentrations.map((conc: any, colIndex: number) => {
                               const key = typeof conc === 'number' ? conc.toString() : conc;
                               return (
                                 <td key={colIndex} className="py-2 px-4 border border-gray-300 text-center">
-                                  {sheet.absorbance_570.readings[key][rowIndex]?.toFixed(3)}
+                                  {sheet.viability_data.readings[key][rowIndex]?.toFixed(3)}
                                 </td>
                               );
                             })}
@@ -1068,48 +1090,25 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         ))}
                         <tr className="bg-green-100">
                           <td className="py-2 px-4 border border-gray-300 font-medium">Mean</td>
-                          {sheet.absorbance_570.concentrations.map((conc: number, index: number) => {
+                          {sheet.viability_data.concentrations.map((conc: any, index: number) => {
                             const key = typeof conc === 'number' ? conc.toString() : conc;
                             return (
                               <td key={index} className="py-2 px-4 border border-gray-300 text-center font-medium">
-                                {sheet.absorbance_570.mean_values[key]?.toFixed(3)}
+                                {sheet.viability_data.mean_values[key]?.toFixed(1)}
                               </td>
                             );
                           })}
                         </tr>
                         <tr>
                           <td className="py-2 px-4 border border-gray-300">SD</td>
-                          {sheet.absorbance_570.concentrations.map((conc: number, index: number) => {
+                          {sheet.viability_data.concentrations.map((conc: any, index: number) => {
                             const key = typeof conc === 'number' ? conc.toString() : conc;
                             return (
                               <td key={index} className="py-2 px-4 border border-gray-300 text-center">
-                                {sheet.absorbance_570.std_dev[key]?.toFixed(3)}
+                                {sheet.viability_data.std_dev[key]?.toFixed(1)}
                               </td>
                             );
                           })}
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-4 border border-gray-300">CV</td>
-                          {sheet.absorbance_570.concentrations.map((conc: number, index: number) => {
-                            const key = typeof conc === 'number' ? conc.toString() : conc;
-                            return (
-                              <td key={index} className="py-2 px-4 border border-gray-300 text-center">
-                                {sheet.absorbance_570.cv_values[key]?.toFixed(2)}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-4 border border-gray-300"></td>
-                          <td className="py-2 px-4 border border-gray-300"></td>
-                          <td className="py-2 px-4 border border-gray-300"></td>
-                          <td className="py-2 px-4 border border-gray-300"></td>
-                          <td className="py-2 px-4 border border-gray-300"></td>
-                          <td className="py-2 px-4 border border-gray-300"></td>
-                          <td className="py-2 px-4 border border-gray-300"></td>
-                          <td className="py-2 px-4 border border-gray-300"></td>
-                          <td className="py-2 px-4 border border-gray-300 text-bold text-center bg-red-100">Mean</td>
-                          <td className="py-2 px-4 border border-gray-300 text-center">{sheet.absorbance_570.mean_nc?.toFixed(3)}</td>
                         </tr>
                       </tbody>
                     </table>

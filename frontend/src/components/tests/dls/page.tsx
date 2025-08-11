@@ -31,101 +31,116 @@ interface SizeDistributionData {
   mean_intensity_percent: number[];
 }
 
-interface RunData {
-  run_number: number;
-  correlation_data: CorrelationData;
-  size_distribution: SizeDistributionData;
-  z_ave_hydrodynamic_diameter: number;
-  pdi: number;
-  peak_1_diameter: number;
-  peak_1_std_dev: number;
-  peak_1_intensity: number;
-  peak_2_diameter: number;
-  peak_2_std_dev: number;
-  peak_2_intensity: number;
-  peak_3_diameter: number;
-  peak_3_std_dev: number;
-  peak_3_intensity: number;
-  derived_count_rate: number;
+interface ReplicationData {
   test_identifier_number: string;
-  test_start_date: string;
-  test_end_date: string;
+  test_start_date: string | null;
+  test_end_date: string | null;
+}
+
+interface RunMetrics {
+  z_ave_hydrodynamic_diameter: number | null;
+  pdi: number | null;
+  peak_1_diameter: number | null;
+  peak_1_std_dev: number | null;
+  peak_1_intensity: number | null;
+  peak_2_diameter: number | null;
+  peak_2_std_dev: number | null;
+  peak_2_intensity: number | null;
+  peak_3_diameter: number | null;
+  peak_3_std_dev: number | null;
+  peak_3_intensity: number | null;
+  derived_count_rate: number | null;
+}
+
+interface ProcessedData {
+  run_number: number;
+  size_distribution: SizeDistributionData;
+  metrics: RunMetrics;
 }
 
 interface DLSData {
-  work_package: {
-    wp_name: string;
-    partner: string;
-    full_test_name: string;
-    test_acronym: string;
-    test_type: string;
-    endpoint: string;
-    sop: string;
-    path: string;
-    lead_scientists: { name: string; email: string }[];
-    assay_scientists: { name: string; email: string }[];
+  test_details: {
+    work_package: {
+      wp_name: string | null;
+      partner: string | null;
+      full_test_name: string | null;
+      test_acronym: string | null;
+      test_type: string | null;
+      endpoint: string | null;
+      sop: string | null;
+      path: string | null;
+      lead_scientists: { name: string | null; email: string | null }[];
+      assay_scientists: { name: string | null; email: string | null }[];
+    };
+    material: {
+      material_identifier: string | null;
+      erm_id: string | null;
+      core_chemistry: string | null;
+      material_name: string | null;
+      material_state: string | null;
+      batch: string | null;
+      preparation_date: string | null;
+      particles_stock: string | null;
+      molar_concentration: string | null;
+    };
+    sample_preparation: {
+      dispersion_protocol: string | null;
+      dispersion_technique: string | null;
+      dispersion_medium: string | null;
+      sonicator_type: string | null;
+      power: string | null;
+      sonication_time: string | null;
+      tip_thickness: string | null;
+      tip_composition: string | null;
+      ultrasonic_bath_size: string | null;
+      sample_volume: string | null;
+      final_concentration: string | null;
+      additional_info: string | null;
+    };
+    instrumentation: {
+      instrument_model: string | null;
+      cell_model: string | null;
+      temperature: string | null;
+      thermal_equilibrium_time: string | null;
+      number_of_runs: number | null;
+      sub_runs: string | null;
+      delay_between_runs: string | null;
+      run_duration: string | null;
+      laser_focus_position: string | null;
+      scattering_angle: string | null;
+      data_analysis_model: string | null;
+      laser_attenuation: string | null;
+      refractive_index_nm: number | null;
+      absorption_index_nm: number | null;
+      refractive_index_medium: number | null;
+      viscosity_medium: string | null;
+    };
   };
-  material: {
-    material_identifier: string;
-    erm_id: string;
-    core_chemistry: string;
-    material_state: string;
-    batch: string;
-    preparation_date: string;
-    particles_stock: string;
-    molar_concentration: string;
-  };
-  sample_preparation: {
-    dispersion_protocol: string;
-    dispersion_technique: string;
-    dispersion_medium: string;
-    sonicator_type: string;
-    power: string;
-    sonication_time: string;
-    tip_thickness: string;
-    tip_composition: string;
-    ultrasonic_bath_size: string;
-    sample_volume: string;
-    final_concentration: string;
-    additional_info: string;
-  };
-  instrumentation: {
-    instrument_model: string;
-    cell_model: string;
-    temperature: string;
-    thermal_equilibrium_time: string;
-    number_of_runs: number;
-    sub_runs: string;
-    delay_between_runs: string;
-    run_duration: string;
-    laser_focus_position: string;
-    scattering_angle: string;
-    data_analysis_model: string;
-    laser_attenuation: string;
-    refractive_index_nm: number;
-    absorption_index_nm: number;
-    refractive_index_medium: number;
-    viscosity_medium: string;
-  };
-  run_data: RunData[];
-  results: {
-    z_ave_hydrodynamic_diameter: number;
-    uncertainty_hydrodynamic_diameter: number;
-    pdi: number;
-    uncertainty_pdi: number;
-    mean_peak_1_diameter: number;
-    pooled_std_dev_peak_1: number;
-    std_dev_between_measurements_peak_1: number;
-    mean_peak_1_intensity: number;
-    mean_peak_2_diameter: number;
-    pooled_std_dev_peak_2: number;
-    std_dev_between_measurements_peak_2: number;
-    mean_peak_2_intensity: number;
-    mean_peak_3_diameter: number;
-    pooled_std_dev_peak_3: number;
-    std_dev_between_measurements_peak_3: number;
-    mean_peak_3_intensity: number;
-    derived_count_rate: number;
+  raw_data: {
+    run_number: number;
+    replication: ReplicationData;
+    correlation_data: CorrelationData;
+    processed_data: ProcessedData;
+  }[];
+  processed_data: ProcessedData[];
+  final_results: {
+    z_ave_hydrodynamic_diameter: number | null;
+    uncertainty_hydrodynamic_diameter: number | null;
+    pdi: number | null;
+    uncertainty_pdi: number | null;
+    mean_peak_1_diameter: number | null;
+    pooled_std_dev_peak_1: number | null;
+    std_dev_between_measurements_peak_1: number | null;
+    mean_peak_1_intensity: number | null;
+    mean_peak_2_diameter: number | null;
+    pooled_std_dev_peak_2: number | null;
+    std_dev_between_measurements_peak_2: number | null;
+    mean_peak_2_intensity: number | null;
+    mean_peak_3_diameter: number | null;
+    pooled_std_dev_peak_3: number | null;
+    std_dev_between_measurements_peak_3: number | null;
+    mean_peak_3_intensity: number | null;
+    derived_count_rate: number | null;
     statistic_table: {
       size_nm: number;
       mean_intensity_percent: number;
@@ -138,22 +153,22 @@ type Point = { x: number; y: number };
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-function mapRunToPoints(run: RunData): {
+function mapRunToPoints(run: DLSData["raw_data"][0]): {
   correlationPoints: Point[];
   sizeDistributionPoints: Point[];
 } {
-  const corr = run.correlation_data;
+  const corr = run?.correlation_data ?? { time_us: [], correlation_coefficient: [] };
   const correlationPoints: Point[] =
-    Array.isArray(corr?.time_us) && Array.isArray(corr.correlation_coefficient)
+    Array.isArray(corr.time_us) && Array.isArray(corr.correlation_coefficient)
       ? corr.time_us.map((t, i) => ({
         x: t,
         y: corr.correlation_coefficient[i] ?? 0,
       }))
       : [];
 
-  const sd = run.size_distribution;
+  const sd = run?.processed_data?.size_distribution ?? { size_nm: [], mean_intensity_percent: [] };
   const sizeDistributionPoints: Point[] =
-    Array.isArray(sd?.size_nm) && Array.isArray(sd.mean_intensity_percent)
+    Array.isArray(sd.size_nm) && Array.isArray(sd.mean_intensity_percent)
       ? sd.size_nm.map((s, i) => ({
         x: s,
         y: sd.mean_intensity_percent[i] ?? 0,
@@ -175,23 +190,30 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
   // Fetch data and initialize plots
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
-        const response = await api.get<DLSData>(
-          `/files/${work_package}/${element}/${test}/${file}`
-        );
+        setLoading(true);
+        const response = await api.post(`/tests/listings`, {
+          work_package_name: work_package,
+          element_cms_id: element,
+          test_name: test,
+        });
         if (response.status !== 200) {
           throw new Error("Network response was not ok");
         }
         const result = response.data;
+        console.log("Fetched DLS data:", result);
         setData(result);
 
-        if (result.run_data.length > 0) {
+        if (result?.raw_data?.length > 0) {
           const { correlationPoints, sizeDistributionPoints } = mapRunToPoints(
-            result.run_data[0]
+            result.raw_data[0]
           );
           setCorrelationPoints(correlationPoints);
           setSizeDistributionPoints(sizeDistributionPoints);
+        } else {
+          console.warn("No raw data available, setting empty points");
+          setCorrelationPoints([]);
+          setSizeDistributionPoints([]);
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -205,8 +227,12 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
 
   // Update plots when selected run changes
   useEffect(() => {
-    if (!data?.run_data?.length) return;
-    const run = data.run_data[selectedRun] || data.run_data[0];
+    if (!data?.raw_data?.length) {
+      setCorrelationPoints([]);
+      setSizeDistributionPoints([]);
+      return;
+    }
+    const run = data.raw_data[selectedRun] || data.raw_data[0];
     const { correlationPoints, sizeDistributionPoints } = mapRunToPoints(run);
     setCorrelationPoints(correlationPoints);
     setSizeDistributionPoints(sizeDistributionPoints);
@@ -268,16 +294,16 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               <div className="bg-blue-50 p-4 rounded-md">
                 <p className="mb-2">
                   <span className="font-semibold">Work Package:</span>{" "}
-                  {work_package}
+                  {work_package || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Element:</span> {element}
+                  <span className="font-semibold">Element:</span> {element || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Test:</span> {test}
+                  <span className="font-semibold">Test:</span> {test || "N/A"}
                 </p>
                 <p>
-                  <span className="font-semibold">File:</span> {file}
+                  <span className="font-semibold">File:</span> {file || "N/A"}
                 </p>
               </div>
             </div>
@@ -286,27 +312,27 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               <div className="bg-blue-50 p-4 rounded-md">
                 <p className="mb-2">
                   <span className="font-semibold">Full Test Name:</span>{" "}
-                  {data.work_package.full_test_name}
+                  {data.test_details.work_package.full_test_name || "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">ERM Identifier:</span>{" "}
-                  {data.material.erm_id}
+                  {data.test_details.material.erm_id || "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Test Acronym:</span>{" "}
-                  {data.work_package.test_acronym}
+                  {data.test_details.work_package.test_acronym || "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Test Type:</span>{" "}
-                  {data.work_package.test_type}
+                  {data.test_details.work_package.test_type || "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Endpoint:</span>{" "}
-                  {data.work_package.endpoint}
+                  {data.test_details.work_package.endpoint || "N/A"}
                 </p>
                 <p>
                   <span className="font-semibold">SOP:</span>{" "}
-                  {data.work_package.sop || "N/A"}
+                  {data.test_details.work_package.sop || "N/A"}
                 </p>
               </div>
             </div>
@@ -374,7 +400,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(data.material).map(([key, value]) => (
+                    {Object.entries(data.test_details.material).map(([key, value]) => (
                       <tr key={key}>
                         <td className="py-2 px-4 border font-medium">
                           {key
@@ -382,7 +408,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                             .replace(/\b\w/g, (c) => c.toUpperCase())}
                         </td>
                         <td className="py-2 px-4 border">
-                          {key === "preparation_date"
+                          {key === "preparation_date" && value
                             ? new Date(value).toLocaleDateString()
                             : value || "N/A"}
                         </td>
@@ -421,7 +447,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(data.sample_preparation).map(([key, value]) => (
+                    {Object.entries(data.test_details.sample_preparation).map(([key, value]) => (
                       <tr key={key}>
                         <td className="py-2 px-4 border font-medium">
                           {key
@@ -464,14 +490,14 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(data.instrumentation).map(([key, value]) => (
+                    {Object.entries(data.test_details.instrumentation).map(([key, value]) => (
                       <tr key={key}>
                         <td className="py-2 px-4 border font-medium">
                           {key
                             .replace(/_/g, " ")
                             .replace(/\b\w/g, (c) => c.toUpperCase())}
                         </td>
-                        <td className="py-2 px-4 border">{value || "N/A"}</td>
+                        <td className="py-2 px-4 border">{value ?? "N/A"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -511,14 +537,20 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       </tr>
                     </thead>
                     <tbody>
-                      {data.work_package.lead_scientists.map((scientist, index) => (
-                        <tr key={index}>
-                          <td className="py-2 px-4 border">{scientist.name}</td>
-                          <td className="py-2 px-4 border">
-                            {scientist.email || "N/A"}
+                      {data.test_details.work_package.lead_scientists.length > 0 ? (
+                        data.test_details.work_package.lead_scientists.map((scientist, index) => (
+                          <tr key={index}>
+                            <td className="py-2 px-4 border">{scientist.name ?? "N/A"}</td>
+                            <td className="py-2 px-4 border">{scientist.email ?? "N/A"}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={2} className="py-2 px-4 border text-center">
+                            No lead scientists available
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -534,14 +566,20 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       </tr>
                     </thead>
                     <tbody>
-                      {data.work_package.assay_scientists.map((scientist, index) => (
-                        <tr key={index}>
-                          <td className="py-2 px-4 border">{scientist.name}</td>
-                          <td className="py-2 px-4 border">
-                            {scientist.email || "N/A"}
+                      {data.test_details.work_package.assay_scientists.length > 0 ? (
+                        data.test_details.work_package.assay_scientists.map((scientist, index) => (
+                          <tr key={index}>
+                            <td className="py-2 px-4 border">{scientist.name ?? "N/A"}</td>
+                            <td className="py-2 px-4 border">{scientist.email ?? "N/A"}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={2} className="py-2 px-4 border text-center">
+                            No assay scientists available
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -551,13 +589,13 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
         )}
 
         {/* Raw Data Tab */}
-        {activeTab === "raw-data" && (
+        {activeTab === "raw-data" && data.raw_data && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-blue-800">Raw Data</h2>
               <button
                 onClick={() =>
-                  downloadTable("rawDataTable", `Run_${selectedRun + 1}_Raw_Data`)
+                  downloadTable("rawDataTable", `Run_${selectedRun + 1}_correlation_data`)
                 }
                 className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
               >
@@ -566,110 +604,124 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               </button>
             </div>
 
-            <div className="mb-6">
-              <label
-                htmlFor="run-select"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Select Replication:
-              </label>
-              <select
-                id="run-select"
-                value={selectedRun}
-                onChange={(e) => setSelectedRun(Number(e.target.value))}
-                className="w-full md:w-1/3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
-              >
-                {data.run_data.map((run, index) => (
-                  <option key={index} value={index}>
-                    Replication {run.run_number} - WP2_DLS_1aR{run.run_number}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {data.raw_data.length > 0 ? (
+              <>
+                <div className="mb-6">
+                  <label
+                    htmlFor="run-select"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Select Replication:
+                  </label>
+                  <select
+                    id="run-select"
+                    value={selectedRun}
+                    onChange={(e) => setSelectedRun(Number(e.target.value))}
+                    className="w-full md:w-1/3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
+                  >
+                    {data.raw_data.map((run, index) => (
+                      <option key={index} value={index}>
+                        Replication {run.run_number || "N/A"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Correlation Function Plot */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">
-                Correlation Function
-              </h3>
-              <ResponsiveContainer width="100%" height={400}>
-                <ScatterChart
-                  margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                >
-                  <CartesianGrid />
-                  <XAxis
-                    type="number"
-                    dataKey="x"
-                    name="Time (μs)"
-                    label={{
-                      value: "Time (μs)",
-                      position: "insideBottomRight",
-                      offset: -10,
-                    }}
-                    domain={["auto", "auto"]}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey="y"
-                    name="Correlation Coefficient"
-                    label={{
-                      value: "Correlation Coefficient",
-                      angle: -90,
-                      position: "insideLeft",
-                    }}
-                    domain={[0, 1]}
-                  />
-                  <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                  <Scatter
-                    name="Correlation"
-                    data={correlationPoints}
-                    fill="#8884d8"
-                  />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </div>
+                {/* Correlation Function Plot */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Correlation Function
+                  </h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <ScatterChart
+                      margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                    >
+                      <CartesianGrid />
+                      <XAxis
+                        type="number"
+                        dataKey="x"
+                        name="Time (μs)"
+                        label={{
+                          value: "Time (μs)",
+                          position: "insideBottomRight",
+                          offset: -10,
+                        }}
+                        domain={["auto", "auto"]}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="y"
+                        name="Correlation Coefficient"
+                        label={{
+                          value: "Correlation Coefficient",
+                          angle: -90,
+                          position: "insideLeft",
+                        }}
+                        domain={[0, 1]}
+                      />
+                      <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+                      <Scatter
+                        name="Correlation"
+                        data={correlationPoints}
+                        fill="#8884d8"
+                      />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
 
-            {/* Raw Data Table */}
-            <div className="overflow-x-auto">
-              <table
-                id="rawDataTable"
-                className="min-w-full bg-white border border-gray-200"
-              >
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="py-2 px-4 border text-left">Time (μs)</th>
-                    <th className="py-2 px-4 border text-left">
-                      Correlation Coefficient
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.run_data[selectedRun].correlation_data.time_us.map(
-                    (_, index) => (
-                      <tr
-                        key={index}
-                        className={index % 2 === 0 ? "bg-gray-50" : ""}
-                      >
-                        <td className="py-2 px-4 border">
-                          {data.run_data[selectedRun].correlation_data.time_us[
-                            index
-                          ]?.toFixed(2) || "-"}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {data.run_data[selectedRun].correlation_data
-                            .correlation_coefficient[index]?.toFixed(4) || "-"}
-                        </td>
+                {/* Raw Data Table */}
+                <div className="overflow-x-auto">
+                  <table
+                    id="rawDataTable"
+                    className="min-w-full bg-white border border-gray-200"
+                  >
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="py-2 px-4 border text-left">Time (μs)</th>
+                        <th className="py-2 px-4 border text-left">
+                          Correlation Coefficient
+                        </th>
                       </tr>
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {data.raw_data[selectedRun]?.correlation_data?.time_us?.length > 0 ? (
+                        data.raw_data[selectedRun].correlation_data.time_us.map(
+                          (time, index) => (
+                            <tr
+                              key={index}
+                              className={index % 2 === 0 ? "bg-gray-50" : ""}
+                            >
+                              <td className="py-2 px-4 border">
+                                {time?.toFixed(2) ?? "-"}
+                              </td>
+                              <td className="py-2 px-4 border">
+                                {data.raw_data[selectedRun].correlation_data
+                                  .correlation_coefficient[index]?.toFixed(4) ?? "-"}
+                              </td>
+                            </tr>
+                          )
+                        )
+                      ) : (
+                        <tr>
+                          <td colSpan={2} className="py-2 px-4 border text-center">
+                            No correlation data available
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-gray-600">
+                No raw data available
+              </div>
+            )}
           </div>
         )}
 
         {/* Processed Data Tab */}
-        {activeTab === "processed-data" && (
+        {activeTab === "processed-data" && data.processed_data && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-blue-800">Processed Data</h2>
@@ -687,183 +739,191 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               </button>
             </div>
 
-            <div className="mb-6">
-              <label
-                htmlFor="run-select-processed"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Select Replication:
-              </label>
-              <select
-                id="run-select-processed"
-                value={selectedRun}
-                onChange={(e) => setSelectedRun(Number(e.target.value))}
-                className="w-full md:w-1/3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
-              >
-                {data.run_data.map((run, index) => (
-                  <option key={index} value={index}>
-                    Replication {run.run_number} - WP2_DLS_1aR{run.run_number}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {/* Run Metrics */}
-            <div className="mb-6 bg-blue-50 p-4 rounded-md">
-              <h3 className="text-lg font-semibold mb-3">
-                Results {selectedRun + 1}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="font-semibold">Z-Average Diameter:</p>
-                  <p>
-                    {data.run_data[selectedRun].z_ave_hydrodynamic_diameter?.toFixed(
-                      2
-                    ) || "N/A"}{" "}
-                    nm
-                  </p>
+            {data.processed_data.length > 0 ? (
+              <>
+                <div className="mb-6">
+                  <label
+                    htmlFor="run-select-processed"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Select Run:
+                  </label>
+                  <select
+                    id="run-select-processed"
+                    value={selectedRun}
+                    onChange={(e) => setSelectedRun(Number(e.target.value))}
+                    className="w-full md:w-1/3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
+                  >
+                    {data.processed_data.map((run, index) => (
+                      <option key={index} value={index}>
+                        Run {run.run_number}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div>
-                  <p className="font-semibold">PDI:</p>
-                  <p>{data.run_data[selectedRun].pdi?.toFixed(3) || "N/A"}</p>
-                </div>
-                <div>
-                  <p className="font-semibold">Derived Count Rate:</p>
-                  <p>
-                    {data.run_data[selectedRun].derived_count_rate?.toFixed(2) ||
-                      "N/A"}{" "}
-                    kcps
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold">Peak 1 diameter by intensity:</p>
-                  <p>
-                    {data.run_data[selectedRun].peak_1_diameter?.toFixed(2) ||
-                      "N/A"}{" "}
-                    nm
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold">Standard deviation peak 1:</p>
-                  <p>
-                    {data.run_data[selectedRun].peak_1_std_dev?.toFixed(2) ||
-                      "N/A"}{" "}
-                    nm
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold">Peak 1 relative intensity:</p>
-                  <p>
-                    {data.run_data[selectedRun].peak_1_intensity?.toFixed(2) ||
-                      "N/A"}{" "}
-                    %
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold">Peak 2 diameter by intensity:</p>
-                  <p>
-                    {data.run_data[selectedRun].peak_2_diameter?.toFixed(2) ||
-                      "N/A"}{" "}
-                    nm
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold">Standard deviation peak 2:</p>
-                  <p>
-                    {data.run_data[selectedRun].peak_2_std_dev?.toFixed(2) ||
-                      "N/A"}{" "}
-                    nm
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold">Peak 2 relative intensity:</p>
-                  <p>
-                    {data.run_data[selectedRun].peak_2_intensity?.toFixed(2) ||
-                      "N/A"}{" "}
-                    %
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            {/* Size Distribution Plot */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">Size Distribution</h3>
-              <ResponsiveContainer width="100%" height={400}>
-                <ScatterChart
-                  margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                >
-                  <CartesianGrid />
-                  <XAxis
-                    type="number"
-                    dataKey="x"
-                    name="Size (nm)"
-                    label={{
-                      value: "Size (nm)",
-                      position: "insideBottomRight",
-                      offset: -10,
-                    }}
-                    domain={["auto", "auto"]}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey="y"
-                    name="Intensity (%)"
-                    label={{
-                      value: "Intensity (%)",
-                      angle: -90,
-                      position: "insideLeft",
-                    }}
-                    domain={[0, "auto"]}
-                  />
-                  <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                  <Scatter
-                    name="Size Distribution"
-                    data={sizeDistributionPoints}
-                    fill="#82ca9d"
-                  />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </div>
+                {/* Run Metrics */}
+                <div className="mb-6 bg-blue-50 p-4 rounded-md">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Results for Run {data.processed_data[selectedRun]?.run_number}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="font-semibold">Z-Average Diameter:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.z_ave_hydrodynamic_diameter?.toFixed(2) ?? "N/A"} nm
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">PDI:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.pdi?.toFixed(3) ?? "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Derived Count Rate:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.derived_count_rate?.toFixed(2) ?? "N/A"} kcps
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Peak 1 Diameter by Intensity:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.peak_1_diameter?.toFixed(2) ?? "N/A"} nm
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Standard Deviation Peak 1:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.peak_1_std_dev?.toFixed(2) ?? "N/A"} nm
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Peak 1 Relative Intensity:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.peak_1_intensity?.toFixed(2) ?? "N/A"} %
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Peak 2 Diameter by Intensity:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.peak_2_diameter?.toFixed(2) ?? "N/A"} nm
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Standard Deviation Peak 2:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.peak_2_std_dev?.toFixed(2) ?? "N/A"} nm
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Peak 2 Relative Intensity:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.peak_2_intensity?.toFixed(2) ?? "N/A"} %
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-            {/* Size Distribution Table */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">
-                Size Distribution Data
-              </h3>
-              <div className="overflow-x-auto">
-                <table
-                  id="sizeDistributionTable"
-                  className="min-w-full bg-white border border-gray-200"
-                >
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="py-2 px-4 border text-left">Size (nm)</th>
-                      <th className="py-2 px-4 border text-left">Intensity (%)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.run_data[selectedRun].size_distribution.size_nm.map(
-                      (size, index) => (
-                        <tr
-                          key={index}
-                          className={index % 2 === 0 ? "bg-gray-50" : ""}
-                        >
-                          <td className="py-2 px-4 border">
-                            {size?.toFixed(2) || "-"}
-                          </td>
-                          <td className="py-2 px-4 border">
-                            {data.run_data[selectedRun].size_distribution
-                              .mean_intensity_percent[index]?.toFixed(2) || "-"}
-                          </td>
+                {/* Size Distribution Plot */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-3">Size Distribution</h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                      <CartesianGrid />
+                      <XAxis
+                        type="number"
+                        dataKey="x"
+                        name="Size (nm)"
+                        label={{
+                          value: "Size (nm)",
+                          position: "insideBottomRight",
+                          offset: -10,
+                        }}
+                        domain={["auto", "auto"]}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="y"
+                        name="Intensity (%)"
+                        label={{
+                          value: "Intensity (%)",
+                          angle: -90,
+                          position: "insideLeft",
+                        }}
+                        domain={[0, "auto"]}
+                      />
+                      <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+                      <Scatter
+                        name="Size Distribution"
+                        data={
+                          data.processed_data[selectedRun]?.size_distribution?.size_nm?.map(
+                            (size, i) => ({
+                              x: size,
+                              y: data.processed_data[selectedRun]?.size_distribution?.mean_intensity_percent[i] ?? 0,
+                            })
+                          ) ?? []
+                        }
+                        fill="#82ca9d"
+                      />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Size Distribution Table */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Size Distribution Data
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table
+                      id="processedDataTable"
+                      className="min-w-full bg-white border border-gray-200"
+                    >
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="py-2 px-4 border text-left">Size (nm)</th>
+                          <th className="py-2 px-4 border text-left">Intensity (%)</th>
                         </tr>
-                      )
-                    )}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {data.processed_data[selectedRun]?.size_distribution?.size_nm?.length > 0 ? (
+                          data.processed_data[selectedRun].size_distribution.size_nm.map(
+                            (size, index) => (
+                              <tr
+                                key={index}
+                                className={index % 2 === 0 ? "bg-gray-50" : ""}
+                              >
+                                <td className="py-2 px-4 border">
+                                  {size?.toFixed(2) ?? "-"}
+                                </td>
+                                <td className="py-2 px-4 border">
+                                  {data.processed_data[selectedRun].size_distribution
+                                    .mean_intensity_percent[index]?.toFixed(2) ?? "-"}
+                                </td>
+                              </tr>
+                            )
+                          )
+                        ) : (
+                          <tr>
+                            <td colSpan={2} className="py-2 px-4 border text-center">
+                              No size distribution data available
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-gray-600">
+                No processed data available
               </div>
-            </div>
+            )}
           </div>
         )}
+
 
         {/* Results Tab */}
         {activeTab === "results" && (
@@ -886,57 +946,52 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 <div>
                   <p className="font-semibold">Z-Average Diameter:</p>
                   <p>
-                    {data.results.z_ave_hydrodynamic_diameter?.toFixed(2)} ±{" "}
-                    {data.results.uncertainty_hydrodynamic_diameter?.toFixed(2)}{" "}
-                    nm
+                    {data.final_results.z_ave_hydrodynamic_diameter?.toFixed(2) ?? "N/A"} ±{" "}
+                    {data.final_results.uncertainty_hydrodynamic_diameter?.toFixed(2) ?? "N/A"} nm
                   </p>
                 </div>
                 <div>
                   <p className="font-semibold">PDI:</p>
                   <p>
-                    {data.results.pdi?.toFixed(3)} ±{" "}
-                    {data.results.uncertainty_pdi?.toFixed(3)}
+                    {data.final_results.pdi?.toFixed(3) ?? "N/A"} ±{" "}
+                    {data.final_results.uncertainty_pdi?.toFixed(3) ?? "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="font-semibold">Derived Count Rate:</p>
-                  <p>{data.results.derived_count_rate?.toFixed(2)} kcps</p>
+                  <p>{data.final_results.derived_count_rate?.toFixed(2) ?? "N/A"} kcps</p>
                 </div>
                 <div>
-                  <p className="font-semibold">Mean peak 1 diameter by intensity:</p>
-                  <p>{data.results.mean_peak_1_diameter?.toFixed(2)} nm</p>
+                  <p className="font-semibold">Mean Peak 1 Diameter by Intensity:</p>
+                  <p>{data.final_results.mean_peak_1_diameter?.toFixed(2) ?? "N/A"} nm</p>
                 </div>
                 <div>
-                  <p className="font-semibold">Pooled standard deviation peak 1:</p>
-                  <p>{data.results.pooled_std_dev_peak_1?.toFixed(2)} nm</p>
+                  <p className="font-semibold">Pooled Standard Deviation Peak 1:</p>
+                  <p>{data.final_results.pooled_std_dev_peak_1?.toFixed(2) ?? "N/A"} nm</p>
                 </div>
                 <div>
-                  <p className="font-semibold">Standard deviation between measurements peak 1:</p>
-                  <p>{data.results.std_dev_between_measurements_peak_1?.toFixed(
-                    2
-                  )} kcps</p>
+                  <p className="font-semibold">Standard Deviation Between Measurements Peak 1:</p>
+                  <p>{data.final_results.std_dev_between_measurements_peak_1?.toFixed(2) ?? "N/A"} nm</p>
                 </div>
                 <div>
-                  <p className="font-semibold">Mean peak 1 relative intensity:</p>
-                  <p>{data.results.mean_peak_1_intensity?.toFixed(2)} %</p>
+                  <p className="font-semibold">Mean Peak 1 Relative Intensity:</p>
+                  <p>{data.final_results.mean_peak_1_intensity?.toFixed(2) ?? "N/A"} %</p>
                 </div>
                 <div>
-                  <p className="font-semibold">Mean peak 2 diameter by intensity:</p>
-                  <p>{data.results.mean_peak_2_diameter?.toFixed(2)} nm</p>
+                  <p className="font-semibold">Mean Peak 2 Diameter by Intensity:</p>
+                  <p>{data.final_results.mean_peak_2_diameter?.toFixed(2) ?? "N/A"} nm</p>
                 </div>
                 <div>
-                  <p className="font-semibold">Pooled standard deviation peak 2:</p>
-                  <p>{data.results.pooled_std_dev_peak_2?.toFixed(2)} %</p>
+                  <p className="font-semibold">Pooled Standard Deviation Peak 2:</p>
+                  <p>{data.final_results.pooled_std_dev_peak_2?.toFixed(2) ?? "N/A"} nm</p>
                 </div>
                 <div>
-                  <p className="font-semibold">Standard deviation between measurements peak 2:</p>
-                  <p>{data.results.std_dev_between_measurements_peak_2?.toFixed(
-                    2
-                  )}</p>
+                  <p className="font-semibold">Standard Deviation Between Measurements Peak 2:</p>
+                  <p>{data.final_results.std_dev_between_measurements_peak_2?.toFixed(2) ?? "N/A"} nm</p>
                 </div>
                 <div>
-                  <p className="font-semibold">Mean peak 2 relative intensity:</p>
-                  <p>{data.results.mean_peak_2_intensity?.toFixed(2)} %</p>
+                  <p className="font-semibold">Mean Peak 2 Relative Intensity:</p>
+                  <p>{data.final_results.mean_peak_2_intensity?.toFixed(2) ?? "N/A"} %</p>
                 </div>
               </div>
             </div>
@@ -945,33 +1000,39 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-3">Statistic Table</h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border border-gray-200">
+                <table id="resultsTable" className="min-w-full bg-white border border-gray-200">
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="py-2 px-4 border text-left">Size (nm)</th>
-                      <th className="py-2 px-4 border text-left">
-                        Mean Intensity (%)
-                      </th>
+                      <th className="py-2 px-4 border text-left">Mean Intensity (%)</th>
                       <th className="py-2 px-4 border text-left">Std Dev</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.results.statistic_table.map((row, index) => (
-                      <tr
-                        key={index}
-                        className={index % 2 === 0 ? "bg-gray-50" : ""}
-                      >
-                        <td className="py-2 px-4 border">
-                          {row.size_nm.toFixed(2)}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {row.mean_intensity_percent.toFixed(2)}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {row.std_dev.toFixed(2)}
+                    {data.final_results.statistic_table?.length > 0 ? (
+                      data.final_results.statistic_table.map((row, index) => (
+                        <tr
+                          key={index}
+                          className={index % 2 === 0 ? "bg-gray-50" : ""}
+                        >
+                          <td className="py-2 px-4 border">
+                            {row.size_nm.toFixed(2)}
+                          </td>
+                          <td className="py-2 px-4 border">
+                            {row.mean_intensity_percent.toFixed(2)}
+                          </td>
+                          <td className="py-2 px-4 border">
+                            {row.std_dev.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} className="py-2 px-4 border text-center">
+                          No statistic table data available
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -13,6 +13,7 @@ from ..schemas.test import (
     TestListings
 )
 from parsers.mtt import parse_excel_mtt
+from parsers.dls import parse_excel_dls 
 import tempfile
 import math
 import shutil
@@ -58,6 +59,13 @@ async def create_test(
                 
             if request.test_name == "MTT":
                 file_data = parse_excel_mtt(path)
+            elif request.test_name == "DLS":
+                file_data = parse_excel_dls(path)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="DLS test not implemented yet"
+                )
+            
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

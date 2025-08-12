@@ -61,10 +61,6 @@ async def create_test(
                 file_data = parse_excel_mtt(path)
             elif request.test_name == "DLS":
                 file_data = parse_excel_dls(path)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="DLS test not implemented yet"
-                )
             
             else:
                 raise HTTPException(

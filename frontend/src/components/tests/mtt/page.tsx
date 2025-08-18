@@ -587,9 +587,9 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           <td className="py-2 px-4 border">{row.well}</td>
                           <td className="py-2 px-4 border">{row.type}</td>
                           <td className="py-2 px-4 border">{row.time_1}</td>
-                          <td className="py-2 px-4 border">{row.p570.toFixed(4)}</td>
+                          <td className="py-2 px-4 border">{typeof row.p570 === 'number' ? row.p570.toFixed(4) : row.p570}</td>
                           <td className="py-2 px-4 border">{row.time_2}</td>
-                          <td className="py-2 px-4 border">{row.p650.toFixed(4)}</td>
+                          <td className="py-2 px-4 border">{typeof row.p650 === 'number' ? row.p650.toFixed(4) : row.p650}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -672,7 +672,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             const key = typeof conc === 'number' ? conc.toString() : conc;
                             return (
                               <td key={colIndex} className="py-2 px-4 border border-gray-300 text-center">
-                                {data.processed_data[selectedProcessedSheet].absorbance_570.readings[key][rowIndex]?.toFixed(3)}
+                                {typeof data.processed_data[selectedProcessedSheet].absorbance_570.readings[key][rowIndex] === 'number' ? data.processed_data[selectedProcessedSheet].absorbance_570.readings[key][rowIndex]?.toFixed(3) : data.processed_data[selectedProcessedSheet].absorbance_570.readings[key][rowIndex]}
                               </td>
                             );
                           })}
@@ -684,7 +684,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           const key = typeof conc === 'number' ? conc.toString() : conc;
                           return (
                             <td key={index} className="py-2 px-4 border border-gray-300 text-center font-medium">
-                              {data.processed_data[selectedProcessedSheet].absorbance_570.mean_values[key]?.toFixed(3)}
+                              {typeof data.processed_data[selectedProcessedSheet].absorbance_570.mean_values[key] === 'number' ? data.processed_data[selectedProcessedSheet].absorbance_570.mean_values[key]?.toFixed(3) : data.processed_data[selectedProcessedSheet].absorbance_570.mean_values[key]}
                             </td>
                           );
                         })}
@@ -695,7 +695,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           const key = typeof conc === 'number' ? conc.toString() : conc;
                           return (
                             <td key={index} className="py-2 px-4 border border-gray-300 text-center">
-                              {data.processed_data[selectedProcessedSheet].absorbance_570.std_dev[key]?.toFixed(3)}
+                              {typeof data.processed_data[selectedProcessedSheet].absorbance_570.std_dev[key] === 'number' ? data.processed_data[selectedProcessedSheet].absorbance_570.std_dev[key]?.toFixed(3) : data.processed_data[selectedProcessedSheet].absorbance_570.std_dev[key]}
                             </td>
                           );
                         })}
@@ -706,7 +706,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           const key = typeof conc === 'number' ? conc.toString() : conc;
                           return (
                             <td key={index} className="py-2 px-4 border border-gray-300 text-center">
-                              {data.processed_data[selectedProcessedSheet].absorbance_570.cv_values[key].toFixed(2)}
+                              {typeof data.processed_data[selectedProcessedSheet].absorbance_570.cv_values[key] === 'number' ? data.processed_data[selectedProcessedSheet].absorbance_570.cv_values[key].toFixed(2) : data.processed_data[selectedProcessedSheet].absorbance_570.cv_values[key]}
                             </td>
                           );
                         })}
@@ -721,7 +721,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="py-2 px-4 border border-gray-300"></td>
                         <td className="py-2 px-4 border border-gray-300"></td>
                         <td className="py-2 px-4 border border-gray-300 text-bold text-center bg-red-100">Mean</td>
-                        <td className="py-2 px-4 border border-gray-300 text-center">{data.processed_data[selectedProcessedSheet].absorbance_570.mean_nc?.toFixed(3)}</td>
+                        <td className="py-2 px-4 border border-gray-300 text-center">{typeof data.processed_data[selectedProcessedSheet].absorbance_570.mean_nc === 'number' ? data.processed_data[selectedProcessedSheet].absorbance_570.mean_nc.toFixed(3) : data.processed_data[selectedProcessedSheet].absorbance_570.mean_nc}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -770,7 +770,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                               const key = typeof conc === 'number' ? conc.toString() : conc;
                               return (
                                 <td key={colIndex} className="py-2 px-4 border border-gray-300 text-center">
-                                  {data.processed_data[selectedProcessedSheet].absorbance_650.readings[key][rowIndex]?.toFixed(3)}
+                                  {typeof data.processed_data[selectedProcessedSheet].absorbance_650.readings[key][rowIndex] === 'number' ? data.processed_data[selectedProcessedSheet].absorbance_650.readings[key][rowIndex]?.toFixed(3) : data.processed_data[selectedProcessedSheet].absorbance_650.readings[key][rowIndex]}
                                 </td>
                               );
                             })}
@@ -808,7 +808,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                               const key = typeof conc === 'number' ? conc.toString() : conc;
                               return (
                                 <td key={colIndex} className="py-2 px-4 border border-gray-300 text-center">
-                                  {data.processed_data[selectedProcessedSheet].background_subtraction[key][rowIndex]?.toFixed(3)}
+                                  {typeof data.processed_data[selectedProcessedSheet].background_subtraction[key][rowIndex] === 'number' ? data.processed_data[selectedProcessedSheet].background_subtraction[key][rowIndex]?.toFixed(3) : data.processed_data[selectedProcessedSheet].background_subtraction[key][rowIndex]}
                                 </td>
                               );
                             })}
@@ -832,13 +832,13 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           </tr>
                           <tr>
                             <td className="border border-gray-300 px-4 py-2">% NC1=</td>
-                            <td className="border border-gray-300 px-4 py-2">{data.processed_data[selectedProcessedSheet].nc_status["NC1"]?.toFixed(3)}</td>
+                            <td className="border border-gray-300 px-4 py-2">{typeof data.processed_data[selectedProcessedSheet].nc_status["NC1"] === 'number' ? data.processed_data[selectedProcessedSheet].nc_status["NC1"].toFixed(3) : data.processed_data[selectedProcessedSheet].nc_status["NC1"]}</td>
                             <td className={`border border-gray-300 px-4 py-2 ${data.processed_data[selectedProcessedSheet].nc_status["NC1_greater_85"].toLowerCase() == "passed" ? 'bg-green-200' : 'bg-red-200'}`}>{data.processed_data[selectedProcessedSheet].nc_status["NC1_greater_85"]}</td>
                             <td className={`border border-gray-300 px-4 py-2 ${data.processed_data[selectedProcessedSheet].nc_status["NC1_less_115"].toLowerCase() == "passed" ? 'bg-green-200' : 'bg-red-200'}`}>{data.processed_data[selectedProcessedSheet].nc_status["NC1_less_115"]}</td>
                           </tr>
                           <tr>
                             <td className="border border-gray-300 px-4 py-2">% NC2=</td>
-                            <td className="border border-gray-300 px-4 py-2">{data.processed_data[selectedProcessedSheet].nc_status["NC2"]?.toFixed(3)}</td>
+                            <td className="border border-gray-300 px-4 py-2">{typeof data.processed_data[selectedProcessedSheet].nc_status["NC2"] === 'number' ? data.processed_data[selectedProcessedSheet].nc_status["NC2"].toFixed(3) : data.processed_data[selectedProcessedSheet].nc_status["NC2"]}</td>
                             <td className={`border border-gray-300 px-4 py-2 ${data.processed_data[selectedProcessedSheet].nc_status["NC2_greater_85"].toLowerCase() == "passed" ? 'bg-green-200' : 'bg-red-200'}`}>{data.processed_data[selectedProcessedSheet].nc_status["NC2_greater_85"]}</td>
                             <td className={`border border-gray-300 px-4 py-2 ${data.processed_data[selectedProcessedSheet].nc_status["NC2_less_115"].toLowerCase() == "passed" ? 'bg-green-200' : 'bg-red-200'}`}>{data.processed_data[selectedProcessedSheet].nc_status["NC2_less_115"]}</td>
                           </tr>
@@ -875,7 +875,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             const key = typeof conc === 'number' ? conc.toString() : conc;
                             return (
                               <td key={colIndex} className="py-2 px-4 border border-gray-300 text-center">
-                                {data.processed_data[selectedProcessedSheet].viability_data.readings[key][rowIndex]?.toFixed(3)}
+                                {typeof data.processed_data[selectedProcessedSheet].viability_data.readings[key][rowIndex] === 'number' ? data.processed_data[selectedProcessedSheet].viability_data.readings[key][rowIndex]?.toFixed(3) : data.processed_data[selectedProcessedSheet].viability_data.readings[key][rowIndex]}
                               </td>
                             );
                           })}
@@ -887,7 +887,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           const key = typeof conc === 'number' ? conc.toString() : conc;
                           return (
                             <td key={index} className="py-2 px-4 border border-gray-300 text-center font-medium">
-                              {data.processed_data[selectedProcessedSheet].viability_data.mean_values[key]?.toFixed(1)}
+                              {typeof data.processed_data[selectedProcessedSheet].viability_data.mean_values[key] === 'number' ? data.processed_data[selectedProcessedSheet].viability_data.mean_values[key]?.toFixed(1) : data.processed_data[selectedProcessedSheet].viability_data.mean_values[key]}
                             </td>
                           );
                         })}
@@ -898,7 +898,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           const key = typeof conc === 'number' ? conc.toString() : conc;
                           return (
                             <td key={index} className="py-2 px-4 border border-gray-300 text-center">
-                              {data.processed_data[selectedProcessedSheet].viability_data.std_dev[key]?.toFixed(1)}
+                              {typeof data.processed_data[selectedProcessedSheet].viability_data.std_dev[key] === 'number' ? data.processed_data[selectedProcessedSheet].viability_data.std_dev[key]?.toFixed(1) : data.processed_data[selectedProcessedSheet].viability_data.std_dev[key]}
                             </td>
                           );
                         })}
@@ -933,7 +933,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         {data.processed_data[selectedProcessedSheet].viability_data.concentrations.map((concentration: string) => (
                           concentration !== "NC'" ? (
                             <td key={concentration} className="py-2 px-4 border border-gray-300 text-center">
-                              {data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration].toFixed(1)}
+                              {typeof data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration] === 'number' ? data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration].toFixed(1) : data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration]}
                             </td>
                           ) : null
                         ))}
@@ -943,7 +943,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         {data.processed_data[selectedProcessedSheet].viability_data.concentrations.map((concentration: string) =>
                           concentration !== "NC'" ? (
                             <td key={concentration} className="py-2 px-4 border border-gray-300 text-center">
-                              {data.processed_data[selectedProcessedSheet].viability_data.percentage_std[concentration].toFixed(1)}
+                              {typeof data.processed_data[selectedProcessedSheet].viability_data.percentage_std[concentration] === 'number' ? data.processed_data[selectedProcessedSheet].viability_data.percentage_std[concentration].toFixed(1) : data.processed_data[selectedProcessedSheet].viability_data.percentage_std[concentration]}
                             </td>
                           ) : null
                         )}
@@ -1019,7 +1019,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           data: data.processed_data[selectedProcessedSheet].viability_data.concentrations
                             .filter((item: string) => item !== "NC'")
                             .map((concentration: string) =>
-                              data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration].toFixed(1)
+                              typeof data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration] === 'number' ? data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration].toFixed(1) : data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration]
                             ),
                         },
                       ]}
@@ -1094,7 +1094,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             const key = typeof conc === 'number' ? conc.toString() : conc;
                             return (
                               <td key={index} className="py-2 px-4 border border-gray-300 text-center font-medium">
-                                {sheet.viability_data.mean_values[key]?.toFixed(1)}
+                                {typeof sheet.viability_data.mean_values[key] === 'number' ? sheet.viability_data.mean_values[key]?.toFixed(1) : sheet.viability_data.mean_values[key]}
                               </td>
                             );
                           })}
@@ -1105,7 +1105,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             const key = typeof conc === 'number' ? conc.toString() : conc;
                             return (
                               <td key={index} className="py-2 px-4 border border-gray-300 text-center">
-                                {sheet.viability_data.std_dev[key]?.toFixed(1)}
+                                {typeof sheet.viability_data.std_dev[key] === 'number' ? sheet.viability_data.std_dev[key]?.toFixed(1) : sheet.viability_data.std_dev[key]}
                               </td>
                             );
                           })}
@@ -1142,7 +1142,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.mean[index].toFixed(2)}
+                          {typeof data.final_results.percent_viability_vs_nc.mean[index] === 'number' ? data.final_results.percent_viability_vs_nc.mean[index].toFixed(2) : data.final_results.percent_viability_vs_nc.mean[index]}
                         </td>
                       ))}
                     </tr>
@@ -1150,7 +1150,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2)}
+                          {typeof data.final_results.percent_viability_vs_nc.std_dev[index] === 'number' ? data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2) : data.final_results.percent_viability_vs_nc.std_dev[index]}
                         </td>
                       ))}
                     </tr>
@@ -1180,7 +1180,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.reverse_mean[index].toFixed(2)}
+                          {typeof data.final_results.percent_viability_vs_nc.reverse_mean[index] === 'number' ? data.final_results.percent_viability_vs_nc.reverse_mean[index].toFixed(2) : data.final_results.percent_viability_vs_nc.reverse_mean[index]}
                         </td>
                       ))}
                     </tr>
@@ -1188,7 +1188,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.reverse_std_dev[index].toFixed(2)}
+                          {typeof data.final_results.percent_viability_vs_nc.reverse_std_dev[index] === 'number' ? data.final_results.percent_viability_vs_nc.reverse_std_dev[index].toFixed(2) : data.final_results.percent_viability_vs_nc.reverse_std_dev[index]}
                         </td>
                       ))}
                     </tr>
@@ -1321,7 +1321,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       name: "Viability",
                       data: data.final_results.percent_viability_vs_nc.mean
                         .map((mean: number) =>
-                          mean.toFixed(1)
+                          typeof mean === 'number' ? mean.toFixed(1) : mean
                         ),
                     },
                   ]}
@@ -1347,7 +1347,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 font-bold text-center"></td>
                       {data.final_results.concentrations_dash.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {conc.toFixed(4)}
+                          {typeof conc === 'number' ? conc.toFixed(4) : conc}
                         </td>
                       ))}
                       <td className="px-2 py-1 border border-gray-300 text-center">
@@ -1358,7 +1358,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.mean[index].toFixed(2)}
+                          {typeof data.final_results.percent_viability_vs_nc.mean[index] === 'number' ? data.final_results.percent_viability_vs_nc.mean[index].toFixed(2) : data.final_results.percent_viability_vs_nc.mean[index]}
                         </td>
                       ))}
                     </tr>
@@ -1366,7 +1366,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2)}
+                          {typeof data.final_results.percent_viability_vs_nc.std_dev[index] === 'number' ? data.final_results.percent_viability_vs_nc.std_dev[index].toFixed(2) : data.final_results.percent_viability_vs_nc.std_dev[index]}
                         </td>
                       ))}
                     </tr>
@@ -1389,7 +1389,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 font-bold text-center"></td>
                       {data.final_results.concentrations_dash.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {conc.toFixed(4)}
+                          {typeof conc === 'number' ? conc.toFixed(4) : conc}
                         </td>
                       ))}
                       <td className="px-2 py-1 border border-gray-300 text-center">
@@ -1400,7 +1400,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index].toFixed(2)}
+                          {typeof data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index] === 'number' ? data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index].toFixed(2) : data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index]}
                         </td>
                       ))}
                     </tr>
@@ -1408,7 +1408,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                       {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index].toFixed(2)}
+                          {typeof data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index] === 'number' ? data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index].toFixed(2) : data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index]}
                         </td>
                       ))}
                     </tr>
@@ -1490,7 +1490,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Log dose</td>
                         {data.final_results.log_dose.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center bg-gray-100">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                       </tr>
@@ -1498,7 +1498,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Dose</td>
                         {data.final_results.dose.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                       </tr>
@@ -1506,7 +1506,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                         {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.reverse_mean[index].toFixed(1)}
+                            {typeof data.final_results.percent_viability_vs_nc.reverse_mean[index] === 'number' ? data.final_results.percent_viability_vs_nc.reverse_mean[index].toFixed(1) : data.final_results.percent_viability_vs_nc.reverse_mean[index]}
                           </td>
                         ))}
                       </tr>
@@ -1514,7 +1514,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                         {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.reverse_std_dev[index].toFixed(1)}
+                            {typeof data.final_results.percent_viability_vs_nc.reverse_std_dev[index] === 'number' ? data.final_results.percent_viability_vs_nc.reverse_std_dev[index].toFixed(1) : data.final_results.percent_viability_vs_nc.reverse_std_dev[index]}
                           </td>
                         ))}
                       </tr>
@@ -1535,7 +1535,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC10</td>
                         {data.final_results.ec10.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1544,7 +1544,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC25</td>
                         {data.final_results.ec25.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1553,7 +1553,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC50</td>
                         {data.final_results.ec50.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1566,20 +1566,20 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
-                      <span className="font-medium">R² = {data.final_results.r_squared.toFixed(4)}</span>
+                      <span className="font-medium">R² = {typeof data.final_results.r_squared === 'number' ? data.final_results.r_squared.toFixed(4) : data.final_results.r_squared}</span>
                     </div>
                     <div className="w-full text-center">
-                      <span className="font-medium">R = {data.final_results.r.toFixed(4)}</span>
+                      <span className="font-medium">R = {typeof data.final_results.r === 'number' ? data.final_results.r.toFixed(4) : data.final_results.r}</span>
                     </div>
                   </div>
                 </div>
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
-                      <span className="font-medium">a = {data.final_results.slope.toFixed(4)}</span>
+                      <span className="font-medium">a = {typeof data.final_results.slope === 'number' ? data.final_results.slope.toFixed(4) : data.final_results.slope}</span>
                     </div>
                     <div className="w-full text-center">
-                      <span className="font-medium">b = {data.final_results.intercept.toFixed(4)}</span>
+                      <span className="font-medium">b = {typeof data.final_results.intercept === 'number' ? data.final_results.intercept.toFixed(4) : data.final_results.intercept}</span>
                     </div>
                   </div>
                 </div>
@@ -1596,7 +1596,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Log dose</td>
                         {data.final_results.log_dose_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center bg-gray-100">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                       </tr>
@@ -1604,7 +1604,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Dose</td>
                         {data.final_results.dose_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                       </tr>
@@ -1612,7 +1612,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">MEAN</td>
                         {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index].toFixed(2)}
+                            {typeof data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index] === 'number' ? data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index].toFixed(2) : data.final_results.percent_viability_vs_nc.reverse_mean_without_pc[index]}
                           </td>
                         ))}
                       </tr>
@@ -1620,7 +1620,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 bg-green-200 font-bold text-center">SD</td>
                         {data.final_results.percent_viability_vs_nc.concentrations.slice(0, -1).map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index].toFixed(2)}
+                            {typeof data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index] === 'number' ? data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index].toFixed(2) : data.final_results.percent_viability_vs_nc.reverse_std_dev_without_pc[index]}
                           </td>
                         ))}
                       </tr>
@@ -1641,7 +1641,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC10</td>
                         {data.final_results.ec10_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1650,7 +1650,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC25</td>
                         {data.final_results.ec25_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1659,7 +1659,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC50</td>
                         {data.final_results.ec50_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "string" ? conc : conc.toFixed(4)}
+                            {typeof conc === "number" ? conc.toFixed(4) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1672,20 +1672,20 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
-                      <span className="font-medium">R² = {data.final_results.r_squared.toFixed(4)}</span>
+                      <span className="font-medium">R² = {typeof data.final_results.r_squared === 'number' ? data.final_results.r_squared.toFixed(4) : data.final_results.r_squared}</span>
                     </div>
                     <div className="w-full text-center">
-                      <span className="font-medium">R = {data.final_results.r.toFixed(4)}</span>
+                      <span className="font-medium">R = {typeof data.final_results.r === 'number' ? data.final_results.r.toFixed(4) : data.final_results.r}</span>
                     </div>
                   </div>
                 </div>
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
-                      <span className="font-medium">a = {data.final_results.slope_dash.toFixed(4)}</span>
+                      <span className="font-medium">a = {typeof data.final_results.slope_dash === 'number' ? data.final_results.slope_dash.toFixed(4) : data.final_results.slope_dash}</span>
                     </div>
                     <div className="w-full text-center">
-                      <span className="font-medium">b = {data.final_results.intercept_dash.toFixed(4)}</span>
+                      <span className="font-medium">b = {typeof data.final_results.intercept_dash === 'number' ? data.final_results.intercept_dash.toFixed(4) : data.final_results.intercept_dash}</span>
                     </div>
                   </div>
                 </div>
@@ -1708,7 +1708,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <tr key={rowIndex}>
                           {row.map((cell: any, cellIndex: number) => (
                             <td key={cellIndex} className="px-2 py-1 border border-gray-300 text-center">
-                              {typeof cell === "string" ? cell : cell.toFixed(4)}
+                              {typeof cell === "number" ? cell.toFixed(4) : cell}
                             </td>
                           ))}
                         </tr>

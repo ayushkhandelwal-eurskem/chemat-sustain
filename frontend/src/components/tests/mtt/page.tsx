@@ -1082,7 +1082,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                               const key = typeof conc === 'number' ? conc.toString() : conc;
                               return (
                                 <td key={colIndex} className="py-2 px-4 border border-gray-300 text-center">
-                                  {sheet.viability_data.readings[key][rowIndex]?.toFixed(3)}
+                                  {typeof sheet.viability_data.readings[key][rowIndex] === 'number' ? sheet.viability_data.readings[key][rowIndex].toFixed(3) : sheet.viability_data.readings[key][rowIndex]}
                                 </td>
                               );
                             })}

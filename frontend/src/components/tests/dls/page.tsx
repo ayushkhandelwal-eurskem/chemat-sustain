@@ -41,13 +41,13 @@ interface RunMetrics {
   z_ave_hydrodynamic_diameter: number | null;
   pdi: number | null;
   peak_1_diameter: number | null;
-  peak_1_std_dev: number | null;
+  std_dev_peak_1: number | null;
   peak_1_intensity: number | null;
   peak_2_diameter: number | null;
-  peak_2_std_dev: number | null;
+  std_dev_peak_2: number | null;
   peak_2_intensity: number | null;
   peak_3_diameter: number | null;
-  peak_3_std_dev: number | null;
+  std_dev_peak_3: number | null;
   peak_3_intensity: number | null;
   derived_count_rate: number | null;
 }
@@ -67,6 +67,7 @@ interface DLSData {
       test_acronym: string | null;
       test_type: string | null;
       endpoint: string | null;
+      endpoint_outcome: string | null;
       sop: string | null;
       path: string | null;
       lead_scientists: { name: string | null; email: string | null }[];
@@ -78,6 +79,8 @@ interface DLSData {
       core_chemistry: string | null;
       material_name: string | null;
       material_state: string | null;
+      cas: string | null;
+      casforcore: string | null;
       batch: string | null;
       preparation_date: string | null;
       particles_stock: string | null;
@@ -297,13 +300,11 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                   {work_package || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Element:</span> {element || "N/A"}
+                  <span className="font-semibold">CMS Internal Identifier:</span> {element || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Test:</span> {test || "N/A"}
-                </p>
-                <p>
-                  <span className="font-semibold">File:</span> {file || "N/A"}
+                  <span className="font-semibold">ERM Identifier:</span>{" "}
+                  {data.test_details.material.erm_id || "N/A"}
                 </p>
               </div>
             </div>
@@ -313,10 +314,6 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 <p className="mb-2">
                   <span className="font-semibold">Full Test Name:</span>{" "}
                   {data.test_details.work_package.full_test_name || "N/A"}
-                </p>
-                <p className="mb-2">
-                  <span className="font-semibold">ERM Identifier:</span>{" "}
-                  {data.test_details.material.erm_id || "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Test Acronym:</span>{" "}
@@ -329,6 +326,10 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 <p className="mb-2">
                   <span className="font-semibold">Endpoint:</span>{" "}
                   {data.test_details.work_package.endpoint || "N/A"}
+                </p>
+                <p className="mb-2">
+                  <span className="font-semibold">Endpoint Outcome:</span>{" "}
+                  {data.test_details.work_package.endpoint_outcome || "N/A"}
                 </p>
                 <p>
                   <span className="font-semibold">SOP:</span>{" "}
@@ -400,20 +401,50 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(data.test_details.material).map(([key, value]) => (
-                      <tr key={key}>
-                        <td className="py-2 px-4 border font-medium">
-                          {key
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </td>
-                        <td className="py-2 px-4 border">
-                          {key === "preparation_date" && value
-                            ? new Date(value).toLocaleDateString()
-                            : value || "N/A"}
-                        </td>
-                      </tr>
-                    ))}
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">CMS Internal Identifier</td>
+                      <td className="py-2 px-4 border">{element}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">ERM Identifier</td>
+                      <td className="py-2 px-4 border">{data.test_details.material.erm_id}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Material Name</td>
+                      <td className="py-2 px-4 border">{data.test_details.material.material_name}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Core Chemistry</td>
+                      <td className="py-2 px-4 border">{data.test_details.material.core_chemistry}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Material State</td>
+                      <td className="py-2 px-4 border">{data.test_details.material.material_state}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">CAS No</td>
+                      <td className="py-2 px-4 border">{data.test_details.material.cas}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">CAS for Core</td>
+                      <td className="py-2 px-4 border">{data.test_details.material.casforcore}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Batch</td>
+                      <td className="py-2 px-4 border">{data.test_details.material.batch}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Batch Preparation Date</td>
+                      <td className="py-2 px-4 border">
+                        {String(data?.test_details?.material?.preparation_date ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0] || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Molar Concentration</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.material.molar_concentration || "N/A"}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -447,16 +478,56 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(data.test_details.sample_preparation).map(([key, value]) => (
-                      <tr key={key}>
-                        <td className="py-2 px-4 border font-medium">
-                          {key
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </td>
-                        <td className="py-2 px-4 border">{value || "N/A"}</td>
-                      </tr>
-                    ))}
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Dispersion protocol used</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.dispersion_protocol}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Dispersion technique used</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.dispersion_technique}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Dispersion/Dilution medium</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.dispersion_medium}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Sonicator type</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.sonicator_type}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Power(W)</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.power}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Sonication time(secs)</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.sonication_time}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Tip thickness(mm)</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.tip_thickness}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Tip composition</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.tip_composition}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Size of ultrasonic bath/water volume (dm3)</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.ultrasonic_bath_size}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Sample volume</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.sample_volume}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Final sample concentration (mg/L or ppm)</td>
+                      <td className="py-2 px-4 border">{data.test_details.sample_preparation.final_concentration}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Additional information</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.sample_preparation.additional_info || "N/A"}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -490,16 +561,102 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(data.test_details.instrumentation).map(([key, value]) => (
-                      <tr key={key}>
-                        <td className="py-2 px-4 border font-medium">
-                          {key
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </td>
-                        <td className="py-2 px-4 border">{value ?? "N/A"}</td>
-                      </tr>
-                    ))}
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">DLS Instrument specifications</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.instrument_model || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Cell model</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.cell_model || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Temperature</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.temperature || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Thermal equilibrium time</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.thermal_equilibrium_time || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Replication</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.number_of_runs || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Number of sub-runs</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.sub_runs || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Delay between runs</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.delay_between_runs || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Duration of the run</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.run_duration || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Laser focus position</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.laser_focus_position || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Scattering angle</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.scattering_angle || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Data analysis model</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.data_analysis_model || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Laser attenuation</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.laser_attenuation || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Refractive index of the NM</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.refractive_index_nm?.toFixed(3) || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Absorption index of the NM</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.absorption_index_nm?.toFixed(3) || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Refractive index of medium</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.refractive_index_medium?.toFixed(3) || "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 border font-medium">Viscosity of the medium</td>
+                      <td className="py-2 px-4 border">
+                        {data.test_details.instrumentation.viscosity_medium || "N/A"}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -611,7 +768,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     htmlFor="run-select"
                     className="block text-sm font-medium text-gray-700 mb-2"
                   >
-                    Select Replication:
+                    Select Run:
                   </label>
                   <select
                     id="run-select"
@@ -621,52 +778,10 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                   >
                     {data.raw_data.map((run, index) => (
                       <option key={index} value={index}>
-                        Replication {run.run_number || "N/A"}
+                        Run {run.run_number || "N/A"}
                       </option>
                     ))}
                   </select>
-                </div>
-
-                {/* Correlation Function Plot */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-3">
-                    Correlation Function
-                  </h3>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <ScatterChart
-                      margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                    >
-                      <CartesianGrid />
-                      <XAxis
-                        type="number"
-                        dataKey="x"
-                        name="Time (μs)"
-                        label={{
-                          value: "Time (μs)",
-                          position: "insideBottomRight",
-                          offset: -10,
-                        }}
-                        domain={["auto", "auto"]}
-                      />
-                      <YAxis
-                        type="number"
-                        dataKey="y"
-                        name="Correlation Coefficient"
-                        label={{
-                          value: "Correlation Coefficient",
-                          angle: -90,
-                          position: "insideLeft",
-                        }}
-                        domain={[0, 1]}
-                      />
-                      <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                      <Scatter
-                        name="Correlation"
-                        data={correlationPoints}
-                        fill="#8884d8"
-                      />
-                    </ScatterChart>
-                  </ResponsiveContainer>
                 </div>
 
                 {/* Raw Data Table */}
@@ -795,7 +910,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     <div>
                       <p className="font-semibold">Standard Deviation Peak 1:</p>
                       <p>
-                        {data.processed_data[selectedRun]?.metrics?.peak_1_std_dev?.toFixed(2) ?? "N/A"} nm
+                        {data.processed_data[selectedRun]?.metrics?.std_dev_peak_1?.toFixed(2) ?? "N/A"} nm
                       </p>
                     </div>
                     <div>
@@ -813,7 +928,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     <div>
                       <p className="font-semibold">Standard Deviation Peak 2:</p>
                       <p>
-                        {data.processed_data[selectedRun]?.metrics?.peak_2_std_dev?.toFixed(2) ?? "N/A"} nm
+                        {data.processed_data[selectedRun]?.metrics?.std_dev_peak_2?.toFixed(2) ?? "N/A"} nm
                       </p>
                     </div>
                     <div>
@@ -822,52 +937,25 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                         {data.processed_data[selectedRun]?.metrics?.peak_2_intensity?.toFixed(2) ?? "N/A"} %
                       </p>
                     </div>
+                    <div>
+                      <p className="font-semibold">Peak 3 Diameter by Intensity:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.peak_3_diameter?.toFixed(2) ?? "N/A"} nm
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Standard Deviation Peak 3:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.std_dev_peak_3?.toFixed(2) ?? "N/A"} nm
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold">Peak 3 Relative Intensity:</p>
+                      <p>
+                        {data.processed_data[selectedRun]?.metrics?.peak_3_intensity?.toFixed(2) ?? "N/A"} %
+                      </p>
+                    </div>
                   </div>
-                </div>
-
-                {/* Size Distribution Plot */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-3">Size Distribution</h3>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                      <CartesianGrid />
-                      <XAxis
-                        type="number"
-                        dataKey="x"
-                        name="Size (nm)"
-                        label={{
-                          value: "Size (nm)",
-                          position: "insideBottomRight",
-                          offset: -10,
-                        }}
-                        domain={["auto", "auto"]}
-                      />
-                      <YAxis
-                        type="number"
-                        dataKey="y"
-                        name="Intensity (%)"
-                        label={{
-                          value: "Intensity (%)",
-                          angle: -90,
-                          position: "insideLeft",
-                        }}
-                        domain={[0, "auto"]}
-                      />
-                      <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                      <Scatter
-                        name="Size Distribution"
-                        data={
-                          data.processed_data[selectedRun]?.size_distribution?.size_nm?.map(
-                            (size, i) => ({
-                              x: size,
-                              y: data.processed_data[selectedRun]?.size_distribution?.mean_intensity_percent[i] ?? 0,
-                            })
-                          ) ?? []
-                        }
-                        fill="#82ca9d"
-                      />
-                    </ScatterChart>
-                  </ResponsiveContainer>
                 </div>
 
                 {/* Size Distribution Table */}
@@ -921,6 +1009,54 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                 No processed data available
               </div>
             )}
+            {/* Size Distribution Plot */}
+
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-3">Size Distribution</h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <CartesianGrid />
+                  <XAxis
+                    type="number"
+                    dataKey="x"
+                    name="Size (nm)"
+                    label={{
+                      value: "Size (nm)",
+                      position: "insideBottomRight",
+                      offset: -10,
+                    }}
+                    domain={["auto", "auto"]}
+                  />
+                  <YAxis
+                    type="number"
+                    dataKey="y"
+                    name="Intensity (%)"
+                    label={{
+                      value: "Intensity (%)",
+                      angle: -90,
+                      position: "insideLeft",
+                    }}
+                    domain={[0, "auto"]}
+                  />
+                  <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+                  <Scatter
+                    name="Size Distribution"
+                    data={
+                      data.processed_data[selectedRun]?.size_distribution?.size_nm?.map(
+                        (size, i) => ({
+                          x: size,
+                          y: data.processed_data[selectedRun]?.size_distribution?.mean_intensity_percent[i] ?? 0,
+                        })
+                      ) ?? []
+                    }
+                    fill="#82ca9d"  // Marker color
+                    line={{ stroke: "#82ca9d", strokeWidth: 2 }}  // Straight line connecting points
+                    shape="circle"  // Marker shape (e.g., circle, square, etc.)
+                    isAnimationActive={false}  // Optional: Disable animation for clarity
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
 
@@ -993,6 +1129,22 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                   <p className="font-semibold">Mean Peak 2 Relative Intensity:</p>
                   <p>{data.final_results.mean_peak_2_intensity?.toFixed(2) ?? "N/A"} %</p>
                 </div>
+                <div>
+                  <p className="font-semibold">Mean Peak 3 Diameter by Intensity:</p>
+                  <p>{data.final_results.mean_peak_3_diameter?.toFixed(2) ?? "N/A"} nm</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Pooled Standard Deviation Peak 3:</p>
+                  <p>{data.final_results.pooled_std_dev_peak_3?.toFixed(2) ?? "N/A"} nm</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Standard Deviation Between Measurements Peak 3:</p>
+                  <p>{data.final_results.std_dev_between_measurements_peak_3?.toFixed(2) ?? "N/A"} nm</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Mean Peak 3 Relative Intensity:</p>
+                  <p>{data.final_results.mean_peak_3_intensity?.toFixed(2) ?? "N/A"} %</p>
+                </div>
               </div>
             </div>
 
@@ -1036,6 +1188,51 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                   </tbody>
                 </table>
               </div>
+            </div>
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-3">Size Distribution by Intensity</h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <CartesianGrid />
+                  <XAxis
+                    type="number"
+                    dataKey="x"
+                    name="Size (nm)"
+                    label={{
+                      value: "Size (nm)",
+                      position: "insideBottomRight",
+                      offset: -10,
+                    }}
+                    domain={[0.1, 10000]}  // Manual range for y-axis
+                    ticks={[0.1, 1, 10, 100, 1000, 10000]}  // Manual tick values
+                  />
+                  <YAxis
+                    type="number"
+                    dataKey="y"
+                    name="Intensity (%)"
+                    label={{
+                      value: "Intensity (%)",
+                      angle: -90,
+                      position: "insideLeft",
+                    }}
+                    domain={[0, 16]}  // Manual range for x-axis
+                    ticks={[0, 2, 4, 6, 8, 10, 12, 14, 16]}  // Manual tick values
+                  />
+                  <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+                  <Scatter
+                    name="Size Distribution"
+                    data={
+                      data.final_results.statistic_table.map((row) => ({
+                        x: row.size_nm,
+                        y: row.mean_intensity_percent,
+                      })) ?? []
+                    }
+                    fill="#82ca9d"  // Marker color
+                    line={{ stroke: "#82ca9d", strokeWidth: 2 }}  // Straight line connecting points
+                    shape="circle"  // Marker shape (e.g., circle, square, etc.)
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}

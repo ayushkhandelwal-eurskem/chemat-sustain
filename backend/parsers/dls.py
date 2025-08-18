@@ -26,6 +26,7 @@ class WorkPackageData:
     test_acronym: Optional[str] = None
     test_type: Optional[str] = None
     endpoint: Optional[str] = None
+    endpoint_outcome: Optional[str] = None
     sop: Optional[str] = None
     path: Optional[str] = None
     lead_scientists: List[Scientist] = field(default_factory=list)
@@ -38,6 +39,8 @@ class MaterialData:
     core_chemistry: Optional[str] = None
     material_name: Optional[str] = None
     material_state: Optional[str] = None
+    cas: Optional[str] = None
+    casforcore: Optional[str] = None
     batch: Optional[str] = None
     preparation_date: Optional[str] = None
     particles_stock: Optional[str] = None
@@ -98,13 +101,13 @@ class RunMetrics:
     z_ave_hydrodynamic_diameter: Optional[float] = None
     pdi: Optional[float] = None
     peak_1_diameter: Optional[float] = None
-    peak_1_std_dev: Optional[float] = None
+    std_dev_peak_1: Optional[float] = None
     peak_1_intensity: Optional[float] = None
     peak_2_diameter: Optional[float] = None
-    peak_2_std_dev: Optional[float] = None
+    std_dev_peak_2: Optional[float] = None
     peak_2_intensity: Optional[float] = None
     peak_3_diameter: Optional[float] = None
-    peak_3_std_dev: Optional[float] = None
+    std_dev_peak_3: Optional[float] = None
     peak_3_intensity: Optional[float] = None
     derived_count_rate: Optional[float] = None
 
@@ -224,6 +227,7 @@ class DLSParser:
             test_acronym=next((d["Value"] for d in data if d["Key"] == "short_name_or_acronym_for_test_assay_"), None),
             test_type=next((d["Value"] for d in data if d["Key"] == "type_or_class_of_experimental_test_as_used_here_"), None),
             endpoint=next((d["Value"] for d in data if d["Key"] == "end_point_being_investigated_assessed_by_the_test_"), None),
+            endpoint_outcome=next((d["Value"] for d in data if d["Key"] == "metric_s_used_to_assess_end_point_outcome_response_"), None),
             sop=next((d["Value"] for d in data if d["Key"] == "sop_s_for_test_ref_project_or_other_doc_title_id_"), None),
             path=next((d["Value"] for d in data if d["Key"] == "path_link_to_sop_protocol_on_proj_server_web_where_applic_"), None),
             lead_scientists=lead_scientists,
@@ -239,6 +243,8 @@ class DLSParser:
             "core_chemistry_",
             "material_name_",
             "material_state_",
+            "cas_no",
+            "cas_for_core_",
             "batch",
             "date_of_preparation_",
             "no_of_particles_in_stock_",
@@ -300,6 +306,8 @@ class DLSParser:
             core_chemistry=next((d["Value"] for d in data if d["Key"] == "core_chemistry_"), None),
             material_name=next((d["Value"] for d in data if d["Key"] == "material_name_"), None),
             material_state=next((d["Value"] for d in data if d["Key"] == "material_state_"), None),
+            cas=next((d["Value"] for d in data if d["Key"] == "cas_no"), None),
+            casforcore=next((d["Value"] for d in data if d["Key"] == "cas_for_core_"), None),
             batch=next((d["Value"] for d in data if d["Key"] == "batch"), None),
             preparation_date=self.excel_date_to_string(next((d["Value"] for d in data if d["Key"] == "date_of_preparation_"), None)),
             particles_stock=next((d["Value"] for d in data if d["Key"] == "no_of_particles_in_stock_"), None),
@@ -875,13 +883,13 @@ class DLSParser:
                             'z_ave_hydrodynamic_diameter': raw_data.get('metrics', {}).get('z_ave_hydrodynamic_diameter'),
                             'pdi': raw_data.get('metrics', {}).get('pdi'),
                             'peak_1_diameter': raw_data.get('metrics', {}).get('peak_1_diameter'),
-                            'peak_1_std_dev': raw_data.get('metrics', {}).get('peak_1_std_dev'),
+                            'std_dev_peak_1': raw_data.get('metrics', {}).get('std_dev_peak_1'),
                             'peak_1_intensity': raw_data.get('metrics', {}).get('peak_1_intensity'),
                             'peak_2_diameter': raw_data.get('metrics', {}).get('peak_2_diameter'),
-                            'peak_2_std_dev': raw_data.get('metrics', {}).get('peak_2_std_dev'),
+                            'std_dev_peak_2': raw_data.get('metrics', {}).get('std_dev_peak_2'),
                             'peak_2_intensity': raw_data.get('metrics', {}).get('peak_2_intensity'),
                             'peak_3_diameter': raw_data.get('metrics', {}).get('peak_3_diameter'),
-                            'peak_3_std_dev': raw_data.get('metrics', {}).get('peak_3_std_dev'),
+                            'std_dev_peak_3': raw_data.get('metrics', {}).get('std_dev_peak_3'),
                             'peak_3_intensity': raw_data.get('metrics', {}).get('peak_3_intensity'),
                             'derived_count_rate': raw_data.get('metrics', {}).get('derived_count_rate')
                         }
@@ -917,9 +925,9 @@ if __name__ == "__main__":
     try:
         parsed_data = parse_excel_dls(file_path)
         print("Parsed Data:")
-        #print("Test Details:", parsed_data['test_details'])
-        print("Raw Data:", parsed_data['replications'])
-        print("Processed Data:", parsed_data['processed_data'])
+        print("Test Details:", parsed_data['test_details'])
+        #print("Raw Data:", parsed_data['replications'])
+        #print("Processed Data:", parsed_data['processed_data'])
         #print("Final Results:", parsed_data['final_results'])
     except Exception as e:
         print(f"Error: {e}")

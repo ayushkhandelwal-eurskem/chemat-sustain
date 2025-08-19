@@ -520,17 +520,23 @@ class DLSParser:
 
     def extract_replications(self):
         replications = []
-        raw_sheets = [name for name in self.wb.sheetnames if re.match(r'Raw data_wp2_dls_1ar\d+', name, re.IGNORECASE)]
+        raw_sheets = [name for name in self.wb.sheetnames
+          if re.match(r'WP(\d+)_DLS_(\d+)aR(\d+)', name, re.IGNORECASE)]
+        if not raw_sheets:
+            logger.warning("No raw data sheets found matching expected patterns.")
+            return replications
         
         logger.debug(f"Found raw data sheets: {raw_sheets}")
         
         for raw_sheet in raw_sheets:
-            match = re.search(r'1aR(\d+)', raw_sheet, re.IGNORECASE)
+            match = re.search(r'WP(\d+)_DLS_(\d+)aR(\d+)', raw_sheet, re.IGNORECASE)
             if not match:
                 logger.warning(f"Invalid raw sheet name format: {raw_sheet}")
                 continue
-            run_number = match.group(1)
-            test_identifier = f"WP2_DLS_1aR{run_number}"
+            wp_number = match.group(1)  # Capture WP number (1-5)
+            dls_number = match.group(2)  # Capture DLS number (1-20)
+            run_number = match.group(3)  # Capture aR number (1-5)
+            test_identifier = f"WP{wp_number}_DLS_{dls_number}aR{run_number}"
             
             start_date = None
             end_date = None
@@ -561,8 +567,8 @@ class DLSParser:
     def extract_raw_data(self, raw_sheet_name: str, processed_sheet_name: str):
         logger.debug(f"Extracting run data for raw sheet: {raw_sheet_name}, processed sheet: {processed_sheet_name}")
         
-        match = re.search(r'1aR(\d+)', raw_sheet_name, re.IGNORECASE)
-        run_number = int(match.group(1)) if match else 0
+        match = re.search(r'WP(\d+)_DLS_(\d+)aR(\d+)', raw_sheet_name, re.IGNORECASE)
+        run_number = int(match.group(3)) if match else 0
         if run_number == 0:
             logger.warning(f"Could not extract run number from {raw_sheet_name}, defaulting to 0")
 
@@ -843,16 +849,31 @@ class DLSParser:
             logger.debug(f"-------------------------------------------------------------------------")
             logger.debug(f"Parsed test details here at parse all data: {parsed_data}")
 
-            raw_sheets = [name for name in self.wb.sheetnames if re.match(r'Raw data_wp2_dls_1ar\d+', name, re.IGNORECASE)]
-            processed_sheets = [name for name in self.wb.sheetnames if re.match(r'Processed data_wp2_dls_1ar\d+', name, re.IGNORECASE)]
+            SHEET_PATTERN = r'^({prefix}_WP[1-5]_DLS_[1-30]aR[1-5])$'
+
+             # Function to filter sheets based on prefix
+            def filter_sheets(sheetnames, prefix):
+                 pattern = SHEET_PATTERN.format(prefix=prefix)
+                 return [name for name in sheetnames if re.match(pattern, name, re.IGNORECASE)]
+
+            # Filter raw and processed sheets
+            raw_sheets = filter_sheets(self.wb.sheetnames, "Raw data")
+            processed_sheets = filter_sheets(self.wb.sheetnames, "Processed data")
 
             for raw_sheet in raw_sheets:
-                match = re.search(r'1aR(\d+)', raw_sheet, re.IGNORECASE)
+                match = re.search(r'WP(\d+)_DLS_(\d+)aR(\d+)', raw_sheet, re.IGNORECASE)
                 if not match:
                     logger.warning(f"Invalid raw sheet name format: {raw_sheet}")
                     continue
-                run_number = match.group(1)
-                processed_sheet = next((name for name in processed_sheets if f"1aR{run_number}" in name), None)
+                wp_number = match.group(1)
+                dls_number = match.group(2)
+                run_number = match.group(3)
+                if not (1 <= int(wp_number) <= 5 and 1 <= int(dls_number) <= 30 and 1 <= int(run_number) <= 5):
+                   logger.warning(f"Invalid number range in sheet name: {raw_sheet}")
+                   continue
+                processed_sheet = next((name for name in processed_sheets 
+                if re.search(rf'^.*WP{wp_number}_DLS_{dls_number}aR{run_number}$', name, re.IGNORECASE)),
+                    None)
                 if not processed_sheet:
                     logger.warning(f"No matching processed data sheet for {raw_sheet}")
                     continue
@@ -921,7 +942,7 @@ def parse_excel_dls(file_path: str, sheet_name: str = "Test Information") -> Dic
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2/CMS_1a_AuNP/DLS/WP2_DLS_1aR1_R5.xlsx"
+    file_path = "backend/data/WP2/CMS_2a_AuNP/DLS/WP2_DLS_2aR1_R5.xlsx"
     try:
         parsed_data = parse_excel_dls(file_path)
         print("Parsed Data:")

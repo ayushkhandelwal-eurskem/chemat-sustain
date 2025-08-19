@@ -1014,7 +1014,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-3">Size Distribution</h3>
               <ResponsiveContainer width="100%" height={400}>
-                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
                   <CartesianGrid />
                   <XAxis
                     type="number"
@@ -1025,7 +1025,8 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       position: "insideBottomRight",
                       offset: -10,
                     }}
-                    domain={["auto", "auto"]}
+                    domain={[100, 1000]}
+                    ticks={[10, 100, 1000]} 
                   />
                   <YAxis
                     type="number"
@@ -1035,8 +1036,10 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       value: "Intensity (%)",
                       angle: -90,
                       position: "insideLeft",
+                      offset: 0,
                     }}
-                    domain={[0, "auto"]}
+                    domain={[2, 16]}
+                    ticks={[2, 4, 6, 8, 10, 12, 14, 16]}
                   />
                   <Tooltip cursor={{ strokeDasharray: "3 3" }} />
                   <Scatter
@@ -1052,7 +1055,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     fill="#82ca9d"  // Marker color
                     line={{ stroke: "#82ca9d", strokeWidth: 2 }}  // Straight line connecting points
                     shape="circle"  // Marker shape (e.g., circle, square, etc.)
-                    isAnimationActive={false}  // Optional: Disable animation for clarity
+                    isAnimationActive={true}  // Optional: Disable animation for clarity
                   />
                 </ScatterChart>
               </ResponsiveContainer>
@@ -1203,8 +1206,8 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       position: "insideBottomRight",
                       offset: -10,
                     }}
-                    domain={[0.1, 10000]}  // Manual range for y-axis
-                    ticks={[0.1, 1, 10, 100, 1000, 10000]}  // Manual tick values
+                    domain={[0.1, 1000]}  // Manual range for x-axis
+                    ticks={[0.1, 1, 10, 100, 1000]}  // Manual tick values
                   />
                   <YAxis
                     type="number"
@@ -1215,7 +1218,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       angle: -90,
                       position: "insideLeft",
                     }}
-                    domain={[0, 16]}  // Manual range for x-axis
+                    domain={[0, 16]}  // Manual range for y-axis
                     ticks={[0, 2, 4, 6, 8, 10, 12, 14, 16]}  // Manual tick values
                   />
                   <Tooltip cursor={{ strokeDasharray: "3 3" }} />

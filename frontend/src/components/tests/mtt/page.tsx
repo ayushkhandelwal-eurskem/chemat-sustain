@@ -60,6 +60,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   const [selectedReplication, setSelectedReplication] = useState<number>(0);
   const [selectedProcessedSheet, setSelectedProcessedSheet] = useState<number>(0);
 
+
   const [dataPoints, setDataPoints] = useState<any[]>([]);
 
   useEffect(() => {
@@ -180,7 +181,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <span className="font-semibold">Element:</span> {element}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Material Name:</span> {data.test_details.material?.material_name}
+                  <span className="font-semibold">ERM Identifier:</span> {data.test_details.material.erm_id}
                 </p>
               </div>
             </div>
@@ -191,9 +192,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="bg-blue-50 p-4 rounded-md">
                   <p className="mb-2">
                     <span className="font-semibold">Full Test Name:</span> {data.test_details.work_package.full_test_name}
-                  </p>
-                  <p className="mb-2">
-                    <span className="font-semibold">ERM Identifier:</span> {data.test_details.material.erm_id}
                   </p>
                   <p className="mb-2">
                     <span className="font-semibold">Test Acronym:</span> {data.test_details.work_package.test_acronym}
@@ -297,7 +295,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">CAS No for Core:</td>
-                        <td className="py-2 px-4 border">{data.test_details.material?.cas_no_for_core}</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.cas_no_for_core}</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">Material State</td>
@@ -957,80 +955,94 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </div>
 
                 <div className="mt-6">
+                  <h3 className="text-lg font-semibold text-center mb-4">
+                    Viability Chart for: {data.processed_data[selectedProcessedSheet].experiment_id}
+                  </h3>
                   {(typeof window !== 'undefined') &&
-                    <Chart
-                      options={{
-                        chart: {
-                          id: "bar",
-                          type: "bar",
-                        },
-                        title: {
-                          text: data.processed_data[selectedProcessedSheet].experiment_id,
-                          align: "center",
-                        },
-                        plotOptions: {
-                          bar: {
-                            columnWidth: "20%",
-                            horizontal: false,
-                          },
-                        },
-                        dataLabels: {
-                          enabled: false,
-                        },
-                        legend: {
-                          show: false // Hide legend since we're using custom colors
-                        },
-                        stroke: {
-                          show: true,
-                          width: 2,
-                          colors: ['transparent']
-                        },
-                        colors: ["#2E8DEF", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9"],
-                        yaxis: {
-                          title: {
-                            text: "% of viability vs. NC"
-                          }
-                        },
-                        xaxis: {
-                          title: {
-                            text: "NPs concentration [μg/mL]"
-                          },
-                          labels: {
-                            formatter: function (value) {
-                              // Return the value exactly as is (preventing any rounding)
-                              return value;
-                            },
-                            // Prevent truncation of decimal values
-                            trim: false,
-                            // Ensure enough space for decimal values
-                            style: {
-                              fontSize: '12px'
+                   data.processed_data[selectedProcessedSheet]?.viability_data?.concentrations &&
+                   data.processed_data[selectedProcessedSheet]?.viability_data?.percentage_values && (
+                    <ResponsiveContainer width="100%" height={365}>
+                      <BarChart
+                        key={`chart-${selectedProcessedSheet}`}
+                        data={data.processed_data[selectedProcessedSheet].viability_data.concentrations
+                          .filter((item: string) => item !== "NC'")
+                          .map((item: string, index: number) => {
+                            const num = parseFloat(item);
+                            const label = isNaN(num) ? item : num;
+                            const viability = data.processed_data[selectedProcessedSheet].viability_data.percentage_values[item];
+                            const stdDev = data.processed_data[selectedProcessedSheet].viability_data.percentage_std[item];
+                            
+                            // Only include data points with valid numeric values
+                            if (typeof viability !== 'number' || isNaN(viability) ||
+                                typeof stdDev !== 'number' || isNaN(stdDev)) {
+                              return null;
                             }
-                          },
-                          categories: data.processed_data[selectedProcessedSheet].viability_data.concentrations
+                            
+                            return {
+                              name: label,
+                              viability: viability,
+                              sd: stdDev,
+                              error: [0, stdDev], // [negative error, positive error]
+                              isControl: item === "NC",
+                              isPositiveControl: item === "PC"
+                            };
+                          })
+                          .filter((point: any) => point !== null)} // Filter out null values
+                        margin={{
+                          top: 20,
+                          right: 30,
+                          left: 40,
+                          bottom: 5,
+                        }}
+                        barCategoryGap="20%"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="name"
+                          axisLine={true}
+                          tickLine={true}
+                          tick={{ fontSize: 12 }}
+                          label={{ value: 'NPs concentration [μg/mL]', position: 'insideBottom', offset: 1 }}
+                        />
+                        <YAxis
+                          domain={[0, 150]}
+                          axisLine={true}
+                          tickLine={true}
+                          tick={{ fontSize: 12 }}
+                          label={{ value: '% of viability vs. NC', angle: -90, position: 'insideLeft' }}
+                        />
+                        <Bar dataKey="viability" fill="#2E8DEF" barSize={50}>
+                          {data.processed_data[selectedProcessedSheet].viability_data.concentrations
                             .filter((item: string) => item !== "NC'")
-                            .map((item: string) => {
-                              // If item is a number, parse and format it
-                              const num = parseFloat(item);
-
-                              return isNaN(num) ? item : num;
-                            }),
-                        },
-                      }}
-                      series={[
-                        {
-                          name: "Viability",
-                          data: data.processed_data[selectedProcessedSheet].viability_data.concentrations
-                            .filter((item: string) => item !== "NC'")
-                            .map((concentration: string) =>
-                              typeof data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration] === 'number' ? data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration].toFixed(1) : data.processed_data[selectedProcessedSheet].viability_data.percentage_values[concentration]
-                            ),
-                        },
-                      ]}
-                      type="bar"
-                      height={365}
-                    />
-                  }
+                            .map((item: string, index: number) => {
+                              const viability = data.processed_data[selectedProcessedSheet].viability_data.percentage_values[item];
+                              const stdDev = data.processed_data[selectedProcessedSheet].viability_data.percentage_std[item];
+                              
+                              // Only include cells with valid numeric values
+                              if (typeof viability !== 'number' || isNaN(viability) ||
+                                  typeof stdDev !== 'number' || isNaN(stdDev)) {
+                                return null;
+                              }
+                              
+                              return (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={item === "NC" ? '#3b82f6' : item === "PC" ? '#ef4444' : '#6b7280'}
+                                />
+                              );
+                            })
+                            .filter((cell: any) => cell !== null)} // Filter out null values
+                          <ErrorBar
+                            dataKey="error"
+                            width={4}
+                            stroke="#000000"
+                            strokeWidth={1.5}
+                            direction="y"
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
 
 
@@ -1086,7 +1098,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                               const key = typeof conc === 'number' ? conc.toString() : conc;
                               return (
                                 <td key={colIndex} className="py-2 px-4 border border-gray-300 text-center">
-                                  {typeof sheet.viability_data.readings[key][rowIndex] === 'number' ? sheet.viability_data.readings[key][rowIndex].toFixed(3) : sheet.viability_data.readings[key][rowIndex]}
+                                  {typeof sheet.viability_data.readings[key][rowIndex] === 'number' ? sheet.viability_data.readings[key][rowIndex].toFixed(2) : sheet.viability_data.readings[key][rowIndex]}
                                 </td>
                               );
                             })}

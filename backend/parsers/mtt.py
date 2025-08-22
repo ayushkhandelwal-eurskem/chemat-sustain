@@ -25,8 +25,10 @@ class WorkPackageData:
 @dataclass
 class MaterialData:
     material_identifier: Optional[str] = None
+    material_name: Optional[str] = None
     erm_id : Optional[str] = None
     core_chemistry: Optional[str] = None
+    cas_no_for_core: Optional[str] = None
     material_state: Optional[str] = None
     batch: Optional[str] = None
     preparation_date: Optional[str] = None
@@ -251,8 +253,10 @@ class MTTParser:
 
         material_data = asdict(MaterialData(
             material_identifier=next((d["Value"] for d in data if d["Key"] == "test_material_details"), None),
+            material_name=next((d["Value"] for d in data if d["Key"] == "material_name"), None),
             erm_id=next((d["Value"] for d in data if d["Key"] == "erm_identifier_number_"), None),
             core_chemistry=next((d["Value"] for d in data if d["Key"] == "core_chemistry_"), None),
+            cas_no_for_core=next((d["Value"] for d in data if d["Key"] == "cas_no_for_core_"), None),
             material_state=next((d["Value"] for d in data if d["Key"] == "material_state_"), None),
             batch=next((d["Value"] for d in data if d["Key"] == "batch"), None),
             preparation_date=next((d["Value"] for d in data if d["Key"] == "date_of_preparation_"), None),

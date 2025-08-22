@@ -1363,7 +1363,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 font-bold text-center"></td>
                       {data.final_results.concentrations_dash.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {typeof conc === 'number' ? conc.toFixed(4) : conc}
+                          {typeof conc === 'number' ? conc.toFixed(2) : conc}
                         </td>
                       ))}
                       <td className="px-2 py-1 border border-gray-300 text-center">
@@ -1405,7 +1405,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       <td className="px-2 py-1 border border-gray-300 font-bold text-center"></td>
                       {data.final_results.concentrations_dash.map((conc: number, index: number) => (
                         <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                          {typeof conc === 'number' ? conc.toFixed(4) : conc}
+                          {typeof conc === 'number' ? conc.toFixed(2) : conc}
                         </td>
                       ))}
                       <td className="px-2 py-1 border border-gray-300 text-center">
@@ -1506,7 +1506,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Log dose</td>
                         {data.final_results.log_dose.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center bg-gray-100">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                       </tr>
@@ -1514,7 +1514,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Dose</td>
                         {data.final_results.dose.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                       </tr>
@@ -1551,7 +1551,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC10</td>
                         {data.final_results.ec10.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1560,7 +1560,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC25</td>
                         {data.final_results.ec25.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1569,7 +1569,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC50</td>
                         {data.final_results.ec50.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1582,20 +1582,20 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
-                      <span className="font-medium">R² = {typeof data.final_results.r_squared === 'number' ? data.final_results.r_squared.toFixed(4) : data.final_results.r_squared}</span>
+                      <span className="font-medium">R² = {typeof data.final_results.r_squared === 'number' ? data.final_results.r_squared.toFixed(2) : data.final_results.r_squared}</span>
                     </div>
                     <div className="w-full text-center">
-                      <span className="font-medium">R = {typeof data.final_results.r === 'number' ? data.final_results.r.toFixed(4) : data.final_results.r}</span>
+                      <span className="font-medium">R = {typeof data.final_results.r === 'number' ? data.final_results.r.toFixed(2) : data.final_results.r}</span>
                     </div>
                   </div>
                 </div>
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
-                      <span className="font-medium">a = {typeof data.final_results.slope === 'number' ? data.final_results.slope.toFixed(4) : data.final_results.slope}</span>
+                      <span className="font-medium">a = {typeof data.final_results.slope === 'number' ? data.final_results.slope.toFixed(2) : data.final_results.slope}</span>
                     </div>
                     <div className="w-full text-center">
-                      <span className="font-medium">b = {typeof data.final_results.intercept === 'number' ? data.final_results.intercept.toFixed(4) : data.final_results.intercept}</span>
+                      <span className="font-medium">b = {typeof data.final_results.intercept === 'number' ? data.final_results.intercept.toFixed(2) : data.final_results.intercept}</span>
                     </div>
                   </div>
                 </div>
@@ -1612,7 +1612,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Log dose</td>
                         {data.final_results.log_dose_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center bg-gray-100">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                       </tr>
@@ -1620,7 +1620,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Dose</td>
                         {data.final_results.dose_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                       </tr>
@@ -1657,7 +1657,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC10</td>
                         {data.final_results.ec10_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1666,7 +1666,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC25</td>
                         {data.final_results.ec25_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1675,7 +1675,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC50</td>
                         {data.final_results.ec50_dash.map((conc: number, index: number) => (
                           <td key={index} className="px-2 py-1 border border-gray-300 text-center">
-                            {typeof conc === "number" ? conc.toFixed(4) : conc}
+                            {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
                         <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
@@ -1688,20 +1688,20 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
-                      <span className="font-medium">R² = {typeof data.final_results.r_squared === 'number' ? data.final_results.r_squared.toFixed(4) : data.final_results.r_squared}</span>
+                      <span className="font-medium">R² = {typeof data.final_results.r_squared === 'number' ? data.final_results.r_squared.toFixed(2) : data.final_results.r_squared}</span>
                     </div>
                     <div className="w-full text-center">
-                      <span className="font-medium">R = {typeof data.final_results.r === 'number' ? data.final_results.r.toFixed(4) : data.final_results.r}</span>
+                      <span className="font-medium">R = {typeof data.final_results.r === 'number' ? data.final_results.r.toFixed(2) : data.final_results.r}</span>
                     </div>
                   </div>
                 </div>
                 <div className="border-2 border-black p-4 w-64 bg-white mt-8">
                   <div className="flex flex-col items-center">
                     <div className="w-full text-center mb-1">
-                      <span className="font-medium">a = {typeof data.final_results.slope_dash === 'number' ? data.final_results.slope_dash.toFixed(4) : data.final_results.slope_dash}</span>
+                      <span className="font-medium">a = {typeof data.final_results.slope_dash === 'number' ? data.final_results.slope_dash.toFixed(2) : data.final_results.slope_dash}</span>
                     </div>
                     <div className="w-full text-center">
-                      <span className="font-medium">b = {typeof data.final_results.intercept_dash === 'number' ? data.final_results.intercept_dash.toFixed(4) : data.final_results.intercept_dash}</span>
+                      <span className="font-medium">b = {typeof data.final_results.intercept_dash === 'number' ? data.final_results.intercept_dash.toFixed(2) : data.final_results.intercept_dash}</span>
                     </div>
                   </div>
                 </div>
@@ -1724,7 +1724,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <tr key={rowIndex}>
                           {row.map((cell: any, cellIndex: number) => (
                             <td key={cellIndex} className="px-2 py-1 border border-gray-300 text-center">
-                              {typeof cell === "number" ? cell.toFixed(4) : cell}
+                              {typeof cell === "number" ? cell.toFixed(2) : cell}
                             </td>
                           ))}
                         </tr>

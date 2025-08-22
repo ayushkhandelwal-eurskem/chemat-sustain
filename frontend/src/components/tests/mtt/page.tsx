@@ -1031,7 +1031,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                                 />
                               );
                             })
-                            .filter((cell: any) => cell !== null)} // Filter out null values
+                            .filter((cell: any) => cell !== null)}
                           <ErrorBar
                             dataKey="error"
                             width={4}

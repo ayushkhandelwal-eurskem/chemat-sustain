@@ -293,6 +293,10 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="py-2 px-4 border font-medium">Core Chemistry</td>
                         <td className="py-2 px-4 border">{data.test_details.material.core_chemistry}</td>
                       </tr>
+                       <tr>
+                        <td className="py-2 px-4 border font-medium">CAS No:</td>
+                        <td className="py-2 px-4 border">{data.test_details.material.cas_no}</td>
+                      </tr>
                       <tr>
                         <td className="py-2 px-4 border font-medium">CAS No for Core:</td>
                         <td className="py-2 px-4 border">{data.test_details.material.cas_no_for_core}</td>

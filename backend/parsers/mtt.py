@@ -28,6 +28,7 @@ class MaterialData:
     material_name: Optional[str] = None
     erm_id : Optional[str] = None
     core_chemistry: Optional[str] = None
+    cas_no: Optional[str] = None
     cas_no_for_core: Optional[str] = None
     material_state: Optional[str] = None
     batch: Optional[str] = None
@@ -256,6 +257,7 @@ class MTTParser:
             material_name=next((d["Value"] for d in data if d["Key"] == "material_name"), None),
             erm_id=next((d["Value"] for d in data if d["Key"] == "erm_identifier_number_"), None),
             core_chemistry=next((d["Value"] for d in data if d["Key"] == "core_chemistry_"), None),
+            cas_no=next((d["Value"] for d in data if d["Key"] == "cas_no_"), None),
             cas_no_for_core=next((d["Value"] for d in data if d["Key"] == "cas_no_for_core_"), None),
             material_state=next((d["Value"] for d in data if d["Key"] == "material_state_"), None),
             batch=next((d["Value"] for d in data if d["Key"] == "batch"), None),

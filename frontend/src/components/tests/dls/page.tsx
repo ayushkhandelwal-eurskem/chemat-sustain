@@ -1021,7 +1021,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     dataKey="x"
                     name="Size (nm)"
                     label={{
-                      value: "Size (nm)",
+                      value: "Size d[nm]",
                       position: "insideBottomRight",
                       offset: -10,
                     }}
@@ -1038,7 +1038,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       position: "insideLeft",
                       offset: 0,
                     }}
-                    domain={[2, 16]}
+                    domain={[4, 16]}
                     ticks={[2, 4, 6, 8, 10, 12, 14, 16]}
                   />
                   <Tooltip cursor={{ strokeDasharray: "3 3" }} />
@@ -1083,18 +1083,24 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
               <h3 className="text-lg font-semibold mb-3">Final Results</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <p className="font-semibold">Z-Average Diameter:</p>
+                  <p className="font-semibold">Z-Average Hydrodynamic Diameter:</p>
                   <p>
-                    {data.final_results.z_ave_hydrodynamic_diameter?.toFixed(2) ?? "N/A"} ±{" "}
-                    {data.final_results.uncertainty_hydrodynamic_diameter?.toFixed(2) ?? "N/A"} nm
+                    {data.final_results.z_ave_hydrodynamic_diameter?.toFixed(2) ?? "N/A"}
                   </p>
+                </div>
+                <div>
+                  <p className="font-semibold">Uncertainty Hydrodynamic Diameter:</p>
+                  <p>{data.final_results.uncertainty_hydrodynamic_diameter?.toFixed(2) ?? "N/A"} nm</p>
                 </div>
                 <div>
                   <p className="font-semibold">PDI:</p>
                   <p>
-                    {data.final_results.pdi?.toFixed(3) ?? "N/A"} ±{" "}
-                    {data.final_results.uncertainty_pdi?.toFixed(3) ?? "N/A"}
+                    {data.final_results.pdi?.toFixed(3) ?? "N/A"}
                   </p>
+                </div>
+                <div>
+                  <p className="font-semibold">Uncertainty PDI:</p>
+                  <p>{data.final_results.uncertainty_pdi?.toFixed(3) ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">Derived Count Rate:</p>
@@ -1202,7 +1208,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                     dataKey="x"
                     name="Size (nm)"
                     label={{
-                      value: "Size (nm)",
+                      value: "Size d[nm]",
                       position: "insideBottomRight",
                       offset: -10,
                     }}
@@ -1218,8 +1224,8 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       angle: -90,
                       position: "insideLeft",
                     }}
-                    domain={[0, 16]}  // Manual range for y-axis
-                    ticks={[0, 2, 4, 6, 8, 10, 12, 14, 16]}  // Manual tick values
+                    domain={[2, 16]}  // Manual range for y-axis
+                    ticks={[2, 4, 6, 8, 10, 12, 14, 16]}  // Manual tick values
                   />
                   <Tooltip cursor={{ strokeDasharray: "3 3" }} />
                   <Scatter

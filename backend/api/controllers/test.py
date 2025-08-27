@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, status, Query, UploadFile, File, Form
 from utils.custom_router import APIRouter
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from utils.db import get_db  # Make sure you have this function
@@ -13,7 +14,8 @@ from ..schemas.test import (
     TestListings
 )
 from parsers.mtt import parse_excel_mtt
-from parsers.dls import parse_excel_dls 
+from parsers.dls import parse_excel_dls
+from parsers.ftir import parse_excel_ftir
 import tempfile
 import math
 import shutil
@@ -61,7 +63,8 @@ async def create_test(
                 file_data = parse_excel_mtt(path)
             elif request.test_name == "DLS":
                 file_data = parse_excel_dls(path)
-            
+            elif request.test_name == "FTIR":
+                file_data = parse_excel_ftir(path)        
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -164,6 +167,7 @@ async def update_test(
     """Update a test with optional Excel file upload"""
     
     # Process file if provided
+    logging.info(f"Updating test with ID: {test_id}")
     file_data = {}
     if request.file:
         if not request.file.filename.endswith(('.xlsx', '.xls')):
@@ -174,6 +178,7 @@ async def update_test(
         
         try:
             current_test = await service.get_test_by_id(test_id)
+            logging.info(f"Current test: {current_test}")
             if request.file:
                 timestamp = int(time.time())
                 filename = f"{timestamp}_{request.file.filename}"

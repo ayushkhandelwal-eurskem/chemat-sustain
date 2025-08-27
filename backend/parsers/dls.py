@@ -592,7 +592,7 @@ class DLSParser:
         for row_idx, row in enumerate(raw_ws.iter_rows(min_row=1, min_col=1, max_col=2), start=1):
             time_header = str(row[0].value).lower() if row[0].value else ""
             corr_header = str(row[1].value).lower() if row[1].value else ""
-            if ("time" in time_header and "μs" in time_header) and ("correlation" in corr_header and "coefficient" in corr_header):
+            if ("time" in time_header and "μs" in time_header) and ("correlation" in corr_header and "coefficient" in corr_header in corr_header):
                 correlation_start_row = row_idx + 1
                 logger.debug(f"Found correlation header at row {row_idx}: {row[0].value}, {row[1].value}")
                 break
@@ -774,7 +774,7 @@ class DLSParser:
 
         metric_names = [
             "z_ave_hydrodynamic_diameter", "uncertainity_hydrodynamic_diameter", "pdi",
-            "uncertainity_pddi", "mean_peak_1_diameter_by_intensity", "pooled_standard_deviation_peak_1",
+            "uncertainity_pdi","mean_peak_1_diameter_by_intensity", "pooled_standard_deviation_peak_1",
             "standard_deviation_beetwen_measurements_peak_1", "mean_peak_1_relative_intensity",
             "mean_peak_2_diameter_by_intensity", "pooled_standard_deviation_peak_2",
             "standard_deviation_beetwen_measurements_peak_2", "mean_peak_2_relative_intensity",
@@ -809,7 +809,7 @@ class DLSParser:
             z_ave_hydrodynamic_diameter=metrics.get("z_ave_hydrodynamic_diameter"),
             uncertainty_hydrodynamic_diameter=metrics.get("uncertainity_hydrodynamic_diameter"),
             pdi=metrics.get("pdi"),
-            uncertainty_pdi=metrics.get("uncertainity_pddi"),
+            uncertainty_pdi=metrics.get("uncertainity_pdi"),
             mean_peak_1_diameter=metrics.get("mean_peak_1_diameter_by_intensity"),
             pooled_std_dev_peak_1=metrics.get("pooled_standard_deviation_peak_1"),
             std_dev_between_measurements_peak_1=metrics.get("standard_deviation_beetwen_measurements_peak_1"),
@@ -849,7 +849,7 @@ class DLSParser:
             logger.debug(f"-------------------------------------------------------------------------")
             logger.debug(f"Parsed test details here at parse all data: {parsed_data}")
 
-            SHEET_PATTERN = r'^({prefix}_WP[1-5]_DLS_[1-30]aR[1-5])$'
+            SHEET_PATTERN = r'^({prefix}_WP[1-5]_DLS_\d+aR[1-5])$'
 
              # Function to filter sheets based on prefix
             def filter_sheets(sheetnames, prefix):
@@ -868,7 +868,7 @@ class DLSParser:
                 wp_number = match.group(1)
                 dls_number = match.group(2)
                 run_number = match.group(3)
-                if not (1 <= int(wp_number) <= 5 and 1 <= int(dls_number) <= 30 and 1 <= int(run_number) <= 5):
+                if not (1 <= int(wp_number) <= 10 and 1 <= int(dls_number) <= 30 and 1 <= int(run_number) <= 10):
                    logger.warning(f"Invalid number range in sheet name: {raw_sheet}")
                    continue
                 processed_sheet = next((name for name in processed_sheets 
@@ -942,13 +942,13 @@ def parse_excel_dls(file_path: str, sheet_name: str = "Test Information") -> Dic
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2/CMS_2a_AuNP/DLS/WP2_DLS_2aR1_R5.xlsx"
+    file_path = "backend/data/WP2/CMS_4a_AuNP/DLS/WP2_DLS_4aR1_R5.xlsx"
     try:
         parsed_data = parse_excel_dls(file_path)
         print("Parsed Data:")
-        print("Test Details:", parsed_data['test_details'])
+        #print("Test Details:", parsed_data['test_details'])
         #print("Raw Data:", parsed_data['replications'])
-        #print("Processed Data:", parsed_data['processed_data'])
+        print("Processed Data:", parsed_data['processed_data'])
         #print("Final Results:", parsed_data['final_results'])
     except Exception as e:
         print(f"Error: {e}")

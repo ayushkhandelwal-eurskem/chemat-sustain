@@ -491,9 +491,7 @@ const FTIRDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                         Tip composition
                       </td>
                       <td className="py-2 px-4 border">
-                        {data.test_details
-
-                          .sample_preparation.tip_composition}
+                        {data.test_details.sample_preparation.tip_composition}
                       </td>
                     </tr>
                     <tr>
@@ -966,34 +964,45 @@ const FTIRDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
               >
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="py-2 px-4 border text-left">
+                    <th className="py-2 px-4 border text-left font-semibold">
                       Functional Group
                     </th>
-                    <th className="py-2 px-4 border text-left">
+                    <th className="py-2 px-4 border text-left font-semibold">
                       Characteristic Peaks (cm⁻¹)
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.final_results.functional_groups?.length > 0 ? (
-                    data.final_results.functional_groups.map((group, index) => (
-                      <tr
-                        key={index}
-                        className={index % 2 === 0 ? "bg-gray-50" : ""}
-                      >
-                        <td className="py-2 px-4 border">{group.group_name}</td>
-                        <td className="py-2 px-4 border">
-                          {group.peaks.map((p) => p.toFixed(0)).join(", ")}
-                        </td>
-                      </tr>
-                    ))
+                  {data?.final_results?.functional_groups?.length > 0 ? (
+                    data.final_results.functional_groups
+                      .filter(
+                        (group): group is FunctionalGroup =>
+                          typeof group.group_name === "string" &&
+                          Array.isArray(group.peaks) &&
+                          group.peaks.every((peak) => typeof peak === "number")
+                      )
+                      .map((group, index) => (
+                        <tr
+                          key={index}
+                          className={index % 2 === 0 ? "bg-gray-50" : ""}
+                        >
+                          <td className="py-2 px-4 border">
+                            {group.group_name || "N/A"}
+                          </td>
+                          <td className="py-2 px-4 border">
+                            {group.peaks.length > 0
+                              ? group.peaks.map((p) => Math.round(p)).join(", ")
+                              : "No peaks identified"}
+                          </td>
+                        </tr>
+                      ))
                   ) : (
                     <tr>
                       <td
                         colSpan={2}
-                        className="py-2 px-4 border text-center"
+                        className="py-2 px-4 border text-center text-gray-600"
                       >
-                        No functional groups identified
+                        No valid functional groups identified
                       </td>
                     </tr>
                   )}

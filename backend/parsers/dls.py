@@ -942,7 +942,7 @@ def parse_excel_dls(file_path: str, sheet_name: str = "Test Information") -> Dic
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2/CMS_4a_AuNP/DLS/WP2_DLS_4aR1_R5.xlsx"
+    file_path = "backend/data/WP2/CMS_4a_AuNP/DLS/WP2_DLS_4aR1_R5.DB.xlsx"
     try:
         parsed_data = parse_excel_dls(file_path)
         print("Parsed Data:")

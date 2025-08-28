@@ -102,7 +102,7 @@ class ProcessedData:
 
 @dataclass
 class FunctionalGroup:
-    group_name: str
+    group_name: str  # Maximum length: 100 characters
     peaks: List[float]
 
 @dataclass
@@ -500,36 +500,55 @@ class FTIRParser:
         final_sheet_names = [name for name in self.wb.sheetnames if "Final results" in name]
         logger.debug(f"Found final results sheets: {final_sheet_names}")
         if not final_sheet_names:
+            logger.warning("No final results sheet found")
             return asdict(ResultsData())
 
-        # Assuming one final sheet
+        # Select the first final results sheet
         ws = self.wb[final_sheet_names[0]]
         functional_groups = []
 
-        # Find the data row (row4 in example)
-        data_row = None
-        for row_idx, row in enumerate(ws.iter_rows(min_row=1, max_col=20), start=1):
-            if any("hydroxyl" in str(cell.value).lower() for cell in row if cell.value):
-                data_row = row_idx
-                logger.debug(f"Found final results data row at {row_idx}")
-                break
+        # Check header row (A2, row 2)
+        header_row = 2
+        first_cell = ws.cell(row=header_row, column=1).value
+        if not first_cell or "functional group" not in str(first_cell).lower().strip():
+            logger.warning(f"Header row {header_row} does not contain 'functional group': found '{first_cell}'")
+            return asdict(ResultsData())
 
-        if data_row:
-            row = ws[data_row]
-            for i in range(0, len(row), 2):
-                group_name = row[i].value
-                peaks_str = row[i+1].value if i+1 < len(row) else None
-                if group_name and peaks_str:
-                    peaks = []
+        logger.debug(f"Found functional group header at row {header_row}")
+        data_row = 4  # Data row is C2 (row 4)
+
+        if data_row > ws.max_row:
+            logger.warning(f"Data row {data_row} exceeds sheet's maximum row {ws.max_row}")
+            return asdict(ResultsData())
+
+        # Process the data row up to max column 7
+        max_col = 30
+        row = ws[data_row]
+        for i in range(0, min(len(row), max_col), 2):
+            group_name = row[i].value
+            peaks_str = row[i + 1].value if i + 1 < min(len(row), max_col) else None
+            if group_name and peaks_str:
+                peaks = []
+                try:
+                    # Split peaks_str by commas and process each value
                     for p in str(peaks_str).split(','):
-                        try:
-                            peaks.append(float(p.strip()))
-                        except (ValueError, TypeError):
-                            continue
+                        p = p.strip()
+                        if p:  # Ensure non-empty string
+                            peaks.append(float(p))
+                    # Validate group_name length
+                    if len(group_name) > 100:
+                        logger.warning(f"Group name '{group_name}' exceeds 100 characters, truncating")
+                        group_name = group_name[:100]
                     functional_groups.append(FunctionalGroup(group_name=group_name, peaks=peaks))
                     logger.debug(f"Extracted functional group: {group_name}, peaks={peaks}")
-        else:
-            logger.warning("No data row found in final results sheet")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Error parsing peaks for group '{group_name}': {peaks_str}, error: {e}")
+                    continue  # Skip to next pair on error
+            else:
+                logger.debug(f"Skipping invalid pair at index {i}: group_name={group_name}, peaks={peaks_str}")
+
+        if not functional_groups:
+            logger.warning("No valid functional groups extracted from data row")
 
         return asdict(ResultsData(functional_groups=functional_groups))
 
@@ -569,7 +588,7 @@ class FTIRParser:
                 logger.debug(f"Processing raw sheet {raw_sheet}: wp_number={wp_number}, ftir_number={ftir_number}, run_number={run_number}")
 
                 processed_sheet = next((name for name in processed_sheets 
-                                        if re.search(rf'WP{wp_number}_FTIR_{ftir_number}aR{run_number}', name, re.IGNORECASE)), None)
+                                    if re.search(rf'WP{wp_number}_FTIR_{ftir_number}aR{run_number}', name, re.IGNORECASE)), None)
                 logger.debug(f"Matched processed sheet for run {run_number}: {processed_sheet}")
 
                 raw_data = self.extract_raw_data(raw_sheet)
@@ -605,12 +624,9 @@ def parse_excel_ftir(file_path: str) -> Dict[str, Union[Dict, List]]:
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2/CMS_1a_AuNP/FT-IR/WP2_FTIR_1aR1.xlsx"
+    file_path = "backend/data/WP2/CMS_16a_TMR/FT-IR/WP2_FTIR_16aR1.xlsx"
     try:
         parsed_data = parse_excel_ftir(file_path)
-        #print("Parsed Data:")
-        #print(parsed_data)
-        print("Raw Data:", parsed_data['replications'])
-        #print("Processed Data:", parsed_data['processed_data'])
+        print("Final Results:", parsed_data['final_results'])
     except Exception as e:
         print(f"Error: {e}")

@@ -16,6 +16,7 @@ from ..schemas.test import (
 from parsers.mtt import parse_excel_mtt
 from parsers.dls import parse_excel_dls
 from parsers.ftir import parse_excel_ftir
+from parsers.hr_stem import parse_excel_hr_stem
 import tempfile
 import math
 import shutil
@@ -64,7 +65,9 @@ async def create_test(
             elif request.test_name == "DLS":
                 file_data = parse_excel_dls(path)
             elif request.test_name == "FTIR":
-                file_data = parse_excel_ftir(path)        
+                file_data = parse_excel_ftir(path)    
+            elif request.test_name == "HR-STEM":
+                file_data = parse_excel_hr_stem(path)        
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

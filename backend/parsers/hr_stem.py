@@ -861,8 +861,8 @@ if __name__ == "__main__":
         print("Parsed Data:")
         #print("Test Details:", parsed_data['test_details'])
         #print("Replication:", parsed_data['replication'])
-        print("Raw Data:", parsed_data['replications'])
-        #print("Processed Data:", parsed_data['processed_data'])
+        #print("Raw Data:", parsed_data['replications'])
+        print("Processed Data:", parsed_data['processed_data'])
        #print("Final Results:", parsed_data['final_results'])
     except Exception as e:
         print(f"Error: {e}")

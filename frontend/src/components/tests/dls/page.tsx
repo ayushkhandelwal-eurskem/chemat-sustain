@@ -1025,8 +1025,9 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       position: "insideBottomRight",
                       offset: -10,
                     }}
-                    domain={[100, 1000]}
-                    ticks={[10, 100, 1000]} 
+                    domain={[0, 1000]}
+                    ticks={[0, 100, 200, 500, 1000]} 
+                    allowDataOverflow={false}
                   />
                   <YAxis
                     type="number"
@@ -1050,7 +1051,8 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                           x: size,
                           y: data.processed_data[selectedRun]?.size_distribution?.mean_intensity_percent[i] ?? 0,
                         })
-                      ) ?? []
+                      ) 
+                      .filter(p => Number.isFinite(p.x) && p.x >= 0 && p.x <= 1000) 
                     }
                     fill="#82ca9d"  // Marker color
                     line={{ stroke: "#82ca9d", strokeWidth: 2 }}  // Straight line connecting points
@@ -1212,8 +1214,8 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       position: "insideBottomRight",
                       offset: -10,
                     }}
-                    domain={[0.1, 1000]}  // Manual range for x-axis
-                    ticks={[0.1, 1, 10, 100, 1000]}  // Manual tick values
+                    domain={[0, 1000]}  // Manual range for x-axis
+                    ticks={[0, 100, 200, 500, 1000]}  // Manual tick values
                   />
                   <YAxis
                     type="number"
@@ -1234,7 +1236,8 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
                       data.final_results.statistic_table.map((row) => ({
                         x: row.size_nm,
                         y: row.mean_intensity_percent,
-                      })) ?? []
+                      })) 
+                      .filter(p => Number.isFinite(p.x) && p.x >= 0 && p.x <= 1000) 
                     }
                     fill="#82ca9d"  // Marker color
                     line={{ stroke: "#82ca9d", strokeWidth: 2 }}  // Straight line connecting points

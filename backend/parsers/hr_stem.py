@@ -716,8 +716,8 @@ class HRSTEMParser:
         hist_start_row = 8  # From document
         hist_mapping = {
             'feret_min': (14, 15, 16),  # N start, O end, P count
-            'length': (19, 20, 21),     # S start, T end, U count
-            'feret_max': (24, 25, 26)   # X start, Y end, Z count
+            'length': (20, 21, 22),     # T start, U end, V count
+            'feret_max': (26, 27, 28)   # Z start, AA end, AB count
         }
         for key, (start_col, end_col, count_col) in hist_mapping.items():
             hist_list = getattr(histogram, key)
@@ -855,7 +855,7 @@ def parse_excel_hr_stem(file_path: str, sheet_name: str = "Test Information") ->
         raise
 
 if __name__ == "__main__":
-    file_path = "/Users/ayushkhandelwal/Documents/chemat-sustain/backend/data/WP2_HR-STEM_1aR1.xlsx"
+    file_path = "/Users/asuto/Documents/chemat filez/WP2_HR-STEM_1aR1.xlsx"
     try:
         parsed_data = parse_excel_hr_stem(file_path)
         print("Parsed Data:")

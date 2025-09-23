@@ -688,8 +688,8 @@ class HRSTEMParser:
 
         # Extract additional metrics using search
         metric_names = [
-            "density", "volume_np_nm3", "volume_np_cm3", "mass_np_g",
-            "mass_colloid", "c_colloid_percent", "no_particles_stock"
+            "d [g/cm3]", "V 1 NPs [nm3]", "V 1 NPs [cm3]", "m 1 NPs [g]",
+            "Mass of colloid", "C colloid [%]", "No. of particles in stock:"
         ]
         for row_idx in range(1, processed_ws.max_row + 1):
             row = processed_ws[row_idx]
@@ -855,7 +855,7 @@ def parse_excel_hr_stem(file_path: str, sheet_name: str = "Test Information") ->
         raise
 
 if __name__ == "__main__":
-    file_path = "/Users/asuto/Documents/chemat filez/WP2_HR-STEM_1aR1.xlsx"
+    file_path = "/Users/ayushkhandelwal/Documents/chemat-sustain/backend/data/WP2_HR-STEM_1aR1.xlsx"
     try:
         parsed_data = parse_excel_hr_stem(file_path)
         print("Parsed Data:")

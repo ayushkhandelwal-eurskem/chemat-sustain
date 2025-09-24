@@ -686,31 +686,56 @@ class HRSTEMParser:
             except ValueError:
                 logger.warning(f"Invalid metric value at row {row_idx}")
 
-        # Extract additional metrics using search
-        metric_names = [
-            "d [g/cm3]", "V 1 NPs [nm3]", "V 1 NPs [cm3]", "m 1 NPs [g]",
-            "Mass of colloid", "C colloid [%]", "No. of particles in stock:"
-        ]
-        for row_idx in range(1, processed_ws.max_row + 1):
-            row = processed_ws[row_idx]
-            for cell in row:
-                if not cell.value:
+        
+        # Rows are fixed; <no searching for labels> If column H is empty, check I.
+        # Mapping: spreadsheet row -> RunMetrics attribute
+        fixed_row_map = {
+            11: "density",            # d [g/cm3]
+            12: "volume_np_nm3",      # V 1 NPs [nm3]
+            13: "volume_np_cm3",      # V 1 NPs [cm3]
+            14: "mass_np_g",          # m 1 NPs [g]
+            # 15 is empty
+            16: "mass_colloid",       # Mass of colloid
+            17: "c_colloid_percent",  # C colloid [%]
+            18: "no_particles_stock", # No. of particles in stock:
+        }
+
+        for row_idx, attr in fixed_row_map.items():
+            if attr is None:
+                logger.debug(f"Row {row_idx} mapped to no attribute; skipping.")
+                continue
+
+            value = None
+            # check column H (8) first, then I (9)
+            for col_idx in (8, 9):
+                raw_val = processed_ws.cell(row=row_idx, column=col_idx).value
+                if raw_val is None or (isinstance(raw_val, str) and raw_val.strip() == ""):
                     continue
-                cell_value = self.normalize_key(cell.value)
-                for metric_name in metric_names:
-                    if metric_name in cell_value:
-                        for offset in [(0, 1), (0, 2), (1, 0), (1, 1)]:
-                            try:
-                                value_cell = processed_ws.cell(row=row_idx + offset[0], column=cell.column + offset[1])
-                                if value_cell.value is not None:
-                                    try:
-                                        setattr(metrics, metric_name, float(value_cell.value))
-                                        logger.debug(f"Metric {metric_name} = {value_cell.value}")
-                                    except (ValueError, TypeError):
-                                        logger.warning(f"Invalid value for {metric_name}: {value_cell.value}")
-                                    break
-                            except:
-                                continue
+                try:
+                    # float() handles scientific notation like 1.1304E-19
+                    value = float(raw_val)
+                    logger.debug(f"Parsed numeric value at row {row_idx} col {col_idx}: {value}")
+                    break
+                except (ValueError, TypeError):
+                    # try a cleaned string parse (remove commas, whitespace)
+                    try:
+                        value = float(str(raw_val).replace(",", "").strip())
+                        logger.debug(f"Parsed string numeric value at row {row_idx} col {col_idx}: {value}")
+                        break
+                    except Exception:
+                        logger.warning(f"Non-numeric value found at row {row_idx} col {col_idx}: {raw_val}")
+                        continue
+
+            if value is None:
+                logger.debug(f"No numeric value found in columns H/I for fixed row {row_idx}; leaving metrics.{attr} as None.")
+                continue
+
+            try:
+                setattr(metrics, attr, value)
+                logger.debug(f"Set metrics.{attr} = {value} (from row {row_idx})")
+            except Exception as e:
+                logger.warning(f"Failed to set metrics.{attr} from row {row_idx}: {e}")
+
 
         # Extract histogram data
         hist_start_row = 8  # From document

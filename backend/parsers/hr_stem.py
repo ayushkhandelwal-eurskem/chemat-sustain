@@ -140,6 +140,7 @@ class ProcessedData:
     processed_particles: List[ProcessedParticle] = field(default_factory=list)
     metrics: RunMetrics = field(default_factory=RunMetrics)
     histogram: HistogramData = field(default_factory=HistogramData)
+    histogram_params: Dict[str, Dict[str, Optional[float]]] = field(default_factory=dict)
 
 @dataclass
 class StatisticTableEntry:
@@ -615,6 +616,63 @@ class HRSTEMParser:
             values = [str(cell.value)[:30] if cell.value else "None" for cell in row]
             logger.debug(f"Row {row_idx}: {values}")
 
+        # -------------------------
+        # Read histogram parameter cells (Excel): M, S, Y columns rows 2..7
+        # mapping: rows 2->7 = [num_results, xmin, xmax, range, compartments, dx]
+        # columns: feret_min -> M, length -> S, feret_max -> Y
+        # -------------------------
+        def _cell_to_float_or_none(ws, col_letter: str, row_num: int):
+            val = ws[f"{col_letter}{row_num}"].value
+            if val is None:
+                return None
+            # robust string-to-float: trim, replace comma decimal
+            if isinstance(val, str):
+                s = val.strip().replace(",", ".")
+                if s == "":
+                    return None
+                try:
+                    return float(s)
+                except Exception:
+                    return None
+            try:
+                return float(val)
+            except Exception:
+                return None
+
+        _param_col_map = {
+            "feret_min": "M",
+            "length": "S",
+            "feret_max": "Y"
+        }
+        _row_param_names = {
+            2: "num_results",
+            3: "xmin",
+            4: "xmax",
+            5: "range",
+            6: "compartments",
+            7: "dx"
+        }
+
+        histogram_params: Dict[str, Dict[str, Optional[float]]] = {}
+        for key, col_letter in _param_col_map.items():
+            entry: Dict[str, Optional[float]] = {}
+            for row_idx, pname in _row_param_names.items():
+                v = _cell_to_float_or_none(processed_ws, col_letter, row_idx)
+                # keep integer-like values as ints for these two params
+                if v is not None and pname in ("num_results", "compartments"):
+                    try:
+                        entry[pname] = int(v)
+                    except Exception:
+                        entry[pname] = int(round(v))
+                else:
+                    entry[pname] = v
+            histogram_params[key] = entry
+
+        logger.debug(f"Read histogram_params from sheet: {histogram_params}")
+
+
+
+
         # Find columns for processed particles
         aspect_col_idx = None
         ecd_col_idx = None
@@ -768,7 +826,13 @@ class HRSTEMParser:
 
         logger.debug(f"Extracted histograms: feret_min={len(histogram.feret_min)}, length={len(histogram.length)}, feret_max={len(histogram.feret_max)}")
 
-        return asdict(ProcessedData(run_number=run_number, processed_particles=processed_particles, metrics=metrics, histogram=histogram))
+        return asdict(ProcessedData(
+            run_number=run_number,
+            processed_particles=processed_particles,
+            metrics=metrics,
+            histogram=histogram,
+            histogram_params=histogram_params
+        ))
 
     def extract_final_results(self):
         logger.debug("Extracting final results")

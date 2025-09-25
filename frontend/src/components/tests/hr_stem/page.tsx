@@ -90,6 +90,12 @@ interface ProcessedData {
   processed_particles: ProcessedParticle[];
   metrics: RunMetrics;
   histogram: HistogramData;
+  histogram_params?: {
+    feret_min?: Record<string, number | null | undefined>;
+    length?: Record<string, number | null | undefined>;
+    feret_max?: Record<string, number | null | undefined>;
+    [key: string]: any;
+  };
 }
 
 interface StatisticTableEntry {
@@ -823,46 +829,102 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
               </div>
             </div>
 
-            {/* 3. Histogram parameters */}
+            {/* 3. Histogram parameters (from data.processed_data.histogram_params) */}
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-3">Histogram Parameters</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="font-semibold">Number of results:</p>
-                  <p>300</p> {/* From excel */}
-                </div>
-                <div>
-                  <p className="font-semibold">xmin:</p>
-                  <p>3.5</p>
-                </div>
-                <div>
-                  <p className="font-semibold">xmax:</p>
-                  <p>9</p>
-                </div>
-                <div>
-                  <p className="font-semibold">distance r:</p>
-                  <p>5.5</p>
-                </div>
-                <div>
-                  <p className="font-semibold">calculated number of compartments:</p>
-                  <p>18</p>
-                </div>
-                <div>
-                  <p className="font-semibold">width dx:</p>
-                  <p>0</p>
-                </div>
+
+              {/* helper inside the component to format values */}
+              {/* put this const where this JSX can see it (inside the same component) */}
+              {
+                /* eslint-disable @typescript-eslint/no-unused-vars */
+              }
+              <script
+                /* This is just for clarity — if your file is TSX, add the helper above the return instead.
+                  If you prefer inline, move the helper to the top of the component. */
+                dangerouslySetInnerHTML={{
+                  __html: ''
+                }}
+              />
+              {/* If you're editing inside the component's return, ensure the helper is declared above return:
+                  const histogramParams = data.processed_data?.histogram_params ?? {};
+                  const formatVal = (raw: number | null | undefined, asInt = false) => { ... } 
+              */}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {(() => {
+                  // Access histogram params safely
+                  const histogramParams = (data?.processed_data?.histogram_params as any) ?? {};
+
+                  const columns = [
+                    { key: "feret_min", title: "Feret Min" },
+                    { key: "length", title: "Length" },
+                    { key: "feret_max", title: "Feret Max" },
+                  ];
+
+                  // formatting helper
+                  const formatVal = (v: any, asInt = false) => {
+                    if (v === undefined || v === null || Number.isNaN(v)) return "N/A";
+                    const n = Number(v);
+                    if (!isFinite(n)) return "N/A";
+                    if (asInt || Number.isInteger(n)) return String(Math.round(n));
+                    if (Math.abs(n) >= 1000) return n.toFixed(0);
+                    return n.toFixed(2);
+                  };
+
+                  return columns.map((col) => {
+                    const params = histogramParams[col.key] ?? {};
+                    return (
+                      <div key={col.key} className="bg-white p-3 rounded-md shadow-sm">
+                        <h4 className="font-semibold mb-2">{col.title}</h4>
+                        <div className="space-y-2 text-sm text-slate-600">
+                          <div>
+                            <p className="text-sm text-slate-600">Number of results:</p>
+                            <p className="font-medium">{formatVal(params?.num_results, true)}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm text-slate-600">x<sub>min</sub>:</p>
+                            <p className="font-medium">{formatVal(params?.xmin)}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm text-slate-600">x<sub>max</sub>:</p>
+                            <p className="font-medium">{formatVal(params?.xmax)}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm text-slate-600">distance r:</p>
+                            <p className="font-medium">{formatVal(params?.range)}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm text-slate-600">calculated number of compartments:</p>
+                            <p className="font-medium">{formatVal(params?.compartments, true)}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm text-slate-600">width d<sub>x</sub>:</p>
+                            <p className="font-medium">{formatVal(params?.dx)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
+
+
 
             {/* 4-5. Histograms */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
               <div>
                 <h3 className="text-lg font-semibold mb-3">Feret Min Histogram</h3>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={350}>
                   <BarChart data={data.processed_data.histogram.feret_min}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="bin_start" label={{ value: "Feret Min", position: "insideBottom" }} />
-                    <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
+                    <XAxis dataKey="bin_start" tick={{ fontSize: 10 }} offset={-10} label={{ value: "Feret Min", position: "insideBottom" , dy: 6}} />
+                    <YAxis tick={{ fontSize: 10 }} label={{ value: "Counts", angle: -90, position: "insideLeft", dy: -6 }} />
                     <Tooltip />
                     <Bar dataKey="count" fill="#8884d8" />
                   </BarChart>
@@ -870,11 +932,11 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-3">Length Histogram</h3>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={350}>
                   <BarChart data={data.processed_data.histogram.length}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="bin_start" label={{ value: "Length", position: "insideBottom" }} />
-                    <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
+                    <XAxis dataKey="bin_start" tick={{ fontSize: 10 }} offset={-10} label={{ value: "Length", position: "insideBottom", dy: 6 }} />
+                    <YAxis tick={{ fontSize: 10 }} label={{ value: "Counts", angle: -90, position: "insideLeft", dy: -6 }} />
                     <Tooltip />
                     <Bar dataKey="count" fill="#82ca9d" />
                   </BarChart>
@@ -882,11 +944,11 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-3">Feret Max Histogram</h3>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={350}>
                   <BarChart data={data.processed_data.histogram.feret_max}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="bin_start" label={{ value: "Feret Max", position: "insideBottom" }} />
-                    <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
+                    <XAxis dataKey="bin_start" tick={{ fontSize: 10 }} label={{ value: "Feret Max", position: "insideBottom", dy: 6 }} />
+                    <YAxis tick={{ fontSize: 10 }} label={{ value: "Counts", angle: -90, position: "insideLeft", dy: -6 }} />
                     <Tooltip />
                     <Bar dataKey="count" fill="#ffc658" />
                   </BarChart>

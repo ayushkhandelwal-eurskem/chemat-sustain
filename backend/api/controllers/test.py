@@ -17,6 +17,7 @@ from parsers.mtt import parse_excel_mtt
 from parsers.dls import parse_excel_dls
 from parsers.ftir import parse_excel_ftir
 from parsers.hr_stem import parse_excel_hr_stem
+from parsers.uv_vis import parse_excel_uv_vis
 import tempfile
 import math
 import shutil
@@ -67,7 +68,9 @@ async def create_test(
             elif request.test_name == "FTIR":
                 file_data = parse_excel_ftir(path)    
             elif request.test_name == "HR-STEM":
-                file_data = parse_excel_hr_stem(path)        
+                file_data = parse_excel_hr_stem(path) 
+            elif request.test_name == "UV-VIS":
+                file_data = parse_excel_uv_vis(path)       
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

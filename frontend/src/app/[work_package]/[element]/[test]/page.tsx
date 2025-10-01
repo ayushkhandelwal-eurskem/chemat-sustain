@@ -5,6 +5,7 @@ import { FC } from 'react';
 import DLSDataViewer from '@/components/tests/dls/page';
 import FTIRDataViewer from '@/components/tests/ftir/page';
 import HRSTEMDataViewer from '@/components/tests/hr_stem/page';
+import UVVisDataViewer from '@/components/tests/uv-vis/page';
 // Define the props type for the page component
 interface PageProps {
   params: Promise<{
@@ -36,6 +37,9 @@ const DynamicRoutePage: FC<PageProps> = async ({ params }) => {
   }
   if (test.toLocaleLowerCase() === "hr-stem"){
     return (<HRSTEMDataViewer work_package={work_package} element={element} test={test} file={""}></HRSTEMDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "uv-vis"){
+    return (<UVVisDataViewer work_package={work_package} element={element} test={test} file={""}></UVVisDataViewer>)
   }
 };
 

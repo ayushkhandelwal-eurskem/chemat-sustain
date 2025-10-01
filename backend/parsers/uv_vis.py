@@ -451,7 +451,7 @@ def parse_excel_uv_vis(file_path: str, sheet_name: str = "Test Information") -> 
         raise
 
 if __name__ == "__main__":
-    file_path = "/Users/ayushkhandelwal/Documents/chemat-sustain/backend/data/WP2_UV-Vis_1aR1.xlsx"
+    file_path = ""
     try:
         parsed_data = parse_excel_uv_vis(file_path)
         print("Parsed Data:")

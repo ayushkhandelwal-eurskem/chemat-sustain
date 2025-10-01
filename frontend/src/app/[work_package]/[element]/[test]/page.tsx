@@ -5,7 +5,7 @@ import { FC } from 'react';
 import DLSDataViewer from '@/components/tests/dls/page';
 import FTIRDataViewer from '@/components/tests/ftir/page';
 import HRSTEMDataViewer from '@/components/tests/hr_stem/page';
-import UVVisDataViewer from '@/components/tests/uv-vis/page';
+import UVVisDataViewer from '@/components/tests/uv_vis/page';
 // Define the props type for the page component
 interface PageProps {
   params: Promise<{

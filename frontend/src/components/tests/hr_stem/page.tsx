@@ -800,11 +800,11 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="font-semibold">d [g/cm³]:</p>
-                  <p>{data.processed_data.metrics.density?.toFixed(1) ?? "N/A"}</p>
+                  <p>{data.processed_data.metrics.density ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">V 1 NPs [nm³]:</p>
-                  <p>{data.processed_data.metrics.volume_np_nm3?.toFixed(2) ?? "N/A"}</p>
+                  <p>{data.processed_data.metrics.volume_np_nm3 ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">V 1 NPs [cm³]:</p>
@@ -820,7 +820,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
                 </div>
                 <div>
                   <p className="font-semibold">C colloid [%]:</p>
-                  <p>{data.processed_data.metrics.c_colloid_percent?.toFixed(2) ?? "N/A"}</p>
+                  <p>{data.processed_data.metrics.c_colloid_percent ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">No. of particles in stock:</p>

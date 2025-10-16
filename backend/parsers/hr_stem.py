@@ -774,14 +774,22 @@ class HRSTEMParser:
                     value = float(raw_val) # Convert input to float (handles scientific notation like "1.1304E-19")
                     # Extract coefficient and exponent
                     coeff, exp = f"{value:.20E}".split("E")
-                    coeff = float(coeff)
                     exp = int(exp)
-                    # Round coefficient to 2 decimal places
-                    rounded_coeff = round(coeff, 2)
-                    # Reconstruct the number in scientific notation
-                    value = rounded_coeff * (10 ** exp)
-                    formatted_value = f"{rounded_coeff:.2f}E{exp}"
-                    logger.debug(f"Parsed numeric value at row {row_idx} col {col_idx}: {formatted_value}")
+                    if exp >= 4 or exp <= -4:
+                         # Apply scientific notation processing for very large/small numbers
+                        coeff = float(coeff)
+                        # Round coefficient to 2 decimal places
+                        rounded_coeff = round(coeff, 2)
+                        # Reconstruct the number in scientific notation
+                        value = rounded_coeff * (10 ** exp)
+                        # Format as string in scientific notation
+                        formatted_value = f"{rounded_coeff:.2f}E{exp}"
+                        logger.debug(f"Applied scientific notation at row {row_idx} col {col_idx}: {value} (formatted: {formatted_value})")
+                    else:
+                        # Use original value for numbers in typical range (-4 < exp < 4)
+                        formatted_value = f"{value:.2f}"
+                        logger.debug(f"Used standard format at row {row_idx} col {col_idx}: {value}")
+
                     break
                 except (ValueError, TypeError):
                     # try a cleaned string parse (remove commas, whitespace)

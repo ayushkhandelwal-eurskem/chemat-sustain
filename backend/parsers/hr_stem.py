@@ -771,26 +771,27 @@ class HRSTEMParser:
                     continue
                 try:
                     # float() handles scientific notation like 1.1304E-19
-                    value = float(raw_val)
-                    logger.debug(f"Parsed numeric value at row {row_idx} col {col_idx}: {value}")
+                    value = float(raw_val) # Convert input to float (handles scientific notation like "1.1304E-19")
+                    # Extract coefficient and exponent
+                    coeff, exp = f"{value:.20E}".split("E")
+                    coeff = float(coeff)
+                    exp = int(exp)
+                    # Round coefficient to 2 decimal places
+                    rounded_coeff = round(coeff, 2)
+                    # Reconstruct the number in scientific notation
+                    value = rounded_coeff * (10 ** exp)
+                    formatted_value = f"{rounded_coeff:.2f}E{exp}"
+                    logger.debug(f"Parsed numeric value at row {row_idx} col {col_idx}: {formatted_value}")
                     break
                 except (ValueError, TypeError):
                     # try a cleaned string parse (remove commas, whitespace)
-                    try:
-                        value = float(str(raw_val).replace(",", "").strip())
-                        logger.debug(f"Parsed string numeric value at row {row_idx} col {col_idx}: {value}")
-                        break
-                    except Exception:
-                        logger.warning(f"Non-numeric value found at row {row_idx} col {col_idx}: {raw_val}")
-                        continue
-
-            if value is None:
-                logger.debug(f"No numeric value found in columns H/I for fixed row {row_idx}; leaving metrics.{attr} as None.")
-                continue
+                    if value is None:
+                        logger.debug(f"No numeric value found in columns H/I for fixed row {row_idx}; leaving metrics.{attr} as None.")
+                    continue
 
             try:
-                setattr(metrics, attr, value)
-                logger.debug(f"Set metrics.{attr} = {value} (from row {row_idx})")
+                setattr(metrics, attr, formatted_value)
+                logger.debug(f"Set metrics.{attr} = {formatted_value} (from row {row_idx})")
             except Exception as e:
                 logger.warning(f"Failed to set metrics.{attr} from row {row_idx}: {e}")
 
@@ -944,7 +945,7 @@ def parse_excel_hr_stem(file_path: str, sheet_name: str = "Test Information") ->
         raise
 
 if __name__ == "__main__":
-    file_path = "/Users/ayushkhandelwal/Documents/chemat-sustain/backend/data/WP2_HR-STEM_1aR1.xlsx"
+    file_path = "backend/data/WP2_HR-STEM_1aR1 (1).xlsx"
     try:
         parsed_data = parse_excel_hr_stem(file_path)
         print("Parsed Data:")

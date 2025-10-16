@@ -824,7 +824,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
                 </div>
                 <div>
                   <p className="font-semibold">No. of particles in stock:</p>
-                  <p>{data.processed_data.metrics.no_particles_stock ?? "N/A"}</p>
+                  <p>{data.processed_data.metrics.no_particles_stock?? "N/A"}</p>
                 </div>
               </div>
             </div>

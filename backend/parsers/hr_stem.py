@@ -924,7 +924,7 @@ class HRSTEMParser:
             test_identifier = replication['test_identifier_number']
             if test_identifier:
                 raw_sheet = f"Raw data_{test_identifier}"
-                processed_sheet = f"Processed data_{test_identifier}"
+                processed_sheet = f"Processed data{test_identifier}"
                 final_sheet = f"Final results_{test_identifier}"
 
                 if raw_sheet in self.wb.sheetnames:
@@ -953,7 +953,7 @@ def parse_excel_hr_stem(file_path: str, sheet_name: str = "Test Information") ->
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2_HR-STEM_1aR1 (1).xlsx"
+    file_path = "backend/data/WP2_HR-STEM_25aR1.xlsx"
     try:
         parsed_data = parse_excel_hr_stem(file_path)
         print("Parsed Data:")

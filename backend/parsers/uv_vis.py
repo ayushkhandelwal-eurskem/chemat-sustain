@@ -73,6 +73,7 @@ class InstrumentationData:
 
 @dataclass
 class SpectrumPoint:
+    no: Optional[int]
     wavelength: float
     absorbance: float
 
@@ -360,27 +361,35 @@ class UVVisParser:
         # Find header
         header_row = None
         for row_idx in range(1, ws.max_row + 1):
-            if ws.cell(row_idx, 2).value == "Wavelength [nm]" and ws.cell(row_idx, 3).value == "Absorbance":
+            if ws.cell(row_idx, 1).value == "No." and ws.cell(row_idx, 2).value == "Wavelength [nm]" and ws.cell(row_idx, 3).value == "Absorbance":
                 header_row = row_idx
+                no_col = 1
                 wavelength_col = 2
                 absorbance_col = 3
                 logger.debug(f"Found header at row {row_idx}")
                 break
 
-        if header_row:
-            for row_idx in range(header_row + 1, ws.max_row + 1):
-                wavelength = ws.cell(row=row_idx, column=wavelength_col).value
-                absorbance = ws.cell(row=row_idx, column=absorbance_col).value
-                if wavelength is None:
-                    break
-                try:
-                    spectrum.append(SpectrumPoint(
-                        wavelength=float(wavelength),
-                        absorbance=float(absorbance)
-                    ))
-                except (ValueError, TypeError):
-                    continue
-            logger.debug(f"Extracted {len(spectrum)} spectrum points")
+        if not header_row:
+            logger.error("Raw data header not found")
+            return asdict(RawData())
+
+        for row_idx in range(header_row + 1, ws.max_row + 1):
+            no = ws.cell(row=row_idx, column=no_col).value
+            wavelength = ws.cell(row=row_idx, column=wavelength_col).value
+            absorbance = ws.cell(row=row_idx, column=absorbance_col).value
+            if wavelength is None or absorbance is None:
+                logger.debug(f"Stopping at row {row_idx}: wavelength or absorbance is None")
+                break
+            try:
+                spectrum.append(SpectrumPoint(
+                    no=int(no) if no is not None else None,
+                    wavelength=float(wavelength),
+                    absorbance=float(absorbance)
+                ))
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Skipping row {row_idx} due to invalid data: {e}")
+                continue
+        logger.debug(f"Extracted {len(spectrum)} spectrum points")
 
         return asdict(RawData(spectrum=spectrum))
 
@@ -401,7 +410,7 @@ class UVVisParser:
 
         # Extract peaks from row 4
         data_row = 4
-        for i in range(1, 13, 3):  # Columns B-D, E-G, H-J, K-M (1-based: 2-4,5-7,8-10,11-13)
+        for i in range(2, 14, 3):  # Columns B-D, E-G, H-J, K-M (1-based: 2-4,5-7,8-10,11-13)
             absorbance = ws.cell(row=data_row, column=i).value
             wavelength = ws.cell(row=data_row, column=i+1).value
             compound = ws.cell(row=data_row, column=i+2).value
@@ -454,9 +463,6 @@ if __name__ == "__main__":
     file_path = "backend/data/WP2_UV-Vis_1aR1.xlsx"
     try:
         parsed_data = parse_excel_uv_vis(file_path)
-        #print("Parsed Data:")
-        #print("Test Details:", parsed_data['test_details'])
-        print("Raw Data Spectrum Length:", parsed_data['replications'])
-        #print("Final Results Peaks:", parsed_data['final_results']['peaks'])
+        print("Raw Data Spectrum:", parsed_data['replications']['spectrum'])
     except Exception as e:
         print(f"Error: {e}")

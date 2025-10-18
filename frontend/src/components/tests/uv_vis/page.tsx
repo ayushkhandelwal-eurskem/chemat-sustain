@@ -22,13 +22,14 @@ interface PageProps {
 }
 
 interface SpectrumPoint {
+  no: number;
   wavelength: number;
   absorbance: number;
 }
 
 interface Peak {
-  absorbance: number | null;
-  wavelength: number | null;
+  absorbance: number;
+  wavelength: number;
   compound: string | null;
 }
 
@@ -94,13 +95,27 @@ interface UVVisData {
   };
 }
 
+type Point = { wavelength: number; absorbance: number };
+
 const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => {
   const [data, setData] = useState<UVVisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("test-conditions");
+  const [spectrumPoints, setSpectrumPoints] = useState<Point[]>([]);
 
-  // Fetch data
+  // Function to map spectrum to chart points (similar to DLS's mapRunToPoints)
+  function mapSpectrumToPoints(spectrum: SpectrumPoint[] = []): Point[] {
+    return spectrum
+      .filter((point) => point.wavelength != null && point.absorbance != null)
+      .map((point) => ({
+        wavelength: point.wavelength,
+        absorbance: point.absorbance,
+      }))
+      .sort((a, b) => a.wavelength - b.wavelength);
+  }
+
+  // Fetch data and initialize spectrum points
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -116,15 +131,20 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
         const result = response.data;
         console.log("Fetched UV-Vis data:", result);
         // Validate data structure
-        if (!result.replications) {
-          console.warn("Replications data is missing in the API response");
+        if (!result.replications || !result.replications.spectrum) {
+          console.warn("Replications spectrum is missing in the API response");
           result.replications = { spectrum: [] }; // Provide fallback
         }
         setData(result);
+
+        // Initialize spectrum points
+        const points = mapSpectrumToPoints(result.replications.spectrum);
+        setSpectrumPoints(points);
       } catch (err) {
         console.error("Error fetching data:", err);
         setError("Failed to load UV-Vis data. Please try again later.");
         setData(null);
+        setSpectrumPoints([]);
       } finally {
         setLoading(false);
       }
@@ -173,13 +193,6 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
       </div>
     );
   }
-
-  // Sort spectrum in ascending wavelength order for charts
-  const sortedSpectrum = data.replications?.spectrum
-    ? [...data.replications.spectrum]
-        .filter((point) => point.wavelength != null && point.absorbance != null)
-        .sort((a, b) => a.wavelength - b.wavelength)
-    : [];
 
   return (
     <div className="bg-gray-50 min-h-screen py-8 text-black">
@@ -622,10 +635,10 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
             {/* Spectrum Chart */}
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-3">Absorbance Spectrum</h3>
-              {sortedSpectrum.length > 0 ? (
+              {spectrumPoints.length > 0 ? (
                 <ResponsiveContainer width="100%" height={400}>
                   <LineChart
-                    data={sortedSpectrum}
+                    data={spectrumPoints}
                     margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -690,13 +703,13 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedSpectrum.length > 0 ? (
-                    sortedSpectrum.map((point, index) => (
+                  {data.replications.spectrum.length > 0 ? (
+                    data.replications.spectrum.map((point, index) => (
                       <tr
                         key={index}
                         className={index % 2 === 0 ? "bg-gray-50" : ""}
                       >
-                        <td className="py-2 px-4 border">{index + 1}</td>
+                        <td className="py-2 px-4 border">{point.no}</td>
                         <td className="py-2 px-4 border">{point.wavelength.toFixed(2)}</td>
                         <td className="py-2 px-4 border">{point.absorbance.toFixed(4)}</td>
                       </tr>
@@ -731,10 +744,10 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
             {/* Peaks Spectrum Chart */}
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-3">Spectrum with Identified Peaks</h3>
-              {sortedSpectrum.length > 0 ? (
+              {spectrumPoints.length > 0 ? (
                 <ResponsiveContainer width="100%" height={400}>
                   <LineChart
-                    data={sortedSpectrum}
+                    data={spectrumPoints}
                     margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -776,21 +789,19 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
                       strokeWidth={2}
                       dot={false}
                     />
-                    {data.final_results.peaks
-                      .filter((peak) => peak.wavelength != null && peak.absorbance != null)
-                      .map((peak, index) => (
-                        <ReferenceLine
-                          key={index}
-                          x={peak.wavelength}
-                          stroke="#ef4444"
-                          label={{
-                            value: `${peak.compound || "Peak"} (${peak.absorbance?.toFixed(4)})`,
-                            position: "top",
-                            fill: "#ef4444",
-                            fontSize: 12,
-                          }}
-                        />
-                      ))}
+                    {data.final_results.peaks.map((peak, index) => (
+                      <ReferenceLine
+                        key={index}
+                        x={peak.wavelength}
+                        stroke="#ef4444"
+                        label={{
+                          value: `${peak.compound || "Peak"} (${peak.absorbance.toFixed(4)})`,
+                          position: "top",
+                          fill: "#ef4444",
+                          fontSize: 12,
+                        }}
+                      />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -819,8 +830,8 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
                         className={index % 2 === 0 ? "bg-gray-50" : ""}
                       >
                         <td className="py-2 px-4 border">{index + 1}</td>
-                        <td className="py-2 px-4 border">{peak.absorbance?.toFixed(4) ?? "N/A"}</td>
-                        <td className="py-2 px-4 border">{peak.wavelength?.toFixed(2) ?? "N/A"}</td>
+                        <td className="py-2 px-4 border">{peak.absorbance.toFixed(4)}</td>
+                        <td className="py-2 px-4 border">{peak.wavelength.toFixed(2)}</td>
                         <td className="py-2 px-4 border">{peak.compound ?? "N/A"}</td>
                       </tr>
                     ))

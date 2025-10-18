@@ -755,7 +755,7 @@ class HRSTEMParser:
             # 15 is empty
             16: "mass_colloid",       # Mass of colloid
             17: "c_colloid_percent",  # C colloid [%]
-            18: "no_particles_stock", # No. of particles in stock:
+            19: "no_particles_stock", # No. of particles in stock:
         }
 
         for row_idx, attr in fixed_row_map.items():

@@ -433,7 +433,7 @@ class UVVisParser:
                     'sample_preparation': sample_preparation_data,
                     'instrumentation': instrumentation_data
                 },
-                'raw_data': self.extract_raw_data(),
+                'replications': self.extract_raw_data(),
                 'final_results': self.extract_final_results()
             }
 
@@ -451,12 +451,12 @@ def parse_excel_uv_vis(file_path: str, sheet_name: str = "Test Information") -> 
         raise
 
 if __name__ == "__main__":
-    file_path = ""
+    file_path = "backend/data/WP2_UV-Vis_1aR1.xlsx"
     try:
         parsed_data = parse_excel_uv_vis(file_path)
-        print("Parsed Data:")
-        print("Test Details:", parsed_data['test_details'])
-        print("Raw Data Spectrum Length:", parsed_data['raw_data'])
-        print("Final Results Peaks:", parsed_data['final_results']['peaks'])
+        #print("Parsed Data:")
+        #print("Test Details:", parsed_data['test_details'])
+        print("Raw Data Spectrum Length:", parsed_data['replications'])
+        #print("Final Results Peaks:", parsed_data['final_results']['peaks'])
     except Exception as e:
         print(f"Error: {e}")

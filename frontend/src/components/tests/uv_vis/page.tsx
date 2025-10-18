@@ -10,7 +10,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from "recharts";
 
 // Interfaces
@@ -21,101 +20,111 @@ interface PageProps {
   file: string;
 }
 
-interface SpectrumPoint {
-  no: number;
-  wavelength: number;
-  absorbance: number;
+interface Scientist {
+  name: string | null;
+  email: string | null;
 }
 
-interface Peak {
-  absorbance: number;
-  wavelength: number;
-  compound: string | null;
+interface WorkPackageData {
+  wp_name: string | null;
+  partner: string | null;
+  full_test_name: string | null;
+  test_acronym: string | null;
+  test_type: string | null;
+  endpoint: string | null;
+  endpoint_outcome: string | null;
+  sop: string | null;
+  path: string | null;
+  lead_scientists: Scientist[];
+  assay_scientists: Scientist[];
+}
+
+interface MaterialData {
+  material_identifier: string | null;
+  erm_id: string | null;
+  core_chemistry: string | null;
+  material_name: string | null;
+  material_state: string | null;
+  cas: string | null;
+  casforcore: string | null;
+  batch: string | null;
+  preparation_date: string | null;
+  particles_stock: string | null;
+  molar_concentration: string | null;
+}
+
+interface SamplePreparationData {
+  dispersion_protocol: string | null;
+  dispersion_technique: string | null;
+  dispersion_medium: string | null;
+  sonicator_type: string | null;
+  power: string | null;
+  sonication_time: string | null;
+  tip_thickness: string | null;
+  tip_composition: string | null;
+  ultrasonic_bath_size: string | null;
+  sample_volume: string | null;
+  final_concentration: string | null;
+  additional_info: string | null;
+}
+
+interface UVVisInstrumentationData {
+  instrument_specs: string | null;
+  software: string | null;
+  display_model: string | null;
+  cell_model: string | null;
+  optical_path_length: string | null;
+  start_wavelength: string | null;
+  end_wavelength: string | null;
+  wavelength_interval: string | null;
+  background: string | null;
+}
+
+interface ReplicationData {
+  test_identifier_number: string | null;
+  test_start_date: string | null;
+  test_end_date: string | null;
+}
+
+interface UVVisRawMeasurement {
+  no: number | null;
+  wavelength: number | null;
+  absorbance: number | null;
+}
+
+interface UVVisRawData {
+  measurements: UVVisRawMeasurement[];
+}
+
+interface UVVisPeak {
+  max_absorbance: number | null;
+  wavelength: number | null;
+  identified_compound: string | null;
+}
+
+interface UVVisResultsData {
+  peaks: UVVisPeak[];
 }
 
 interface UVVisData {
   test_details: {
-    work_package: {
-      wp_name: string | null;
-      partner: string | null;
-      full_test_name: string | null;
-      test_acronym: string | null;
-      test_type: string | null;
-      endpoint: string | null;
-      endpoint_outcome: string | null;
-      sop: string | null;
-      path: string | null;
-      lead_scientists: { name: string | null; email: string | null }[];
-      assay_scientists: { name: string | null; email: string | null }[];
-    };
-    material: {
-      material_identifier: string | null;
-      erm_id: string | null;
-      core_chemistry: string | null;
-      material_name: string | null;
-      material_state: string | null;
-      cas: string | null;
-      casforcore: string | null;
-      batch: string | null;
-      preparation_date: string | null;
-      particles_stock: string | null;
-      molar_concentration: string | null;
-    };
-    sample_preparation: {
-      dispersion_protocol: string | null;
-      dispersion_technique: string | null;
-      dispersion_medium: string | null;
-      sonicator_type: string | null;
-      power: string | null;
-      sonication_time: string | null;
-      tip_thickness: string | null;
-      tip_composition: string | null;
-      ultrasonic_bath_size: string | null;
-      sample_volume: string | null;
-      final_concentration: string | null;
-      additional_info: string | null;
-    };
-    instrumentation: {
-      instrument_specifications: string | null;
-      software: string | null;
-      display_model: string | null;
-      cell_model: string | null;
-      optical_path_length: string | null;
-      start_wavelength: string | null;
-      end_wavelength: string | null;
-      wavelength_interval: string | null;
-      background: string | null;
-    };
+    work_package: WorkPackageData;
+    material: MaterialData;
+    sample_preparation: SamplePreparationData;
+    instrumentation: UVVisInstrumentationData;
   };
-  replications: {
-    spectrum: SpectrumPoint[];
-  };
-  final_results: {
-    peaks: Peak[];
-  };
+  replication: ReplicationData;
+  raw_data: UVVisRawData;
+  final_results: UVVisResultsData;
 }
-
-type Point = { wavelength: number; absorbance: number };
 
 const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => {
   const [data, setData] = useState<UVVisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("test-conditions");
-  const [spectrumPoints, setSpectrumPoints] = useState<Point[]>([]);
 
-  // Function to map spectrum to chart points (similar to DLS's mapRunToPoints)
-  function mapSpectrumToPoints(spectrum: SpectrumPoint[] = []): Point[] {
-    return spectrum
-      .filter((point) => point.wavelength != null && point.absorbance != null)
-      .map((point) => ({
-        wavelength: point.wavelength,
-        absorbance: point.absorbance,
-      }))
-      .sort((a, b) => a.wavelength - b.wavelength);
-  }
-
-  // Fetch data and initialize spectrum points
+  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -130,21 +139,10 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
         }
         const result = response.data;
         console.log("Fetched UV-Vis data:", result);
-        // Validate data structure
-        if (!result.replications || !result.replications.spectrum) {
-          console.warn("Replications spectrum is missing in the API response");
-          result.replications = { spectrum: [] }; // Provide fallback
-        }
         setData(result);
-
-        // Initialize spectrum points
-        const points = mapSpectrumToPoints(result.replications.spectrum);
-        setSpectrumPoints(points);
       } catch (err) {
         console.error("Error fetching data:", err);
         setError("Failed to load UV-Vis data. Please try again later.");
-        setData(null);
-        setSpectrumPoints([]);
       } finally {
         setLoading(false);
       }
@@ -211,8 +209,7 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
                   {work_package || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">CMS Internal Identifier:</span>{" "}
-                  {element || "N/A"}
+                  <span className="font-semibold">CMS Internal Identifier:</span> {element || "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">ERM Identifier:</span>{" "}
@@ -258,26 +255,27 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
             className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100"
             role="list"
           >
-            {["test-conditions", "raw-data", "results"].map((tab) => (
-              <li key={tab} className="z-30 flex-auto text-center">
-                <a
-                  className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${
-                    activeTab === tab
+            {["test-conditions", "raw-data", "results"].map(
+              (tab) => (
+                <li key={tab} className="z-30 flex-auto text-center">
+                  <a
+                    className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === tab
                       ? "bg-blue-600 text-white shadow-md"
                       : "text-slate-600 bg-inherit"
-                  }`}
-                  onClick={() => setActiveTab(tab)}
-                  role="tab"
-                  aria-selected={activeTab === tab}
-                >
-                  {tab === "test-conditions"
-                    ? "Test Conditions"
-                    : tab === "raw-data"
-                    ? "Raw Data"
-                    : "Final Results"}
-                </a>
-              </li>
-            ))}
+                      }`}
+                    onClick={() => setActiveTab(tab)}
+                    role="tab"
+                    aria-selected={activeTab === tab}
+                  >
+                    {tab === "test-conditions"
+                      ? "Test Conditions"
+                      : tab === "raw-data"
+                        ? "Raw Data"
+                        : "Final Results"}
+                  </a>
+                </li>
+              )
+            )}
           </ul>
         </div>
 
@@ -352,12 +350,6 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
                       <td className="py-2 px-4 border font-medium">Molar Concentration</td>
                       <td className="py-2 px-4 border">
                         {data.test_details.material.molar_concentration || "N/A"}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2 px-4 border font-medium">No of Particles in Stock</td>
-                      <td className="py-2 px-4 border">
-                        {data.test_details.material.particles_stock || "N/A"}
                       </td>
                     </tr>
                   </tbody>
@@ -477,9 +469,9 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="py-2 px-4 border font-medium">UV-Vis Instrument specifications</td>
+                      <td className="py-2 px-4 border font-medium">UV-Vis Instrument Specifications</td>
                       <td className="py-2 px-4 border">
-                        {data.test_details.instrumentation.instrument_specifications || "N/A"}
+                        {data.test_details.instrumentation.instrument_specs || "N/A"}
                       </td>
                     </tr>
                     <tr>
@@ -495,13 +487,13 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-4 border font-medium">Cell model</td>
+                      <td className="py-2 px-4 border font-medium">Cell Model</td>
                       <td className="py-2 px-4 border">
                         {data.test_details.instrumentation.cell_model || "N/A"}
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-4 border font-medium">Optical path length</td>
+                      <td className="py-2 px-4 border font-medium">Optical Path Length</td>
                       <td className="py-2 px-4 border">
                         {data.test_details.instrumentation.optical_path_length || "N/A"}
                       </td>
@@ -619,12 +611,14 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
         )}
 
         {/* Raw Data Tab */}
-        {activeTab === "raw-data" && (
+        {activeTab === "raw-data" && data.raw_data && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-blue-800">Raw Data</h2>
               <button
-                onClick={() => downloadTable("rawDataTable", "raw_data")}
+                onClick={() =>
+                  downloadTable("rawDataTable", "raw_data")
+                }
                 className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
               >
                 <Download size={16} />
@@ -632,64 +626,43 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
               </button>
             </div>
 
-            {/* Spectrum Chart */}
+            {/* UV-Vis Spectrum Plot */}
             <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">Absorbance Spectrum</h3>
-              {spectrumPoints.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart
-                    data={spectrumPoints}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="wavelength"
-                      label={{
-                        value: "Wavelength (nm)",
-                        position: "insideBottom",
-                        offset: -5,
-                        fill: "#1f2937",
-                      }}
-                      stroke="#1f2937"
-                      tick={{ fill: "#1f2937" }}
-                    />
-                    <YAxis
-                      label={{
-                        value: "Absorbance",
-                        angle: -90,
-                        position: "insideLeft",
-                        offset: 10,
-                        fill: "#1f2937",
-                      }}
-                      stroke="#1f2937"
-                      tick={{ fill: "#1f2937" }}
-                    />
-                    <Tooltip
-                      formatter={(value: number) => value.toFixed(4)}
-                      labelFormatter={(label) => `Wavelength: ${label} nm`}
-                      contentStyle={{
-                        backgroundColor: "#fff",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "4px",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="absorbance"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-gray-600 py-8">
-                  No spectrum data available to display the chart.
-                </div>
-              )}
+              <h3 className="text-lg font-semibold mb-3">UV-Vis Spectrum</h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart 
+                  data={data.raw_data.measurements
+                    .filter(m => m.wavelength !== null && m.absorbance !== null)
+                    .sort((a, b) => (a.wavelength ?? 0) - (b.wavelength ?? 0))
+                  }
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="wavelength" 
+                    label={{ value: "Wavelength [nm]", position: "insideBottom", offset: -10 }} 
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis 
+                    label={{ value: "Absorbance [a.u.]", angle: -90, position: "insideLeft", offset: -10 }} 
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => value.toFixed(4)}
+                    labelFormatter={(label: number) => `Wavelength: ${label} nm`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="absorbance" 
+                    stroke="#82ca9d" 
+                    dot={false} 
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
 
-            {/* Raw Spectrum Table */}
+            {/* Raw Measurements Table */}
             <div className="overflow-x-auto">
               <table
                 id="rawDataTable"
@@ -697,27 +670,35 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
               >
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="py-2 px-4 border text-left font-semibold">No.</th>
-                    <th className="py-2 px-4 border text-left font-semibold">Wavelength [nm]</th>
-                    <th className="py-2 px-4 border text-left font-semibold">Absorbance</th>
+                    <th className="py-2 px-4 border text-left">No.</th>
+                    <th className="py-2 px-4 border text-left">Wavelength [nm]</th>
+                    <th className="py-2 px-4 border text-left">Absorbance</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.replications.spectrum.length > 0 ? (
-                    data.replications.spectrum.map((point, index) => (
-                      <tr
-                        key={index}
-                        className={index % 2 === 0 ? "bg-gray-50" : ""}
-                      >
-                        <td className="py-2 px-4 border">{point.no}</td>
-                        <td className="py-2 px-4 border">{point.wavelength.toFixed(2)}</td>
-                        <td className="py-2 px-4 border">{point.absorbance.toFixed(4)}</td>
-                      </tr>
-                    ))
+                  {data.raw_data?.measurements?.length > 0 ? (
+                    data.raw_data.measurements.map(
+                      (measurement, index) => (
+                        <tr
+                          key={index}
+                          className={index % 2 === 0 ? "bg-gray-50" : ""}
+                        >
+                          <td className="py-2 px-4 border">
+                            {measurement.no ?? "-"}
+                          </td>
+                          <td className="py-2 px-4 border">
+                            {measurement.wavelength?.toFixed(0) ?? "-"}
+                          </td>
+                          <td className="py-2 px-4 border">
+                            {measurement.absorbance?.toFixed(4) ?? "-"}
+                          </td>
+                        </tr>
+                      )
+                    )
                   ) : (
                     <tr>
-                      <td colSpan={3} className="py-4 px-4 border text-center text-gray-600">
-                        No raw data available to display.
+                      <td colSpan={3} className="py-2 px-4 border text-center">
+                        No raw data available
                       </td>
                     </tr>
                   )}
@@ -741,109 +722,39 @@ const UVVisDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =
               </button>
             </div>
 
-            {/* Peaks Spectrum Chart */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">Spectrum with Identified Peaks</h3>
-              {spectrumPoints.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart
-                    data={spectrumPoints}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="wavelength"
-                      label={{
-                        value: "Wavelength (nm)",
-                        position: "insideBottom",
-                        offset: -5,
-                        fill: "#1f2937",
-                      }}
-                      stroke="#1f2937"
-                      tick={{ fill: "#1f2937" }}
-                    />
-                    <YAxis
-                      label={{
-                        value: "Absorbance",
-                        angle: -90,
-                        position: "insideLeft",
-                        offset: 10,
-                        fill: "#1f2937",
-                      }}
-                      stroke="#1f2937"
-                      tick={{ fill: "#1f2937" }}
-                    />
-                    <Tooltip
-                      formatter={(value: number) => value.toFixed(4)}
-                      labelFormatter={(label) => `Wavelength: ${label} nm`}
-                      contentStyle={{
-                        backgroundColor: "#fff",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "4px",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="absorbance"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    {data.final_results.peaks.map((peak, index) => (
-                      <ReferenceLine
-                        key={index}
-                        x={peak.wavelength}
-                        stroke="#ef4444"
-                        label={{
-                          value: `${peak.compound || "Peak"} (${peak.absorbance.toFixed(4)})`,
-                          position: "top",
-                          fill: "#ef4444",
-                          fontSize: 12,
-                        }}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-gray-600 py-8">
-                  No spectrum data available to display the chart.
-                </div>
-              )}
-            </div>
-
             {/* Peaks Table */}
-            <div className="overflow-x-auto">
-              <table id="resultsTable" className="min-w-full bg-white border border-gray-200">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="py-2 px-4 border text-left font-semibold">Peak No.</th>
-                    <th className="py-2 px-4 border text-left font-semibold">Max Absorbance</th>
-                    <th className="py-2 px-4 border text-left font-semibold">Wavelength (nm)</th>
-                    <th className="py-2 px-4 border text-left font-semibold">Identified Compound</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.final_results?.peaks?.length > 0 ? (
-                    data.final_results.peaks.map((peak, index) => (
-                      <tr
-                        key={index}
-                        className={index % 2 === 0 ? "bg-gray-50" : ""}
-                      >
-                        <td className="py-2 px-4 border">{index + 1}</td>
-                        <td className="py-2 px-4 border">{peak.absorbance.toFixed(4)}</td>
-                        <td className="py-2 px-4 border">{peak.wavelength.toFixed(2)}</td>
-                        <td className="py-2 px-4 border">{peak.compound ?? "N/A"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="py-4 px-4 border text-center text-gray-600">
-                        No peaks identified
-                      </td>
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-3">Identified Peaks</h3>
+              <div className="overflow-x-auto">
+                <table id="resultsTable" className="min-w-full bg-white border border-gray-200">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="py-2 px-4 border text-left">Peak No.</th>
+                      <th className="py-2 px-4 border text-left">Max Absorbance</th>
+                      <th className="py-2 px-4 border text-left">Wavelength [nm]</th>
+                      <th className="py-2 px-4 border text-left">Identified Compound</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {data.final_results.peaks?.length > 0 ? (
+                      data.final_results.peaks.map((peak, index) => (
+                        <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
+                          <td className="py-2 px-4 border">{index + 1}</td>
+                          <td className="py-2 px-4 border">{peak.max_absorbance?.toFixed(4) ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{peak.wavelength ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{peak.identified_compound ?? "N/A"}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="py-2 px-4 border text-center">
+                          No peaks identified
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

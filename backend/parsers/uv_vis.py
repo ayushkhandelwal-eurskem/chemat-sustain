@@ -9,8 +9,10 @@ from difflib import SequenceMatcher
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
+# Dataclasses tailored for UV-Vis
 @dataclass
 class Scientist:
     name: Optional[str] = None
@@ -45,6 +47,12 @@ class MaterialData:
     molar_concentration: Optional[str] = None
 
 @dataclass
+class ReplicationData:
+    test_identifier_number: Optional[str] = None
+    test_start_date: Optional[str] = None
+    test_end_date: Optional[str] = None
+
+@dataclass
 class SamplePreparationData:
     dispersion_protocol: Optional[str] = None
     dispersion_technique: Optional[str] = None
@@ -60,8 +68,8 @@ class SamplePreparationData:
     additional_info: Optional[str] = None
 
 @dataclass
-class InstrumentationData:
-    instrument_specifications: Optional[str] = None
+class UVVisInstrumentationData:
+    instrument_specs: Optional[str] = None
     software: Optional[str] = None
     display_model: Optional[str] = None
     cell_model: Optional[str] = None
@@ -72,24 +80,24 @@ class InstrumentationData:
     background: Optional[str] = None
 
 @dataclass
-class SpectrumPoint:
-    no: Optional[int]
-    wavelength: float
-    absorbance: float
-
-@dataclass
-class Peak:
-    absorbance: Optional[float] = None
+class UVVisRawMeasurement:
+    no: Optional[int] = None
     wavelength: Optional[float] = None
-    compound: Optional[str] = None
+    absorbance: Optional[float] = None
 
 @dataclass
-class RawData:
-    spectrum: List[SpectrumPoint] = field(default_factory=list)
+class UVVisRawData:
+    measurements: List[UVVisRawMeasurement] = field(default_factory=list)
 
 @dataclass
-class FinalResults:
-    peaks: List[Peak] = field(default_factory=list)
+class UVVisPeak:
+    max_absorbance: Optional[float] = None
+    wavelength: Optional[int] = None
+    identified_compound: Optional[str] = None
+
+@dataclass
+class UVVisResultsData:
+    peaks: List[UVVisPeak] = field(default_factory=list)
 
 class UVVisParser:
     def __init__(self, file_path: str, sheet_name: str = "Test Information"):
@@ -106,11 +114,21 @@ class UVVisParser:
 
     def normalize_key(self, key: Optional[str]) -> Optional[str]:
         if key:
-            normalized = key.strip().lower()
+            normalized = str(key).strip().lower() if key is not None else ""
             normalized = re.sub(r'[^a-z0-9]', '_', normalized)
             normalized = re.sub(r'_+', '_', normalized).strip('_')
             return normalized
         return None
+
+    def split_value_unit(self, value: Optional[str]) -> tuple[Optional[Union[str, float]], Optional[str]]:
+        if isinstance(value, str) and " " in value:
+            parts = value.split(" ", 1)
+            try:
+                numeric = float(parts[0]) if '.' in parts[0] else int(parts[0])
+                return numeric, parts[1]
+            except (ValueError, IndexError):
+                return parts[0], parts[1] if len(parts) > 1 else None
+        return value, None
 
     def excel_date_to_string(self, value: Optional[Union[float, str]]) -> Optional[str]:
         try:
@@ -149,9 +167,9 @@ class UVVisParser:
                 if email_cell and re.match(self.email_regex, str(email_cell)):
                     entry["Email"] = email_cell
 
-                if "lead_scientist_contact_for_test" in key:
+                if key and "lead_scientist_contact_for_test" in key:
                     lead_scientists.append(asdict(Scientist(name=value_cell, email=email_cell)))
-                if "assay_test_work_conducted_by" in key:
+                if key and "assay_test_work_conducted_by" in key:
                     assay_scientists.append(asdict(Scientist(name=value_cell, email=email_cell)))
 
                 data.append(entry)
@@ -189,6 +207,13 @@ class UVVisParser:
         unmatched_keys = set(expected_keys)
         potential_matches = []
 
+        logger.debug("Test Information sheet (columns A:E, rows 1:50) for Material Data:")
+        for row_idx in range(1, min(self.ws.max_row + 1, 51)):
+            row = self.ws[row_idx]
+            values = [str(cell.value)[:30] if cell.value else "None" for cell in row[:5]]
+            has_comment = "Y" if row[0].comment else "N"
+            logger.debug(f"Row {row_idx} [Comment: {has_comment}]: {values}")
+
         for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
             key_cell = row[0].value
             if not key_cell:
@@ -199,20 +224,35 @@ class UVVisParser:
                 continue
 
             value = None
+            value_col = None
             for col_idx in range(1, 5):
                 if col_idx < len(row) and row[col_idx].value is not None:
                     value = row[col_idx].value
+                    value_col = col_idx + 1
                     break
+
+            logger.debug(f"Row {row_idx}: Raw Key='{raw_key}', Normalized Key='{key}', Value='{value}', Value Col={value_col}")
 
             if key in expected_keys:
                 unmatched_keys.discard(key)
                 data.append({"Key": key, "Value": value})
+                logger.debug(f"Exact match: Key='{key}', Value='{value}' at row {row_idx}, col {value_col}")
             else:
                 for expected_key in expected_keys:
                     similarity = SequenceMatcher(None, key, expected_key).ratio()
                     if similarity > 0.85:
                         unmatched_keys.discard(expected_key)
                         data.append({"Key": expected_key, "Value": value})
+                        logger.debug(f"Fuzzy match: Key='{key}' matched '{expected_key}' (similarity={similarity:.2f}), Value='{value}' at row {row_idx}, col {value_col}")
+                    elif similarity > 0.5:
+                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' at row {row_idx}, col 1, similarity={similarity:.2f}")
+
+        if potential_matches:
+            logger.debug("Potential key matches for Material Data:")
+            for match in potential_matches:
+                logger.debug(match)
+        if unmatched_keys:
+            logger.warning(f"Unmatched material data keys: {unmatched_keys}")
 
         material_data = asdict(MaterialData(
             material_identifier=next((d["Value"] for d in data if d["Key"] == "sample_cms_internal_identifier"), None),
@@ -227,6 +267,7 @@ class UVVisParser:
             particles_stock=next((d["Value"] for d in data if d["Key"] == "no_of_particles_in_stock"), None),
             molar_concentration=next((d["Value"] for d in data if d["Key"] == "molar_concentration"), None)
         ))
+        logger.debug(f"Material data extracted: {material_data}")
         return material_data
 
     def extract_sample_preparation_data(self):
@@ -248,6 +289,13 @@ class UVVisParser:
         unmatched_keys = set(expected_keys)
         potential_matches = []
 
+        logger.debug("Test Information sheet (columns A:E, rows 1:50) for Sample Preparation Data:")
+        for row_idx in range(1, min(self.ws.max_row + 1, 51)):
+            row = self.ws[row_idx]
+            values = [str(cell.value)[:30] if cell.value else "None" for cell in row[:5]]
+            has_comment = "Y" if row[0].comment else "N"
+            logger.debug(f"Row {row_idx} [Comment: {has_comment}]: {values}")
+
         for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
             key_cell = row[0].value
             if not key_cell:
@@ -258,20 +306,35 @@ class UVVisParser:
                 continue
 
             value = None
+            value_col = None
             for col_idx in range(1, 5):
                 if col_idx < len(row) and row[col_idx].value is not None:
                     value = row[col_idx].value
+                    value_col = col_idx + 1
                     break
+
+            logger.debug(f"Row {row_idx}: Raw Key='{raw_key}', Normalized Key='{key}', Value='{value}', Value Col={value_col}")
 
             if key in expected_keys:
                 unmatched_keys.discard(key)
                 data.append({"Key": key, "Value": value})
+                logger.debug(f"Exact match: Key='{key}', Value='{value}' at row {row_idx}, col {value_col}")
             else:
                 for expected_key in expected_keys:
                     similarity = SequenceMatcher(None, key, expected_key).ratio()
                     if similarity > 0.85:
                         unmatched_keys.discard(expected_key)
                         data.append({"Key": expected_key, "Value": value})
+                        logger.debug(f"Fuzzy match: Key='{key}' matched '{expected_key}' (similarity={similarity:.2f}), Value='{value}' at row {row_idx}, col {value_col}")
+                    elif similarity > 0.5:
+                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' at row {row_idx}, col 1, similarity={similarity:.2f}")
+
+        if potential_matches:
+            logger.debug("Potential key matches for Sample Preparation Data:")
+            for match in potential_matches:
+                logger.debug(match)
+        if unmatched_keys:
+            logger.warning(f"Unmatched sample preparation data keys: {unmatched_keys}")
 
         sample_preparation_data = asdict(SamplePreparationData(
             dispersion_protocol=next((d["Value"] for d in data if d["Key"] == "specify_standard_dispersion_protocol_used"), None),
@@ -287,6 +350,7 @@ class UVVisParser:
             final_concentration=next((d["Value"] for d in data if d["Key"] == "final_sample_concentration_mg_l_or_ppm"), None),
             additional_info=next((d["Value"] for d in data if d["Key"] == "additional_information"), None)
         ))
+        logger.debug(f"Sample preparation data extracted: {sample_preparation_data}")
         return sample_preparation_data
 
     def extract_instrumentation_data(self):
@@ -305,6 +369,13 @@ class UVVisParser:
         unmatched_keys = set(expected_keys)
         potential_matches = []
 
+        logger.debug("Test Information sheet (columns A:E, rows 1:70) for Instrumentation Data:")
+        for row_idx in range(1, min(self.ws.max_row + 1, 71)):
+            row = self.ws[row_idx]
+            values = [str(cell.value)[:30] if cell.value else "None" for cell in row[:5]]
+            has_comment = "Y" if row[0].comment else "N"
+            logger.debug(f"Row {row_idx} [Comment: {has_comment}]: {values}")
+
         for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
             key_cell = row[0].value
             if not key_cell:
@@ -315,23 +386,38 @@ class UVVisParser:
                 continue
 
             value = None
+            value_col = None
             for col_idx in range(1, 5):
                 if col_idx < len(row) and row[col_idx].value is not None:
                     value = row[col_idx].value
+                    value_col = col_idx + 1
                     break
+
+            logger.debug(f"Row {row_idx}: Raw Key='{raw_key}', Normalized Key='{key}', Value='{value}', Value Col={value_col}")
 
             if key in expected_keys:
                 unmatched_keys.discard(key)
                 data.append({"Key": key, "Value": value})
+                logger.debug(f"Exact match: Key='{key}', Value='{value}' at row {row_idx}, col {value_col}")
             else:
                 for expected_key in expected_keys:
                     similarity = SequenceMatcher(None, key, expected_key).ratio()
                     if similarity > 0.85:
                         unmatched_keys.discard(expected_key)
                         data.append({"Key": expected_key, "Value": value})
+                        logger.debug(f"Fuzzy match: Key='{key}' matched '{expected_key}' (similarity={similarity:.2f}), Value='{value}' at row {row_idx}, col {value_col}")
+                    elif similarity > 0.5:
+                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' at row {row_idx}, col 1, similarity={similarity:.2f}")
 
-        instrumentation_data = asdict(InstrumentationData(
-            instrument_specifications=next((d["Value"] for d in data if d["Key"] == "uv_vis_instrument_specifications"), None),
+        if potential_matches:
+            logger.debug("Potential key matches for Instrumentation Data:")
+            for match in potential_matches:
+                logger.debug(match)
+        if unmatched_keys:
+            logger.warning(f"Unmatched instrumentation data keys: {unmatched_keys}")
+
+        instrumentation_data = asdict(UVVisInstrumentationData(
+            instrument_specs=next((d["Value"] for d in data if d["Key"] == "uv_vis_instrument_specifications"), None),
             software=next((d["Value"] for d in data if d["Key"] == "software"), None),
             display_model=next((d["Value"] for d in data if d["Key"] == "display_model"), None),
             cell_model=next((d["Value"] for d in data if d["Key"] == "cell_model"), None),
@@ -341,92 +427,144 @@ class UVVisParser:
             wavelength_interval=next((d["Value"] for d in data if d["Key"] == "wavelength_interval_nm"), None),
             background=next((d["Value"] for d in data if d["Key"] == "background"), None)
         ))
+        logger.debug(f"Instrumentation data extracted: {instrumentation_data}")
         return instrumentation_data
 
-    def extract_raw_data(self):
-        raw_sheet_name = [name for name in self.wb.sheetnames if "Raw data" in name][0] if any("Raw data" in name for name in self.wb.sheetnames) else None
-        if not raw_sheet_name:
-            logger.error("Raw data sheet not found")
-            return asdict(RawData())
+    def extract_replication(self):
+        start_date = None
+        end_date = None
+        test_identifier = None
+        for row in self.ws.iter_rows():
+            key_cell = row[0].value
+            if key_cell and 'test identifier number' in key_cell.lower():
+                test_identifier = row[1].value
+                start_date = self.excel_date_to_string(row[2].value)
+                end_date = self.excel_date_to_string(row[3].value)
+                break
+        if test_identifier is None:
+            logger.warning("Could not find test identifier number in Test Information sheet.")
+        return asdict(ReplicationData(
+            test_identifier_number=test_identifier,
+            test_start_date=start_date,
+            test_end_date=end_date
+        ))
 
-        ws = self.wb[raw_sheet_name]
-        spectrum = []
+    def extract_raw_data(self, raw_sheet_name: str):
+        logger.debug(f"Extracting raw data for sheet: {raw_sheet_name}")
+        
+        measurements = []
+
+        if raw_sheet_name not in self.wb.sheetnames:
+            logger.error(f"Raw data sheet {raw_sheet_name} not found")
+            return asdict(UVVisRawData(measurements=measurements))
+
+        raw_ws = self.wb[raw_sheet_name]
+        logger.debug(f"Processing raw data sheet: {raw_sheet_name}")
 
         # Log first 5 rows for debugging
-        logger.debug(f"Raw data first 5 rows:")
-        for row_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=5, max_col=3), start=1):
+        logger.debug(f"Raw sheet {raw_sheet_name} first 5 rows:")
+        for row_idx, row in enumerate(raw_ws.iter_rows(min_row=1, max_row=5, max_col=10), start=1):
             values = [str(cell.value)[:30] if cell.value else "None" for cell in row]
             logger.debug(f"Row {row_idx}: {values}")
 
-        # Find header
-        header_row = None
-        for row_idx in range(1, ws.max_row + 1):
-            if ws.cell(row_idx, 1).value == "No." and ws.cell(row_idx, 2).value == "Wavelength [nm]" and ws.cell(row_idx, 3).value == "Absorbance":
-                header_row = row_idx
-                no_col = 1
-                wavelength_col = 2
-                absorbance_col = 3
-                logger.debug(f"Found header at row {row_idx}")
-                break
+        # Find value columns based on headers
+        no_col_idx = None
+        wavelength_col_idx = None
+        absorbance_col_idx = None
+        header_row = 1
+        for col in range(1, raw_ws.max_column + 1):
+            cell_value = raw_ws.cell(row=header_row, column=col).value
+            if cell_value:
+                h = self.normalize_key(cell_value)
+                if 'no' in h:
+                    no_col_idx = col
+                    logger.debug(f"Found no at col {col}: {cell_value}")
+                if 'wavelength' in h:
+                    wavelength_col_idx = col
+                    logger.debug(f"Found wavelength at col {col}: {cell_value}")
+                if 'absorbance' in h:
+                    absorbance_col_idx = col
+                    logger.debug(f"Found absorbance at col {col}: {cell_value}")
 
-        if not header_row:
-            logger.error("Raw data header not found")
-            return asdict(RawData())
+        if no_col_idx is None or wavelength_col_idx is None or absorbance_col_idx is None:
+            logger.warning(f"Could not find all required columns in {raw_sheet_name}")
+            return asdict(UVVisRawData(measurements=measurements))
 
-        for row_idx in range(header_row + 1, ws.max_row + 1):
-            no = ws.cell(row=row_idx, column=no_col).value
-            wavelength = ws.cell(row=row_idx, column=wavelength_col).value
-            absorbance = ws.cell(row=row_idx, column=absorbance_col).value
-            if wavelength is None or absorbance is None:
-                logger.debug(f"Stopping at row {row_idx}: wavelength or absorbance is None")
-                break
-            try:
-                spectrum.append(SpectrumPoint(
-                    no=int(no) if no is not None else None,
-                    wavelength=float(wavelength),
-                    absorbance=float(absorbance)
-                ))
-            except (ValueError, TypeError) as e:
-                logger.warning(f"Skipping row {row_idx} due to invalid data: {e}")
+        # Extract measurement data
+        max_rows = min(raw_ws.max_row, 1000)
+        empty_row_count = 0
+        for row_idx in range(header_row + 1, max_rows + 1):
+            no_val = raw_ws.cell(row=row_idx, column=no_col_idx).value
+            wavelength = raw_ws.cell(row=row_idx, column=wavelength_col_idx).value
+            absorbance = raw_ws.cell(row=row_idx, column=absorbance_col_idx).value
+            logger.debug(f"Measurement row {row_idx}: no={no_val}, wavelength={wavelength}, absorbance={absorbance}")
+            
+            if no_val is None and wavelength is None and absorbance is None:
+                empty_row_count += 1
+                if empty_row_count >= 5:
+                    logger.debug(f"Reached end of measurement data at row {row_idx}")
+                    break
                 continue
-        logger.debug(f"Extracted {len(spectrum)} spectrum points")
-
-        return asdict(RawData(spectrum=spectrum))
+            
+            empty_row_count = 0
+            try:
+                no_int = int(no_val) if no_val is not None else None
+                wavelength_float = float(wavelength) if wavelength is not None else None
+                absorbance_float = float(absorbance) if absorbance is not None else None
+                
+                if wavelength_float is not None or absorbance_float is not None:
+                    measurements.append(UVVisRawMeasurement(
+                        no=no_int,
+                        wavelength=wavelength_float,
+                        absorbance=absorbance_float
+                    ))
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Invalid measurement data at row {row_idx}: {e}")
+                continue
+        
+        logger.debug(f"Extracted {len(measurements)} measurements")
+        return asdict(UVVisRawData(measurements=measurements))
 
     def extract_final_results(self):
+        logger.debug("Extracting final results")
         final_sheet_name = [name for name in self.wb.sheetnames if "Final results" in name][0] if any("Final results" in name for name in self.wb.sheetnames) else None
         if not final_sheet_name:
-            logger.error("Final results sheet not found")
-            return asdict(FinalResults())
+            logger.error("Final Results sheet not found")
+            return asdict(UVVisResultsData())
 
         ws = self.wb[final_sheet_name]
-        peaks = []
+        logger.debug(f"Processing final results sheet: {final_sheet_name}")
 
-        # Log first 5 rows
-        logger.debug(f"Final results first 5 rows:")
-        for row_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=5, max_col=12), start=1):
-            values = [str(cell.value)[:30] if cell.value else "None" for cell in row]
-            logger.debug(f"Row {row_idx}: {values}")
+        results_data = UVVisResultsData()
 
-        # Extract peaks from row 4
+        # Extract peaks from row 4, columns A-L grouped by 3
         data_row = 4
-        for i in range(2, 14, 3):  # Columns B-D, E-G, H-J, K-M (1-based: 2-4,5-7,8-10,11-13)
-            absorbance = ws.cell(row=data_row, column=i).value
-            wavelength = ws.cell(row=data_row, column=i+1).value
-            compound = ws.cell(row=data_row, column=i+2).value
-            if absorbance is None:
-                break
-            try:
-                peaks.append(Peak(
-                    absorbance=float(absorbance) if absorbance else None,
-                    wavelength=float(wavelength) if wavelength else None,
-                    compound=str(compound) if compound else None
-                ))
-            except ValueError:
-                continue
+        peak_cols = [
+            (1, 2, 3),  # A:B:C for peak1
+            (4, 5, 6),  # D:E:F for peak2
+            (7, 8, 9),  # G:H:I for peak3
+            (10, 11, 12)  # J:K:L for peak4
+        ]
+        for max_abs_col, wl_col, compound_col in peak_cols:
+            max_abs = ws.cell(row=data_row, column=max_abs_col).value
+            wavelength = ws.cell(row=data_row, column=wl_col).value
+            compound = ws.cell(row=data_row, column=compound_col).value
 
-        logger.debug(f"Extracted {len(peaks)} peaks")
-        return asdict(FinalResults(peaks=peaks))
+            if max_abs is not None or wavelength is not None or compound is not None:
+                try:
+                    max_abs_float = float(max_abs) if max_abs else None
+                    wl_int = int(wavelength) if wavelength else None
+                    compound_str = str(compound) if compound else None
+                    results_data.peaks.append(UVVisPeak(
+                        max_absorbance=max_abs_float,
+                        wavelength=wl_int,
+                        identified_compound=compound_str
+                    ))
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid peak data at row {data_row}, cols {max_abs_col}-{compound_col}: {e}")
+
+        logger.debug(f"Extracted {len(results_data.peaks)} peaks")
+        return asdict(results_data)
 
     def parse_all_data(self) -> Dict[str, Union[Dict, List]]:
         try:
@@ -434,6 +572,7 @@ class UVVisParser:
             material_data = self.extract_material_data()
             sample_preparation_data = self.extract_sample_preparation_data()
             instrumentation_data = self.extract_instrumentation_data()
+            replication = self.extract_replication()
 
             parsed_data = {
                 'test_details': {
@@ -442,9 +581,22 @@ class UVVisParser:
                     'sample_preparation': sample_preparation_data,
                     'instrumentation': instrumentation_data
                 },
-                'replications': self.extract_raw_data(),
-                'final_results': self.extract_final_results()
+                'replication': replication,
+                'replications': {},
+                'final_results': {}
             }
+
+            test_identifier = replication['test_identifier_number']
+            if test_identifier:
+                raw_sheet = f"Raw data_{test_identifier}"
+                final_sheet = f"Final results_{test_identifier}"
+
+                if raw_sheet in self.wb.sheetnames:
+                    parsed_data['replications'] = self.extract_raw_data(raw_sheet)
+                else:
+                    logger.warning(f"Raw data sheet {raw_sheet} not found")
+
+                parsed_data['final_results'] = self.extract_final_results()
 
             return parsed_data
         except Exception as e:
@@ -460,9 +612,13 @@ def parse_excel_uv_vis(file_path: str, sheet_name: str = "Test Information") -> 
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2_UV-Vis_1aR1.xlsx"
+    file_path = "backend/data/1760762791_WP2_UV-Vis_1aR1.xlsx"
     try:
         parsed_data = parse_excel_uv_vis(file_path)
-        print("Raw Data Spectrum:", parsed_data['replications']['spectrum'])
+        print("Parsed Data:")
+        #print("Test Details:", parsed_data['test_details'])
+        #print("Replication:", parsed_data['replication'])
+        print("Raw Data:", parsed_data['raw_data'])
+        #print("Final Results:", parsed_data['final_results'])
     except Exception as e:
         print(f"Error: {e}")

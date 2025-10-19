@@ -77,7 +77,7 @@ export default function UpdateTestModal({ isOpen, onClose, onTestUpdated, test }
     "CMS_30a_CH_TER"
   ]
 
-  const testNames = ['MTT', 'DLS', 'FTIR', 'HR-STEM','UV-VIS']; // Static test names
+  const testNames = ['MTT', 'DLS', 'FTIR', 'HR-STEM','UV-VIS','ZETA','SIMS']; // Static test names
 
   useEffect(() => {
     if (test) {

@@ -18,6 +18,8 @@ from parsers.dls import parse_excel_dls
 from parsers.ftir import parse_excel_ftir
 from parsers.hr_stem import parse_excel_hr_stem
 from parsers.uv_vis import parse_excel_uv_vis
+from parsers.zeta import parse_excel_zeta
+from parsers.sims import parse_excel_sims
 import tempfile
 import math
 import shutil
@@ -70,7 +72,11 @@ async def create_test(
             elif request.test_name == "HR-STEM":
                 file_data = parse_excel_hr_stem(path) 
             elif request.test_name == "UV-VIS":
-                file_data = parse_excel_uv_vis(path)       
+                file_data = parse_excel_uv_vis(path)
+            elif request.test_name == "ZETA":
+                file_data = parse_excel_zeta(path)
+            elif request.test_name == "SIMS":
+                file_data = parse_excel_sims(path)          
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

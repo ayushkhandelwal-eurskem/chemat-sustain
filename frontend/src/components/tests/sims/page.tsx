@@ -28,7 +28,7 @@ interface PageProps {
   work_package: string;
   element: string;
   test: string;
-  file: string;
+  file?: string;
 }
 
 interface Scientist { name: string | null; email: string | null; }
@@ -90,7 +90,7 @@ interface ReplicationData {
   replication_count: number | null;
 }
 interface SIMSRawIon { channel: number | null; mass: number | null; intensity: number | null; }
-interface SIMSRawData { run_number: number; negative_ions: SIMSRawIon[]; positive_ions: SIMSRawIon[]; }
+interface SIMSRawData { run_number?: number; negative_ions: SIMSRawIon[]; positive_ions: SIMSRawIon[]; }
 interface SIMSProcessedIon { mass: number | null; counts: number | null; }
 interface SIMSProcessedData {
   run_number: number;
@@ -108,8 +108,11 @@ interface SIMSData {
     sample_preparation: SamplePreparationData;
     instrumentation: SIMSInstrumentationData;
   };
-  replication: ReplicationData;
-  replications: SIMSRawData[];
+  replication?: ReplicationData;
+  /** New API shape */
+  raw_data?: SIMSRawData[];
+  /** Old API shape (fallback) */
+  replications?: SIMSRawData[];
   processed_data: SIMSProcessedData[];
   final_results: SIMSFinalResults;
 }
@@ -117,17 +120,20 @@ interface SIMSData {
 /* ============================ Helpers ============================ */
 
 /** Resize-aware container width for adaptive binning/sampling */
-function useContainerWidth<T extends HTMLElement>(): [React.RefObject<T>, number] {
-  const ref = useRef<T>(null);
+function useContainerWidth<T extends HTMLElement>(): [React.MutableRefObject<T | null>, number] {
+  const ref = useRef<T | null>(null);
   const [w, setW] = useState(800);
+
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => setW(el.clientWidth || 800));
     ro.observe(el);
+    // initialize width
     setW(el.clientWidth || 800);
     return () => ro.disconnect();
   }, []);
+
   return [ref, w];
 }
 
@@ -142,10 +148,10 @@ const makeBinner = (binWidth = 1) => (ions: SIMSRawIon[]) => {
     bins.set(m, (bins.get(m) || 0) + ion.intensity);
   }
   const chartData = Array.from(bins.entries())
-    .filter(([_, intensity]) => intensity > 0)
+    .filter(([, intensity]) => intensity > 0)
     .map(([mass, intensity]) => ({ mass, intensity }))
     .sort((a, b) => a.mass - b.mass);
-  return chartData; // const -> satisfies prefer-const
+  return chartData;
 };
 
 /** LTTB downsampling (fast visual summary for large series) */
@@ -161,16 +167,15 @@ function lttb(
   sampled.push(data[a]);
   for (let i = 0; i < threshold - 2; i++) {
     const start = Math.floor((i + 1) * bucketSize) + 1;
-    const end = Math.floor((i + 2) * bucketSize) + 1;
-    const endClamped = Math.min(end, n);
+    const end = Math.min(Math.floor((i + 2) * bucketSize) + 1, n);
 
     let avgX = 0, avgY = 0;
-    const len = Math.max(1, endClamped - start);
-    for (let j = start; j < endClamped; j++) { avgX += data[j].x; avgY += data[j].y; }
+    const len = Math.max(1, end - start);
+    for (let j = start; j < end; j++) { avgX += data[j].x; avgY += data[j].y; }
     avgX /= len; avgY /= len;
 
     let maxArea = -1; let nextA = start;
-    for (let j = start; j < endClamped; j++) {
+    for (let j = start; j < end; j++) {
       const area = Math.abs(
         (data[a].x - avgX) * (data[j].y - data[a].y) -
         (data[a].x - data[j].x) * (avgY - data[a].y)
@@ -252,14 +257,18 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
 
   /* ====================== data shaping (hooks ALWAYS run) ====================== */
 
-  const safeReplications = data?.replications ?? [];
+  // The API in your screenshot provides `raw_data`, not `replications`.
+  const safeRuns: SIMSRawData[] = useMemo(() => {
+    return (data?.raw_data ?? data?.replications ?? []) as SIMSRawData[];
+  }, [data?.raw_data, data?.replications]);
+
   const allNegativeIons = useMemo(
-    () => safeReplications.flatMap((r) => r.negative_ions) as SIMSRawIon[],
-    [safeReplications]
+    () => safeRuns.flatMap((r) => r.negative_ions) as SIMSRawIon[],
+    [safeRuns]
   );
   const allPositiveIons = useMemo(
-    () => safeReplications.flatMap((r) => r.positive_ions) as SIMSRawIon[],
-    [safeReplications]
+    () => safeRuns.flatMap((r) => r.positive_ions) as SIMSRawIon[],
+    [safeRuns]
   );
 
   // Defer large arrays to keep UI snappy
@@ -334,19 +343,17 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   // Raw (capped & sorted for consistent numeric X axis)
   const RAW_CAP = 5000;
   const negativeRawCapped = useMemo(() => {
-    const arr = deferredNeg
+    return deferredNeg
       .filter((d) => d.mass != null && d.intensity != null)
       .slice(0, RAW_CAP)
       .sort((a, b) => (a.mass! - b.mass!));
-    return arr;
   }, [deferredNeg]);
 
   const positiveRawCapped = useMemo(() => {
-    const arr = deferredPos
+    return deferredPos
       .filter((d) => d.mass != null && d.intensity != null)
       .slice(0, RAW_CAP)
       .sort((a, b) => (a.mass! - b.mass!));
-    return arr;
   }, [deferredPos]);
 
   const limitedNegativeIons = useMemo(() => deferredNeg.slice(0, 100), [deferredNeg]);
@@ -587,7 +594,7 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="mb-10">
                   <h3 className="text-lg font-semibold mb-3">Negative Ions Spectrum</h3>
                   <div ref={chartRefNeg} className="w-full h-[420px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer key={chartWidthNeg} width="100%" height="100%">
                       {vizMode === "downsampled" ? (
                         <AreaChart data={negativeLttb} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -621,7 +628,7 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold mb-3">Positive Ions Spectrum</h3>
                   <div ref={chartRefPos} className="w-full h-[420px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer key={chartWidthPos} width="100%" height="100%">
                       {vizMode === "downsampled" ? (
                         <AreaChart data={positiveLttb} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -717,12 +724,11 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             ) : (
               data.processed_data.map((run, runIndex) => (
                 <div key={runIndex} className="mb-8">
-                  <h3 className="text-lg font-semibold mb-3">Run {run.run_number}</h3>
 
                   {/* Processed Negative */}
                   <div className="mb-6">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-md font-medium">Processed Negative Ions</h4>
+                      <h4 className="text-md font-semibold">Processed Negative Ions</h4>
                       <button
                         onClick={() =>
                           downloadTable(`processedNegativeTable${runIndex}`, `Processed_Negative_Run_${run.run_number}`)
@@ -750,12 +756,12 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   {/* Processed Positive */}
                   <div className="mb-6">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-md font-medium">Processed Positive Ions</h4>
+                      <h4 className="text-md font-semibold">Processed Positive Ions</h4>
                       <button
                         onClick={() =>
                           downloadTable(`processedPositiveTable${runIndex}`, `Processed_Positive_Run_${run.run_number}`)
                         }
-                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover-bg-blue-700 transition"
                       >
                         <Download size={14} /><span>Download</span>
                       </button>
@@ -777,7 +783,7 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
 
                   {/* Totals */}
                   <div className="mb-6">
-                    <h4 className="text-md font-medium mb-2">Totals</h4>
+                    <h4 className="text-md font-semibold mb-2">Totals</h4>
                     <table className="min-w-full bg-white border border-gray-200">
                       <thead><tr className="bg-gray-100"><th className="py-2 px-4 border text-left">Metric</th><th className="py-2 px-4 border text-left">Value</th></tr></thead>
                       <tbody>

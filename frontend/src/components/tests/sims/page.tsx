@@ -452,15 +452,16 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
 
         {/* Tabs */}
         <div className="w-full mb-8">
-          <ul className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100" role="list">
+          <ul className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100" role="tablist">
             {TABS.map((tab) => (
-              <li key={tab.key} className="z-30 flex-auto text-center">
+              <li key={tab.key} className="z-30 flex-auto text-center" role="presentation">
                 <button
+                  role="tab"
+                  aria-selected={activeTab === tab.key}
                   className={`z-30 w-full px-0 py-2 text-sm mb-0 transition-all rounded-md ${
                     activeTab === tab.key ? "bg-blue-600 text-white shadow-md" : "text-slate-600 hover:text-slate-800"
                   }`}
                   onClick={() => setActiveTab(tab.key)}
-                  aria-selected={activeTab === tab.key}
                 >
                   {tab.label}
                 </button>

@@ -119,6 +119,37 @@ interface SIMSData {
 
 /* ============================ Helpers ============================ */
 
+/**
+ * Normalize CMS ID: "CMS_1a_AuNP" -> "1a"
+ */
+const normalizeCmsId = (cmsId: string): string => {
+  const match = cmsId.match(/^(?:cms_?)?(\d+a)/i);
+  if (match) {
+    return match[1].toLowerCase();
+  }
+  return cmsId.toLowerCase().replace(/^cms_?/i, '').split('_')[0];
+};
+
+/**
+ * Generate SIMS image URLs
+ */
+const getSIMSImageUrls = (workPackage: string, element: string) => {
+  const wp = workPackage.toLowerCase().replace(/\s+/g, '');
+  const cms = normalizeCmsId(element);
+  const basePath = `/images/${wp}/${cms}/sims`;
+  
+  return {
+    negative: [
+      `${basePath}/${cms}_SIMS_negative1.png`,
+      `${basePath}/${cms}_SIMS_negative2.png`,
+    ],
+    positive: [
+      `${basePath}/${cms}_SIMS_positive1.png`,
+      `${basePath}/${cms}_SIMS_positive2.png`,
+    ],
+  };
+};
+
 /** Resize-aware container width for adaptive binning/sampling */
 function useContainerWidth<T extends HTMLElement>(): [React.MutableRefObject<T | null>, number] {
   const ref = useRef<T | null>(null);
@@ -189,6 +220,21 @@ function lttb(
   return sampled;
 }
 
+/* ============================ Tab Configuration ============================ */
+type TabKey = "test-conditions" | "raw-data" | "processed-data" | "results";
+
+interface TabConfig {
+  key: TabKey;
+  label: string;
+}
+
+const TABS: TabConfig[] = [
+  { key: "test-conditions", label: "Test Conditions" },
+  { key: "raw-data", label: "Raw Data" },
+  { key: "processed-data", label: "Processed Data" },
+  { key: "results", label: "Final Results" },
+];
+
 /* ============================ Component ============================ */
 
 const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
@@ -196,8 +242,7 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   const [data, setData] = useState<SIMSData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] =
-    useState<"test-conditions" | "raw-data" | "processed-data" | "results">("test-conditions");
+  const [activeTab, setActiveTab] = useState<TabKey>("test-conditions");
   const [vizMode, setVizMode] =
     useState<"binned" | "downsampled" | "raw-capped">("binned");
 
@@ -408,18 +453,16 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
         {/* Tabs */}
         <div className="w-full mb-8">
           <ul className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100" role="list">
-            {["test-conditions", "raw-data", "processed-data", "results"].map((tab) => (
-              <li key={tab} className="z-30 flex-auto text-center">
+            {TABS.map((tab) => (
+              <li key={tab.key} className="z-30 flex-auto text-center">
                 <button
                   className={`z-30 w-full px-0 py-2 text-sm mb-0 transition-all rounded-md ${
-                    activeTab === tab ? "bg-blue-600 text-white shadow-md" : "text-slate-600"
+                    activeTab === tab.key ? "bg-blue-600 text-white shadow-md" : "text-slate-600 hover:text-slate-800"
                   }`}
-                  onClick={() => setActiveTab(tab as any)}
-                  aria-selected={activeTab === tab}
+                  onClick={() => setActiveTab(tab.key)}
+                  aria-selected={activeTab === tab.key}
                 >
-                  {tab === "test-conditions" ? "Test Conditions" :
-                   tab === "raw-data" ? "Raw Data" :
-                   tab === "processed-data" ? "Processed Data" : "Final Results"}
+                  {tab.label}
                 </button>
               </li>
             ))}
@@ -751,6 +794,40 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         </tbody>
                       </table>
                     </div>
+                    {/* Negative Ion Images */}
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {getSIMSImageUrls(work_package, element).negative.map((url, idx) => (
+                        <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden bg-white flex flex-col">
+                          <div className="relative flex-1 min-h-[200px] bg-white">
+                            <img
+                              src={url}
+                              alt={`Negative Ion Spectrum ${idx + 1}`}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const errorDiv = target.parentElement?.querySelector('.error-placeholder');
+                                if (errorDiv) errorDiv.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="error-placeholder hidden absolute inset-0 flex items-center justify-center text-gray-400">
+                              <span className="text-sm">Image not available</span>
+                            </div>
+                          </div>
+                          <div className="p-2 bg-gray-50 flex items-center justify-between border-t border-gray-200">
+                            <span className="text-sm text-gray-600">Negative Spectrum {idx + 1}</span>
+                            <a
+                              href={url}
+                              download={`negative_spectrum_${idx + 1}.png`}
+                              className="p-1 text-gray-500 hover:text-blue-600 transition"
+                              title="Download image"
+                            >
+                              <Download size={16} />
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Processed Positive */}
@@ -761,7 +838,7 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         onClick={() =>
                           downloadTable(`processedPositiveTable${runIndex}`, `Processed_Positive_Run_${run.run_number}`)
                         }
-                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover-bg-blue-700 transition"
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
                       >
                         <Download size={14} /><span>Download</span>
                       </button>
@@ -778,6 +855,40 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           )) : <tr><td colSpan={2} className="py-2 px-4 border text-center">No processed positive ions data available</td></tr>}
                         </tbody>
                       </table>
+                    </div>
+                    {/* Positive Ion Images */}
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {getSIMSImageUrls(work_package, element).positive.map((url, idx) => (
+                        <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden bg-white flex flex-col">
+                          <div className="relative flex-1 min-h-[200px] bg-white">
+                            <img
+                              src={url}
+                              alt={`Positive Ion Spectrum ${idx + 1}`}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const errorDiv = target.parentElement?.querySelector('.error-placeholder');
+                                if (errorDiv) errorDiv.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="error-placeholder hidden absolute inset-0 flex items-center justify-center text-gray-400">
+                              <span className="text-sm">Image not available</span>
+                            </div>
+                          </div>
+                          <div className="p-2 bg-gray-50 flex items-center justify-between border-t border-gray-200">
+                            <span className="text-sm text-gray-600">Positive Spectrum {idx + 1}</span>
+                            <a
+                              href={url}
+                              download={`positive_spectrum_${idx + 1}.png`}
+                              className="p-1 text-gray-500 hover:text-blue-600 transition"
+                              title="Download image"
+                            >
+                              <Download size={16} />
+                            </a>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 

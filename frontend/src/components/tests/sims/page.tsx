@@ -134,7 +134,7 @@ const normalizeCmsId = (cmsId: string): string => {
  * Generate SIMS image URLs
  */
 const getSIMSImageUrls = (workPackage: string, element: string) => {
-  const wp = workPackage.toLowerCase().replace(/\s+/g, '');
+  const wp = workPackage.toUpperCase();  // Keep uppercase (WP2, not wp2)
   const cms = normalizeCmsId(element);
   const basePath = `/images/${wp}/${cms}/sims`;
   

@@ -190,9 +190,9 @@ class SIMSParser:
 
             data.append(entry)
 
-            if "lead_scientist" in raw_key.lower():
+            if "lead scientist" in raw_key.lower():
                 lead_scientists.append(Scientist(name=value_cell, email=email_cell))
-            if "assay_test_work" in raw_key.lower():
+            if "assay/test work" in raw_key.lower():
                 assay_scientists.append(Scientist(name=value_cell, email=email_cell))
 
         wp_data = WorkPackageData(
@@ -598,10 +598,11 @@ def parse_excel_sims(file_path: str, sheet_name: str = "Test Information") -> Di
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2_SIMS_1aR1.xlsx"
+    file_path = "backend/data/WP2_SIMS_2aR1.xlsx"
     try:
         parsed_data = parse_excel_sims(file_path)
-        print(parsed_data['replications'])
+        print(parsed_data['test_details'])
+        #print(parsed_data['replications'])
         #print(parsed_data['processed_data'])
     except Exception as e:
         print(f"Error: {e}")

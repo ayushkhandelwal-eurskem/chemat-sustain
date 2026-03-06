@@ -395,11 +395,10 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             {TABS.map((tab) => (
               <li key={tab.key} className="z-30 flex-auto text-center">
                 <button
-                  className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${
-                    activeTab === tab.key
+                  className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === tab.key
                       ? "bg-blue-600 text-white shadow-md"
                       : "text-slate-600 bg-inherit"
-                  }`}
+                    }`}
                   onClick={() => setActiveTab(tab.key)}
                   role="tab"
                   aria-selected={activeTab === tab.key}
@@ -803,11 +802,11 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </label>
                   <select
                     id="xps-spot-select"
-                    value={selectedAtomicSpot}
-                    onChange={(e) => setSelectedAtomicSpot(Number(e.target.value))}
+                    value={selectedSpot}
+                    onChange={(e) => setSelectedSpot(Number(e.target.value))}
                     className="w-full md:w-1/3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
                   >
-                    {data.final_results.atomic_percentages.map((row, index) => (
+                    {(data?.final_results?.atomic_percentages ?? []).map((row, index) => (
                       <option key={index} value={index}>
                         {row.spot_label ?? `Spot ${index + 1}`}
                       </option>

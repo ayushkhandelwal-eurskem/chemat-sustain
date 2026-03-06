@@ -159,7 +159,16 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "results", label: "Final Results" },
 ];
 
-const COLORS = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#dc2626", "#0891b2", "#7c3aed", "#0f766e"];
+const COLORS = [
+  "#2563eb",
+  "#16a34a",
+  "#ea580c",
+  "#9333ea",
+  "#dc2626",
+  "#0891b2",
+  "#7c3aed",
+  "#0f766e",
+];
 
 const fmt = (v: any, digits = 2) => {
   if (v === null || v === undefined || v === "") return "N/A";
@@ -273,21 +282,25 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   };
 
   const currentRawRun = useMemo(() => {
-    if (!data?.raw_data?.length) return null;
-    return data.raw_data[selectedRun] || data.raw_data[0];
+    const rows = data?.raw_data ?? [];
+    return rows[selectedRun] || rows[0] || null;
   }, [data?.raw_data, selectedRun]);
 
   const currentProcessedRun = useMemo(() => {
-    if (!data?.processed_data?.length) return null;
-    return data.processed_data[selectedRun] || data.processed_data[0];
+    const rows = data?.processed_data ?? [];
+    return rows[selectedRun] || rows[0] || null;
   }, [data?.processed_data, selectedRun]);
 
   const currentSpectrumChartData = useMemo(() => {
     return downsampleSpectrum(currentRawRun);
   }, [currentRawRun]);
 
-  const atomicSpotRows = data?.final_results?.atomic_percentages ?? [];
-  const currentAtomicSpot = atomicSpotRows[selectedAtomicSpot] || atomicSpotRows[0] || null;
+  const atomicPercentageRows = data?.final_results?.atomic_percentages ?? [];
+  const coreLevelBindingRows = data?.final_results?.core_level_bindings ?? [];
+
+  const currentAtomicSpot = useMemo(() => {
+    return atomicPercentageRows[selectedAtomicSpot] || atomicPercentageRows[0] || null;
+  }, [atomicPercentageRows, selectedAtomicSpot]);
 
   const atomicPercentChartData = useMemo(() => {
     if (!currentAtomicSpot?.elements) return [];
@@ -298,14 +311,13 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   }, [currentAtomicSpot]);
 
   const coreLevelBindingChartData = useMemo(() => {
-    const rows = data?.final_results?.core_level_bindings ?? [];
-    return rows
+    return coreLevelBindingRows
       .filter((row) => row.binding_energy !== null && row.binding_energy !== undefined)
       .map((row) => ({
         core_level: row.core_level || "Unknown",
         binding_energy: Number(row.binding_energy) || 0,
       }));
-  }, [data?.final_results]);
+  }, [coreLevelBindingRows]);
 
   if (loading) {
     return (
@@ -325,34 +337,25 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     );
   }
 
-  const runOptionsCount = Math.max(
-    data?.raw_data?.length || 0,
-    data?.processed_data?.length || 0
-  );
+  const runOptionsCount = Math.max(data?.raw_data?.length || 0, data?.processed_data?.length || 0);
 
   return (
     <div className="bg-gray-50 min-h-screen py-8 text-black">
       <div className="container mx-auto px-4">
-        {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h1 className="text-2xl font-bold text-blue-800 mb-4">
-            XPS Test Data Report
-          </h1>
+          <h1 className="text-2xl font-bold text-blue-800 mb-4">XPS Test Data Report</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h2 className="text-lg font-semibold mb-3">Test Parameters</h2>
               <div className="bg-blue-50 p-4 rounded-md">
                 <p className="mb-2">
-                  <span className="font-semibold">Work Package:</span>{" "}
-                  {work_package || "N/A"}
+                  <span className="font-semibold">Work Package:</span> {work_package || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">CMS Internal Identifier:</span>{" "}
-                  {element || "N/A"}
+                  <span className="font-semibold">CMS Internal Identifier:</span> {element || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">ERM Identifier:</span>{" "}
-                  {data?.test_details?.material?.erm_id ?? "N/A"}
+                  <span className="font-semibold">ERM Identifier:</span> {data?.test_details?.material?.erm_id ?? "N/A"}
                 </p>
               </div>
             </div>
@@ -361,44 +364,36 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <h2 className="text-lg font-semibold mb-3">Test Information</h2>
               <div className="bg-blue-50 p-4 rounded-md">
                 <p className="mb-2">
-                  <span className="font-semibold">Full Test Name:</span>{" "}
-                  {data?.test_details?.work_package?.full_test_name ?? "N/A"}
+                  <span className="font-semibold">Full Test Name:</span> {data?.test_details?.work_package?.full_test_name ?? "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Test Acronym:</span>{" "}
-                  {data?.test_details?.work_package?.test_acronym ?? "N/A"}
+                  <span className="font-semibold">Test Acronym:</span> {data?.test_details?.work_package?.test_acronym ?? "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Test Type:</span>{" "}
-                  {data?.test_details?.work_package?.test_type ?? "N/A"}
+                  <span className="font-semibold">Test Type:</span> {data?.test_details?.work_package?.test_type ?? "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Endpoint:</span>{" "}
-                  {data?.test_details?.work_package?.endpoint ?? "N/A"}
+                  <span className="font-semibold">Endpoint:</span> {data?.test_details?.work_package?.endpoint ?? "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Endpoint Outcome:</span>{" "}
-                  {data?.test_details?.work_package?.endpoint_outcome ?? "N/A"}
+                  <span className="font-semibold">Endpoint Outcome:</span> {data?.test_details?.work_package?.endpoint_outcome ?? "N/A"}
                 </p>
                 <p>
-                  <span className="font-semibold">SOP:</span>{" "}
-                  {data?.test_details?.work_package?.sop ?? "N/A"}
+                  <span className="font-semibold">SOP:</span> {data?.test_details?.work_package?.sop ?? "N/A"}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="w-full mb-8">
           <ul className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100" role="tablist">
             {TABS.map((tab) => (
               <li key={tab.key} className="z-30 flex-auto text-center">
                 <button
-                  className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === tab.key
-                      ? "bg-blue-600 text-white shadow-md"
-                      : "text-slate-600 bg-inherit"
-                    }`}
+                  className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${
+                    activeTab === tab.key ? "bg-blue-600 text-white shadow-md" : "text-slate-600 bg-inherit"
+                  }`}
                   onClick={() => setActiveTab(tab.key)}
                   role="tab"
                   aria-selected={activeTab === tab.key}
@@ -410,7 +405,6 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </ul>
         </div>
 
-        {/* Test Conditions */}
         {activeTab === "test-conditions" && (
           <>
             <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -591,7 +585,6 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </>
         )}
 
-        {/* Raw Data */}
         {activeTab === "raw-data" && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
@@ -626,9 +619,7 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </div>
 
                 <div className="mb-6 bg-blue-50 p-4 rounded-md">
-                  <h3 className="text-lg font-semibold mb-3">
-                    Results for {getRunLabel(selectedRun)}
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-3">Results for {getRunLabel(selectedRun)}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div><p className="font-semibold">Sheet Name:</p><p>{currentRawRun?.sheet_name ?? "N/A"}</p></div>
                     <div><p className="font-semibold">Test Identifier:</p><p>{currentRawRun?.test_identifier ?? "N/A"}</p></div>
@@ -704,9 +695,7 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                             <td className="py-2 px-4 border">{be != null ? Number(be).toFixed(4) : "-"}</td>
                             <td className="py-2 px-4 border">
-                              {currentRawRun?.intensities?.[index] != null
-                                ? Number(currentRawRun.intensities[index]).toFixed(4)
-                                : "-"}
+                              {currentRawRun?.intensities?.[index] != null ? Number(currentRawRun.intensities[index]).toFixed(4) : "-"}
                             </td>
                           </tr>
                         ))
@@ -725,7 +714,6 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </div>
         )}
 
-        {/* Processed Data */}
         {activeTab === "processed-data" && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
@@ -760,9 +748,33 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </div>
 
                 <div className="mb-6 bg-blue-50 p-4 rounded-md">
-                  <h3 className="text-lg font-semibold mb-3">
-                    Results for {getRunLabel(selectedRun)}
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-3">Results for {getRunLabel(selectedRun)}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><p className="font-semibold">Sheet Name:</p><p>{currentProcessedRun?.sheet_name ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Identifier:</p><p>{currentProcessedRun?.identifier ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Has Data:</p><p>{currentProcessedRun?.has_data ? "Yes" : "No"}</p></div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table id="xpsProcessedTable" className="min-w-full bg-white border border-gray-200">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="py-2 px-4 border text-left">Sheet Name</th>
+                        <th className="py-2 px-4 border text-left">Identifier</th>
+                        <th className="py-2 px-4 border text-left">Has Data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.processed_data.map((run, index) => (
+                        <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
+                          <td className="py-2 px-4 border">{run.sheet_name ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{run.identifier ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{run.has_data ? "Yes" : "No"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </>
             ) : (
@@ -771,7 +783,6 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </div>
         )}
 
-        {/* Final Results */}
         {activeTab === "results" && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
@@ -794,7 +805,7 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               </div>
             </div>
 
-            {(data?.final_results?.atomic_percentages?.length ?? 0) > 0 && (
+            {atomicPercentageRows.length > 0 && (
               <>
                 <div className="mb-6">
                   <label htmlFor="xps-spot-select" className="block text-sm font-medium text-gray-700 mb-2">
@@ -802,11 +813,11 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </label>
                   <select
                     id="xps-spot-select"
-                    value={selectedSpot}
-                    onChange={(e) => setSelectedSpot(Number(e.target.value))}
+                    value={selectedAtomicSpot}
+                    onChange={(e) => setSelectedAtomicSpot(Number(e.target.value))}
                     className="w-full md:w-1/3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
                   >
-                    {(data?.final_results?.atomic_percentages ?? []).map((row, index) => (
+                    {atomicPercentageRows.map((row, index) => (
                       <option key={index} value={index}>
                         {row.spot_label ?? `Spot ${index + 1}`}
                       </option>
@@ -889,8 +900,8 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {(data?.final_results?.core_level_bindings?.length ?? 0) > 0 ? (
-                      data.final_results!.core_level_bindings.map((row, index) => (
+                    {coreLevelBindingRows.length > 0 ? (
+                      coreLevelBindingRows.map((row, index) => (
                         <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                           <td className="py-2 px-4 border">{row.core_level ?? "N/A"}</td>
                           <td className="py-2 px-4 border">{fmt(row.binding_energy, 3)}</td>
@@ -912,13 +923,7 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <ResponsiveContainer width="100%" height={420}>
                   <BarChart data={coreLevelBindingChartData} margin={{ top: 20, right: 20, bottom: 90, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="core_level"
-                      angle={-30}
-                      textAnchor="end"
-                      interval={0}
-                      height={100}
-                    />
+                    <XAxis dataKey="core_level" angle={-30} textAnchor="end" interval={0} height={100} />
                     <YAxis
                       label={{
                         value: "Binding Energy (eV)",

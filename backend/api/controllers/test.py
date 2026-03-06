@@ -20,6 +20,10 @@ from parsers.hr_stem import parse_excel_hr_stem
 from parsers.uv_vis import parse_excel_uv_vis
 from parsers.zeta import parse_excel_zeta
 from parsers.sims import parse_excel_sims
+from parsers.ros import parse_excel_ros
+from parsers.tb import parse_excel_tb
+from parsers.ups import parse_excel_ups
+from parsers.xps import parse_excel_xps
 import tempfile
 import math
 import shutil
@@ -76,7 +80,15 @@ async def create_test(
             elif request.test_name == "ZETA":
                 file_data = parse_excel_zeta(path)
             elif request.test_name == "SIMS":
-                file_data = parse_excel_sims(path)          
+                file_data = parse_excel_sims(path)
+            elif request.test_name == "ROS":
+                file_data = parse_excel_ros(path)
+            elif request.test_name == "TB":
+                file_data = parse_excel_tb(path)
+            elif request.test_name == "UPS":
+                file_data = parse_excel_ups(path)
+            elif request.test_name == "XPS":
+                file_data = parse_excel_xps(path)              
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -105,7 +117,8 @@ async def create_test(
         test_details=clean_for_json(file_data.get("test_details")),
         raw_data=clean_for_json(file_data.get("replications")),
         processed_data=clean_for_json(file_data.get("processed_data")),
-        final_results=clean_for_json(file_data.get("final_results"))
+        final_results=clean_for_json(file_data.get("final_results")),
+        statistical_analysis=clean_for_json(file_data.get("statistical_analysis"))
     )
     
     return await service.create_test(test_data)
@@ -235,6 +248,7 @@ async def update_test(
         update_data.raw_data=clean_for_json(file_data.get("replications"))
         update_data.processed_data=clean_for_json(file_data.get("processed_data"))
         update_data.final_results=clean_for_json(file_data.get("final_results"))
+        update_data.statistical_analysis=clean_for_json(file_data.get("statistical_analysis"))
         
         delete_file(current_test.file_path)
     
@@ -308,6 +322,7 @@ async def bulk_update_release_flags(
     release_raw_data: Optional[bool] = None,
     release_processed_data: Optional[bool] = None,
     release_final_results: Optional[bool] = None,
+    release_statistical_analysis: Optional[bool] = None,
     service: TestService = Depends(get_test_service)
 ):
     """Bulk update release flags for multiple tests"""
@@ -321,6 +336,8 @@ async def bulk_update_release_flags(
         release_flags["release_processed_data"] = release_processed_data
     if release_final_results is not None:
         release_flags["release_final_results"] = release_final_results
+    if release_statistical_analysis is not None:
+        release_flags["release_statistical_analysis"] = release_statistical_analysis    
     
     if not release_flags:
         raise HTTPException(
@@ -342,7 +359,8 @@ async def publish_test(
         release_test_details=True,
         release_raw_data=True,
         release_processed_data=True,
-        release_final_results=True
+        release_final_results=True,
+        release_statistical_analysis=True
     )
     return await service.update_test(test_id, test_data)
 
@@ -358,7 +376,8 @@ async def unpublish_test(
         release_test_details=False,
         release_raw_data=False,
         release_processed_data=False,
-        release_final_results=False
+        release_final_results=False,
+        release_statistical_analysis=False
     )
     return await service.update_test(test_id, test_data)
 

@@ -8,6 +8,10 @@ import HRSTEMDataViewer from '@/components/tests/hr_stem/page';
 import UVVisDataViewer from '@/components/tests/uv_vis/page';
 import ZetaDataViewer from '@/components/tests/zeta/page';
 import SIMSDataViewer from '@/components/tests/sims/page';
+import ROSDataViewer from '@/components/tests/ros/page';
+import TBDataViewer from '@/components/tests/tb/page';
+import UPSDataViewer from '@/components/tests/ups/page';
+import XPSDataViewer from '@/components/tests/xps/page';
 // Define the props type for the page component
 interface PageProps {
   params: Promise<{
@@ -48,6 +52,18 @@ const DynamicRoutePage: FC<PageProps> = async ({ params }) => {
   }
   if (test.toLocaleLowerCase() === "sims"){
     return (<SIMSDataViewer work_package={work_package} element={element} test={test} file={""}></SIMSDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "ros"){
+    return (<ROSDataViewer work_package={work_package} element={element} test={test} file={""}></ROSDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "tb"){
+    return (<TBDataViewer work_package={work_package} element={element} test={test} file={""}></TBDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "ups"){
+    return (<UPSDataViewer work_package={work_package} element={element} test={test} file={""}></UPSDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "xps"){
+    return (<XPSDataViewer work_package={work_package} element={element} test={test} file={""}></XPSDataViewer>)
   }
 };
 

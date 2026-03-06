@@ -13,6 +13,7 @@ class TestBase(BaseModel):
     raw_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Raw data in JSON format")
     processed_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Processed data in JSON format")
     final_results: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Final results in JSON format")
+    statistical_analysis: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Statistical analysis in JSON format")
     is_public: bool = Field(False, description="Whether the test is public")
     release_test_details: Optional[bool] = Field(None, description="Whether to release test details")
     release_raw_data: Optional[bool] = Field(None, description="Whether to release raw data")
@@ -66,6 +67,7 @@ class TestUpdate(BaseModel):
     raw_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     processed_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     final_results: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+    statistical_analysis: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     is_public: Optional[bool] = None
     release_test_details: Optional[bool] = None
     release_raw_data: Optional[bool] = None

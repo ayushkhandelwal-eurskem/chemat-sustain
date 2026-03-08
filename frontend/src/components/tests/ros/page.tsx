@@ -12,14 +12,13 @@ import {
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 
 /* ================================================================
@@ -33,7 +32,6 @@ interface PageProps {
   file?: string;
 }
 
-// --- Test Details ---
 interface Scientist {
   name: string | null;
   email: string | null;
@@ -148,7 +146,6 @@ interface ParserWarning {
   value?: string;
 }
 
-// --- Raw Data ---
 interface ROSRawExperiment {
   experiment_label: string | null;
   cytometric_events: number | null;
@@ -162,7 +159,6 @@ interface ROSRawDataBlock {
   experiments: ROSRawExperiment[];
 }
 
-// --- Processed Data ---
 interface ROSAnalysisExperiment {
   label: string;
   values: Record<string, number | null>;
@@ -187,7 +183,6 @@ interface ROSExperiment5Data {
   cytometric_events: (number | null)[];
 }
 
-// --- Final Results (Mean Data) ---
 interface ROSMeanExperiment {
   label: string;
   values: Record<string, number | null>;
@@ -202,7 +197,6 @@ interface ROSMeanDataBlock {
   sd: (number | null)[];
 }
 
-// --- Statistical Analysis ---
 interface ANOVASummaryRow {
   grupy: string | null;
   licznik: number | null;
@@ -249,7 +243,6 @@ interface PostHocResult {
   blocks: PostHocBlock[];
 }
 
-// --- Full API Response ---
 interface ROSData {
   test_details: {
     work_package: WorkPackageData;
@@ -319,15 +312,31 @@ const COLORS = [
    ================================================================ */
 
 const fmt = (value: any, digits = 4) => {
-  if (value === null || value === undefined || value === "") return "N/A";
+  if (value === null || value === undefined || value === "") return "";
   if (typeof value === "number") return value.toFixed(digits);
   return String(value);
 };
 
 const fmtShort = (value: any, digits = 2) => {
-  if (value === null || value === undefined || value === "") return "N/A";
+  if (value === null || value === undefined || value === "") return "";
   if (typeof value === "number") return value.toFixed(digits);
   return String(value);
+};
+
+const fmtPercent = (value: any, digits = 2) => {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "number") return `${(value * 100).toFixed(digits)}%`;
+  return String(value);
+};
+
+const percentValue = (value: any) => {
+  if (value === null || value === undefined || value === "") return null;
+  return Number(value) * 100;
+};
+
+const percentTooltip = (value: any) => {
+  if (value === null || value === undefined || value === "") return "";
+  return `${Number(value).toFixed(2)}%`;
 };
 
 const csvEscape = (value: string) => `"${value.replace(/"/g, '""')}"`;
@@ -385,7 +394,7 @@ const CollapsibleSection: FC<{
 };
 
 const AcceptanceBadge: FC<{ status: string | null }> = ({ status }) => {
-  if (!status) return <span className="text-gray-400">N/A</span>;
+  if (!status) return <span></span>;
 
   const normalized = status.toUpperCase();
   const passed = normalized === "PASSED" || normalized === "YES";
@@ -436,7 +445,7 @@ const KVTable: FC<{
             {rows.map((row, index) => (
               <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                 <td className="py-2 px-4 border font-medium">{row.label}</td>
-                <td className="py-2 px-4 border">{row.value ?? "N/A"}</td>
+                <td className="py-2 px-4 border">{row.value ?? ""}</td>
               </tr>
             ))}
           </tbody>
@@ -481,9 +490,7 @@ const AnalysisTable: FC<{
                 <td className="py-2 px-3 border font-medium">{exp.label}</td>
                 {block.concentrations.map((c, ci) => (
                   <td key={ci} className="py-2 px-3 border text-center">
-                    {exp.values[String(c)] != null
-                      ? Number(exp.values[String(c)]).toFixed(4)
-                      : "-"}
+                    {fmtPercent(exp.values[String(c)], 2)}
                   </td>
                 ))}
               </tr>
@@ -493,7 +500,7 @@ const AnalysisTable: FC<{
               <td className="py-2 px-3 border">Mean</td>
               {block.mean.map((m, i) => (
                 <td key={i} className="py-2 px-3 border text-center">
-                  {m != null ? Number(m).toFixed(4) : "-"}
+                  {fmtPercent(m, 2)}
                 </td>
               ))}
             </tr>
@@ -502,7 +509,7 @@ const AnalysisTable: FC<{
               <td className="py-2 px-3 border font-semibold">SD</td>
               {block.sd.map((s, i) => (
                 <td key={i} className="py-2 px-3 border text-center">
-                  {s != null ? Number(s).toFixed(4) : "-"}
+                  {fmtPercent(s, 2)}
                 </td>
               ))}
             </tr>
@@ -511,7 +518,7 @@ const AnalysisTable: FC<{
               <td className="py-2 px-3 border font-semibold">CV</td>
               {block.cv.map((c, i) => (
                 <td key={i} className="py-2 px-3 border text-center">
-                  {c != null ? Number(c).toFixed(4) : "-"}
+                  {fmtPercent(c, 2)}
                 </td>
               ))}
             </tr>
@@ -529,14 +536,14 @@ const ANOVASection: FC<{
 }> = ({ anova, posthoc, idPrefix }) => {
   return (
     <>
-      <CollapsibleSection title={`ANOVA: ${anova.metric_name ?? "Unknown Metric"}`}>
+      <CollapsibleSection title={`ANOVA: ${anova.metric_name ?? ""}`}>
         <div className="mb-4 flex items-center gap-4 flex-wrap">
           <span className="text-sm">
             <span className="font-semibold">p-value Significant:</span>{" "}
             <AcceptanceBadge status={anova.p_value_significant ? "YES" : "NO"} />
           </span>
           <span className="text-sm">
-            <span className="font-semibold">Alpha:</span> {anova.alpha ?? "N/A"}
+            <span className="font-semibold">Alpha:</span> {fmt(anova.alpha, 4)}
           </span>
         </div>
 
@@ -558,17 +565,11 @@ const ANOVASection: FC<{
             <tbody>
               {anova.summary.map((row, i) => (
                 <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}>
-                  <td className="py-2 px-3 border">{row.grupy ?? "-"}</td>
-                  <td className="py-2 px-3 border text-right">{row.licznik ?? "-"}</td>
-                  <td className="py-2 px-3 border text-right">
-                    {row.suma != null ? Number(row.suma).toFixed(4) : "-"}
-                  </td>
-                  <td className="py-2 px-3 border text-right">
-                    {row.srednia != null ? Number(row.srednia).toFixed(4) : "-"}
-                  </td>
-                  <td className="py-2 px-3 border text-right">
-                    {row.wariancja != null ? Number(row.wariancja).toFixed(4) : "-"}
-                  </td>
+                  <td className="py-2 px-3 border">{row.grupy ?? ""}</td>
+                  <td className="py-2 px-3 border text-right">{row.licznik ?? ""}</td>
+                  <td className="py-2 px-3 border text-right">{fmt(row.suma, 4)}</td>
+                  <td className="py-2 px-3 border text-right">{fmt(row.srednia, 4)}</td>
+                  <td className="py-2 px-3 border text-right">{fmt(row.wariancja, 4)}</td>
                 </tr>
               ))}
             </tbody>
@@ -595,32 +596,22 @@ const ANOVASection: FC<{
             <tbody>
               {anova.anova_table.map((row, i) => (
                 <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}>
-                  <td className="py-2 px-3 border">{row.zrodlo_wariancji ?? "-"}</td>
+                  <td className="py-2 px-3 border">{row.zrodlo_wariancji ?? ""}</td>
+                  <td className="py-2 px-3 border text-right">{fmt(row.ss, 4)}</td>
+                  <td className="py-2 px-3 border text-right">{row.df ?? ""}</td>
+                  <td className="py-2 px-3 border text-right">{fmt(row.ms, 4)}</td>
+                  <td className="py-2 px-3 border text-right">{fmt(row.f_value, 4)}</td>
                   <td className="py-2 px-3 border text-right">
-                    {row.ss != null ? Number(row.ss).toFixed(4) : "-"}
+                    {row.p_value != null ? Number(row.p_value).toExponential(4) : ""}
                   </td>
-                  <td className="py-2 px-3 border text-right">{row.df ?? "-"}</td>
-                  <td className="py-2 px-3 border text-right">
-                    {row.ms != null ? Number(row.ms).toFixed(4) : "-"}
-                  </td>
-                  <td className="py-2 px-3 border text-right">
-                    {row.f_value != null ? Number(row.f_value).toFixed(4) : "-"}
-                  </td>
-                  <td className="py-2 px-3 border text-right">
-                    {row.p_value != null ? Number(row.p_value).toExponential(4) : "-"}
-                  </td>
-                  <td className="py-2 px-3 border text-right">
-                    {row.f_critical != null ? Number(row.f_critical).toFixed(4) : "-"}
-                  </td>
+                  <td className="py-2 px-3 border text-right">{fmt(row.f_critical, 4)}</td>
                 </tr>
               ))}
 
               <tr className="bg-blue-50 font-semibold">
                 <td className="py-2 px-3 border">Total</td>
-                <td className="py-2 px-3 border text-right">
-                  {anova.total_ss != null ? Number(anova.total_ss).toFixed(4) : "-"}
-                </td>
-                <td className="py-2 px-3 border text-right">{anova.total_df ?? "-"}</td>
+                <td className="py-2 px-3 border text-right">{fmt(anova.total_ss, 4)}</td>
+                <td className="py-2 px-3 border text-right">{anova.total_df ?? ""}</td>
                 <td colSpan={4} className="py-2 px-3 border" />
               </tr>
             </tbody>
@@ -630,7 +621,7 @@ const ANOVASection: FC<{
 
       {posthoc && posthoc.blocks.length > 0 && (
         <CollapsibleSection
-          title={`Post-Hoc: ${posthoc.metric_name ?? "Unknown Metric"}`}
+          title={`Post-Hoc: ${posthoc.metric_name ?? ""}`}
           defaultOpen={false}
         >
           {posthoc.blocks.map((block, bi) => (
@@ -638,15 +629,15 @@ const ANOVASection: FC<{
               <div className="flex items-center gap-4 mb-3 flex-wrap">
                 <span className="text-sm">
                   <span className="font-semibold">ANOVA Alpha:</span>{" "}
-                  {block.anova_alpha ?? "N/A"}
+                  {fmt(block.anova_alpha, 4)}
                 </span>
                 <span className="text-sm">
                   <span className="font-semibold">Bonferroni Alpha:</span>{" "}
-                  {block.bonferroni_alpha ?? "N/A"}
+                  {fmt(block.bonferroni_alpha, 4)}
                 </span>
                 <span className="text-sm">
                   <span className="font-semibold">Significance Symbol:</span>{" "}
-                  {block.significance_symbol ?? "N/A"}
+                  {block.significance_symbol ?? ""}
                 </span>
               </div>
 
@@ -665,11 +656,11 @@ const ANOVASection: FC<{
                   <tbody>
                     {block.comparisons.map((comp, ci) => (
                       <tr key={ci} className={ci % 2 === 0 ? "bg-gray-50" : ""}>
-                        <td className="py-2 px-3 border">{comp.groups ?? "-"}</td>
+                        <td className="py-2 px-3 border">{comp.groups ?? ""}</td>
                         <td className="py-2 px-3 border text-right">
                           {comp.p_value != null
                             ? Number(comp.p_value).toExponential(4)
-                            : "-"}
+                            : ""}
                         </td>
                         <td className="py-2 px-3 border text-center">
                           {comp.significant ? (
@@ -683,7 +674,7 @@ const ANOVASection: FC<{
                               {comp.significant}
                             </span>
                           ) : (
-                            "-"
+                            ""
                           )}
                         </td>
                       </tr>
@@ -746,11 +737,11 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   }, [work_package, element, test]);
 
   const safeRawBlocks: ROSRawDataBlock[] = useMemo(() => {
-    return Array.isArray(data?.raw_data) ? data!.raw_data : [];
+    return Array.isArray(data?.raw_data) ? data.raw_data : [];
   }, [data?.raw_data]);
 
   const safeMeanBlocks: ROSMeanDataBlock[] = useMemo(() => {
-    return Array.isArray(data?.final_results) ? data!.final_results : [];
+    return Array.isArray(data?.final_results) ? data.final_results : [];
   }, [data?.final_results]);
 
   const rawChartData = useMemo(() => {
@@ -760,7 +751,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     return block.concentrations.map((conc, ci) => {
       const point: Record<string, any> = { concentration: String(conc) };
       block.experiments.forEach((exp, expIndex) => {
-        point[exp.experiment_label ?? `Experiment ${expIndex + 1}`] = exp.values[ci];
+        point[exp.experiment_label ?? `Experiment ${expIndex + 1}`] = percentValue(exp.values[ci]);
       });
       return point;
     });
@@ -772,10 +763,9 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     return block.concentrations.map((conc, ci) => {
       const point: Record<string, any> = { concentration: String(conc) };
       block.experiments.forEach((exp) => {
-        point[exp.label] = exp.values[String(conc)];
+        point[exp.label] = percentValue(exp.values[String(conc)]);
       });
-      point["Mean"] = block.mean[ci];
-      point["SD"] = block.sd[ci];
+      point["Mean"] = percentValue(block.mean[ci]);
       return point;
     });
   }, []);
@@ -797,9 +787,9 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     return block.concentrations.map((conc, ci) => {
       const point: Record<string, any> = { concentration: String(conc) };
       block.experiments.forEach((exp) => {
-        point[exp.label] = exp.values[String(conc)];
+        point[exp.label] = percentValue(exp.values[String(conc)]);
       });
-      point["Mean"] = block.mean[ci];
+      point["Mean"] = percentValue(block.mean[ci]);
       return point;
     });
   }, [safeMeanBlocks, selectedMeanBlock]);
@@ -834,7 +824,6 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   return (
     <div className="bg-gray-50 min-h-screen py-8 text-black">
       <div className="container mx-auto px-4">
-        {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h1 className="text-2xl font-bold text-blue-800 mb-4">ROS Test Data Report</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -843,19 +832,19 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="bg-blue-50 p-4 rounded-md">
                 <p className="mb-2">
                   <span className="font-semibold">Work Package:</span>{" "}
-                  {wp.wp_name || work_package || "N/A"}
+                  {wp.wp_name || work_package || ""}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">CMS Internal Identifier:</span>{" "}
-                  {element || "N/A"}
+                  {element || ""}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">ERM Identifier:</span>{" "}
-                  {mat.erm_id ?? "N/A"}
+                  {mat.erm_id ?? ""}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Partner:</span>{" "}
-                  {wp.partner ?? "N/A"}
+                  {wp.partner ?? ""}
                 </p>
               </div>
             </div>
@@ -865,26 +854,26 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="bg-blue-50 p-4 rounded-md">
                 <p className="mb-2">
                   <span className="font-semibold">Full Test Name:</span>{" "}
-                  {wp.full_test_name ?? "N/A"}
+                  {wp.full_test_name ?? ""}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Test Acronym:</span>{" "}
-                  {wp.test_acronym ?? "N/A"}
+                  {wp.test_acronym ?? ""}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Test Type:</span>{" "}
-                  {wp.test_type ?? "N/A"}
+                  {wp.test_type ?? ""}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Endpoint:</span>{" "}
-                  {wp.endpoint ?? "N/A"}
+                  {wp.endpoint ?? ""}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Endpoint Outcome:</span>{" "}
-                  {wp.endpoint_outcome ?? "N/A"}
+                  {wp.endpoint_outcome ?? ""}
                 </p>
                 <p>
-                  <span className="font-semibold">SOP:</span> {wp.sop ?? "N/A"}
+                  <span className="font-semibold">SOP:</span> {wp.sop ?? ""}
                 </p>
               </div>
             </div>
@@ -917,7 +906,6 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           )}
         </div>
 
-        {/* Tabs */}
         <div className="w-full mb-8">
           <ul
             className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100"
@@ -942,7 +930,6 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </ul>
         </div>
 
-        {/* Test Conditions */}
         {activeTab === "test-conditions" && (
           <>
             <CollapsibleSection title="Material Information">
@@ -950,22 +937,22 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 id="materialTable"
                 downloadFilename="ROS_Material_Info"
                 rows={[
-                  { label: "CMS Internal Identifier", value: mat.material_identifier ?? element },
-                  { label: "ERM Identifier", value: mat.erm_id },
-                  { label: "Material Name", value: mat.material_name },
-                  { label: "Core Chemistry", value: mat.core_chemistry },
-                  { label: "CAS No", value: mat.cas_no },
-                  { label: "CAS for Core", value: mat.cas_for_core },
-                  { label: "Material Supplier", value: mat.material_supplier },
-                  { label: "Material State", value: mat.material_state },
-                  { label: "Batch", value: mat.batch },
-                  { label: "Vial", value: mat.vial },
-                  { label: "Preparation Date", value: mat.preparation_date },
-                  { label: "Size", value: mat.size },
-                  { label: "Endotoxin Absent", value: mat.endotoxin_absent },
-                  { label: "Stock Concentration", value: mat.stock_concentration },
-                  { label: "Molecular Weight", value: mat.molecular_weight },
-                  { label: "No. of Particles in Stock", value: mat.particles_stock },
+                  { label: "CMS Internal Identifier", value: mat.material_identifier ?? element ?? "" },
+                  { label: "ERM Identifier", value: mat.erm_id ?? "" },
+                  { label: "Material Name", value: mat.material_name ?? "" },
+                  { label: "Core Chemistry", value: mat.core_chemistry ?? "" },
+                  { label: "CAS No", value: mat.cas_no ?? "" },
+                  { label: "CAS for Core", value: mat.cas_for_core ?? "" },
+                  { label: "Material Supplier", value: mat.material_supplier ?? "" },
+                  { label: "Material State", value: mat.material_state ?? "" },
+                  { label: "Batch", value: mat.batch ?? "" },
+                  { label: "Vial", value: mat.vial ?? "" },
+                  { label: "Preparation Date", value: mat.preparation_date ?? "" },
+                  { label: "Size", value: mat.size ?? "" },
+                  { label: "Endotoxin Absent", value: mat.endotoxin_absent ?? "" },
+                  { label: "Stock Concentration", value: mat.stock_concentration ?? "" },
+                  { label: "Molecular Weight", value: mat.molecular_weight ?? "" },
+                  { label: "No. of Particles in Stock", value: mat.particles_stock ?? "" },
                 ]}
               />
             </CollapsibleSection>
@@ -975,23 +962,23 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 id="cellLineTable"
                 downloadFilename="ROS_Cell_Line"
                 rows={[
-                  { label: "Cell Type Specification", value: cl.cell_type_specification },
-                  { label: "Cell Line Short Name", value: cl.cell_line_short_name },
-                  { label: "Supplier", value: cl.supplier },
-                  { label: "Plate Details", value: cl.plate_details },
-                  { label: "Cells per Well", value: cl.cells_per_well },
-                  { label: "Volume per Well", value: cl.volume_per_well },
-                  { label: "Medium", value: cl.medium },
-                  { label: "Serum", value: cl.serum },
-                  { label: "Serum Concentration (Culture)", value: cl.serum_concentration_culture },
-                  { label: "Serum Concentration (Treatment)", value: cl.serum_concentration_treatment },
-                  { label: "Serum Heat Inactivated", value: cl.serum_heat_inactivated },
-                  { label: "Antibiotics", value: cl.antibiotics },
-                  { label: "Complete Growth Medium", value: cl.complete_growth_medium },
-                  { label: "Culture Conditions", value: cl.culture_conditions },
-                  { label: "Solvent for DCFDA", value: cl.solvent_for_dcfda },
-                  { label: "Incubation Time DCFDA", value: cl.incubation_time_dcfda },
-                  { label: "Volume of Solvent", value: cl.volume_of_solvent },
+                  { label: "Cell Type Specification", value: cl.cell_type_specification ?? "" },
+                  { label: "Cell Line Short Name", value: cl.cell_line_short_name ?? "" },
+                  { label: "Supplier", value: cl.supplier ?? "" },
+                  { label: "Plate Details", value: cl.plate_details ?? "" },
+                  { label: "Cells per Well", value: cl.cells_per_well ?? "" },
+                  { label: "Volume per Well", value: cl.volume_per_well ?? "" },
+                  { label: "Medium", value: cl.medium ?? "" },
+                  { label: "Serum", value: cl.serum ?? "" },
+                  { label: "Serum Concentration (Culture)", value: cl.serum_concentration_culture ?? "" },
+                  { label: "Serum Concentration (Treatment)", value: cl.serum_concentration_treatment ?? "" },
+                  { label: "Serum Heat Inactivated", value: cl.serum_heat_inactivated ?? "" },
+                  { label: "Antibiotics", value: cl.antibiotics ?? "" },
+                  { label: "Complete Growth Medium", value: cl.complete_growth_medium ?? "" },
+                  { label: "Culture Conditions", value: cl.culture_conditions ?? "" },
+                  { label: "Solvent for DCFDA", value: cl.solvent_for_dcfda ?? "" },
+                  { label: "Incubation Time DCFDA", value: cl.incubation_time_dcfda ?? "" },
+                  { label: "Volume of Solvent", value: cl.volume_of_solvent ?? "" },
                 ]}
               />
 
@@ -1013,7 +1000,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <tr>
                           {Object.values(cl.passage_numbers).map((v, i) => (
                             <td key={i} className="py-2 px-4 border text-sm">
-                              {v ?? "N/A"}
+                              {v ?? ""}
                             </td>
                           ))}
                         </tr>
@@ -1029,17 +1016,17 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 id="dispersionTable"
                 downloadFilename="ROS_Dispersion"
                 rows={[
-                  { label: "Dispersion Protocol", value: disp.dispersion_protocol },
-                  { label: "Dispersion Technique", value: disp.dispersion_technique },
-                  { label: "Dispersion Agent", value: disp.dispersion_agent },
-                  { label: "Dispersion Agent Concentration", value: disp.dispersion_agent_concentration },
-                  { label: "Additives", value: disp.additives },
-                  { label: "Dispersed in Culture Medium", value: disp.dispersed_in_culture_medium },
-                  { label: "Aids Used to Disperse", value: disp.aids_used_to_disperse },
-                  { label: "Sonication Bath", value: disp.sonication_bath },
-                  { label: "Sonication Tip", value: disp.sonication_tip },
-                  { label: "Time/Duration", value: disp.time_duration },
-                  { label: "Energy", value: disp.energy },
+                  { label: "Dispersion Protocol", value: disp.dispersion_protocol ?? "" },
+                  { label: "Dispersion Technique", value: disp.dispersion_technique ?? "" },
+                  { label: "Dispersion Agent", value: disp.dispersion_agent ?? "" },
+                  { label: "Dispersion Agent Concentration", value: disp.dispersion_agent_concentration ?? "" },
+                  { label: "Additives", value: disp.additives ?? "" },
+                  { label: "Dispersed in Culture Medium", value: disp.dispersed_in_culture_medium ?? "" },
+                  { label: "Aids Used to Disperse", value: disp.aids_used_to_disperse ?? "" },
+                  { label: "Sonication Bath", value: disp.sonication_bath ?? "" },
+                  { label: "Sonication Tip", value: disp.sonication_tip ?? "" },
+                  { label: "Time/Duration", value: disp.time_duration ?? "" },
+                  { label: "Energy", value: disp.energy ?? "" },
                 ]}
               />
             </CollapsibleSection>
@@ -1061,11 +1048,11 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <tbody>
                     <tr>
                       <td className="py-2 px-4 border font-medium">
-                        {treat.timeline.time_point_unit ?? "N/A"}
+                        {treat.timeline.time_point_unit ?? ""}
                       </td>
                       {treat.timeline.time_points.map((tp, i) => (
                         <td key={i} className="py-2 px-4 border">
-                          {tp ?? "N/A"}
+                          {tp ?? ""}
                         </td>
                       ))}
                     </tr>
@@ -1089,11 +1076,11 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <tbody>
                     <tr>
                       <td className="py-2 px-3 border font-medium">
-                        Concentration ({treat.concentration.unit ?? "µg/mL"})
+                        Concentration ({treat.concentration.unit ?? ""})
                       </td>
                       {treat.concentration.concentrations_ugml.map((c, i) => (
                         <td key={i} className="py-2 px-3 border text-center">
-                          {c ?? "N/A"}
+                          {c ?? ""}
                         </td>
                       ))}
                     </tr>
@@ -1105,7 +1092,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         </td>
                         {treat.concentration.concentrations_particles.map((c, i) => (
                           <td key={i} className="py-2 px-3 border text-center">
-                            {c ?? "N/A"}
+                            {c ?? ""}
                           </td>
                         ))}
                       </tr>
@@ -1116,7 +1103,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td className="py-2 px-3 border font-medium">Plate Series</td>
                         {treat.concentration.plate_series.map((ps, i) => (
                           <td key={i} className="py-2 px-3 border text-center">
-                            {ps ?? "N/A"}
+                            {ps ?? ""}
                           </td>
                         ))}
                       </tr>
@@ -1129,21 +1116,25 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="bg-green-50 p-3 rounded-md">
                   <p className="font-semibold text-green-800 text-sm mb-1">Positive Control</p>
                   <p className="text-sm">
-                    {treat.concentration.positive_control_abbr ?? "N/A"} —{" "}
-                    {treat.concentration.positive_control_desc ?? "N/A"}
+                    {treat.concentration.positive_control_abbr ?? ""}{" "}
+                    {treat.concentration.positive_control_desc
+                      ? `— ${treat.concentration.positive_control_desc}`
+                      : ""}
                   </p>
                 </div>
                 <div className="bg-red-50 p-3 rounded-md">
                   <p className="font-semibold text-red-800 text-sm mb-1">Negative Control</p>
                   <p className="text-sm">
-                    {treat.concentration.negative_control_abbr ?? "N/A"} —{" "}
-                    {treat.concentration.negative_control_desc ?? "N/A"}
+                    {treat.concentration.negative_control_abbr ?? ""}{" "}
+                    {treat.concentration.negative_control_desc
+                      ? `— ${treat.concentration.negative_control_desc}`
+                      : ""}
                   </p>
                 </div>
               </div>
 
               <p className="text-sm text-gray-600">
-                Number of Experiments: {treat.concentration.number_of_experiments ?? "N/A"}
+                Number of Experiments: {treat.concentration.number_of_experiments ?? ""}
               </p>
             </CollapsibleSection>
 
@@ -1171,17 +1162,15 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     {repMeta.length ? (
                       repMeta.map((r, i) => (
                         <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}>
-                          <td className="py-2 px-4 border">{r.test_identifier_number ?? "N/A"}</td>
-                          <td className="py-2 px-4 border">{r.test_start_date ?? "N/A"}</td>
-                          <td className="py-2 px-4 border">{r.test_end_date ?? "N/A"}</td>
-                          <td className="py-2 px-4 border">{r.replicate_label ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{r.test_identifier_number ?? ""}</td>
+                          <td className="py-2 px-4 border">{r.test_start_date ?? ""}</td>
+                          <td className="py-2 px-4 border">{r.test_end_date ?? ""}</td>
+                          <td className="py-2 px-4 border">{r.replicate_label ?? ""}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="py-2 px-4 border text-center">
-                          No replication metadata available
-                        </td>
+                        <td colSpan={4} className="py-2 px-4 border text-center"></td>
                       </tr>
                     )}
                   </tbody>
@@ -1204,15 +1193,13 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       {wp.lead_scientists?.length ? (
                         wp.lead_scientists.map((s, i) => (
                           <tr key={i}>
-                            <td className="py-2 px-4 border">{s.name ?? "N/A"}</td>
-                            <td className="py-2 px-4 border">{s.email ?? "N/A"}</td>
+                            <td className="py-2 px-4 border">{s.name ?? ""}</td>
+                            <td className="py-2 px-4 border">{s.email ?? ""}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={2} className="py-2 px-4 border text-center">
-                            No lead scientists available
-                          </td>
+                          <td colSpan={2} className="py-2 px-4 border text-center"></td>
                         </tr>
                       )}
                     </tbody>
@@ -1232,15 +1219,13 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       {wp.assay_scientists?.length ? (
                         wp.assay_scientists.map((s, i) => (
                           <tr key={i}>
-                            <td className="py-2 px-4 border">{s.name ?? "N/A"}</td>
-                            <td className="py-2 px-4 border">{s.email ?? "N/A"}</td>
+                            <td className="py-2 px-4 border">{s.name ?? ""}</td>
+                            <td className="py-2 px-4 border">{s.email ?? ""}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={2} className="py-2 px-4 border text-center">
-                            No assay scientists available
-                          </td>
+                          <td colSpan={2} className="py-2 px-4 border text-center"></td>
                         </tr>
                       )}
                     </tbody>
@@ -1251,7 +1236,6 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </>
         )}
 
-        {/* Raw Data */}
         {activeTab === "raw-data" && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
@@ -1298,8 +1282,8 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="concentration" />
-                        <YAxis />
-                        <Tooltip />
+                        <YAxis label={{ value: "%", angle: -90, position: "insideLeft" }} />
+                        <Tooltip formatter={(value: any) => percentTooltip(value)} />
                         <Legend />
                         {safeRawBlocks[selectedRawBlock].experiments.map((exp, i) => (
                           <Bar
@@ -1330,12 +1314,12 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       {safeRawBlocks[selectedRawBlock].experiments.map((exp, ei) => (
                         <tr key={ei} className={ei % 2 === 0 ? "bg-gray-50" : ""}>
                           <td className="py-2 px-3 border font-medium">
-                            {exp.experiment_label ?? "N/A"}
+                            {exp.experiment_label ?? ""}
                           </td>
-                          <td className="py-2 px-3 border">{exp.cytometric_events ?? "N/A"}</td>
+                          <td className="py-2 px-3 border">{exp.cytometric_events ?? ""}</td>
                           {exp.values.map((v, vi) => (
                             <td key={vi} className="py-2 px-3 border text-center">
-                              {v != null ? Number(v).toFixed(4) : "-"}
+                              {fmtPercent(v, 2)}
                             </td>
                           ))}
                         </tr>
@@ -1345,12 +1329,11 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </div>
               </>
             ) : (
-              <p className="text-center text-gray-500">No raw data available.</p>
+              <p className="text-center text-gray-500"></p>
             )}
           </div>
         )}
 
-        {/* Processed Data */}
         {activeTab === "processed-data" && (
           <>
             {data.processed_data?.fluorescence_sum && (
@@ -1363,7 +1346,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="mb-4 flex items-center gap-4 flex-wrap">
                   <span className="text-sm">
                     <span className="font-semibold">Filter:</span>{" "}
-                    {data.processed_data.fluorescence_sum.filter_label ?? "N/A"}
+                    {data.processed_data.fluorescence_sum.filter_label ?? ""}
                   </span>
                   <span className="text-sm">
                     <span className="font-semibold">CV Acceptance:</span>{" "}
@@ -1380,34 +1363,24 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 {fluorescenceChartData.length > 0 && (
                   <div className="mb-6">
                     <ResponsiveContainer width="100%" height={350}>
-                      <LineChart
+                      <BarChart
                         data={fluorescenceChartData}
                         margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="concentration" />
-                        <YAxis />
-                        <Tooltip />
+                        <YAxis label={{ value: "%", angle: -90, position: "insideLeft" }} />
+                        <Tooltip formatter={(value: any) => percentTooltip(value)} />
                         <Legend />
                         {data.processed_data.fluorescence_sum.experiments.map((exp, i) => (
-                          <Line
+                          <Bar
                             key={exp.label}
-                            type="monotone"
                             dataKey={exp.label}
-                            stroke={COLORS[i % COLORS.length]}
-                            strokeWidth={2}
-                            dot={{ r: 3 }}
+                            fill={COLORS[i % COLORS.length]}
                           />
                         ))}
-                        <Line
-                          type="monotone"
-                          dataKey="Mean"
-                          stroke="#000"
-                          strokeWidth={3}
-                          strokeDasharray="5 5"
-                          dot={{ r: 4 }}
-                        />
-                      </LineChart>
+                        <Bar dataKey="Mean" fill="#111827" />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 )}
@@ -1430,7 +1403,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="mb-4 flex items-center gap-4 flex-wrap">
                   <span className="text-sm">
                     <span className="font-semibold">Filter:</span>{" "}
-                    {data.processed_data.percentage_high_ros.filter_label ?? "N/A"}
+                    {data.processed_data.percentage_high_ros.filter_label ?? ""}
                   </span>
                   <span className="text-sm">
                     <span className="font-semibold">CV Acceptance:</span>{" "}
@@ -1447,34 +1420,24 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 {highROSChartData.length > 0 && (
                   <div className="mb-6">
                     <ResponsiveContainer width="100%" height={350}>
-                      <LineChart
+                      <BarChart
                         data={highROSChartData}
                         margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="concentration" />
-                        <YAxis />
-                        <Tooltip />
+                        <YAxis label={{ value: "%", angle: -90, position: "insideLeft" }} />
+                        <Tooltip formatter={(value: any) => percentTooltip(value)} />
                         <Legend />
                         {data.processed_data.percentage_high_ros.experiments.map((exp, i) => (
-                          <Line
+                          <Bar
                             key={exp.label}
-                            type="monotone"
                             dataKey={exp.label}
-                            stroke={COLORS[i % COLORS.length]}
-                            strokeWidth={2}
-                            dot={{ r: 3 }}
+                            fill={COLORS[i % COLORS.length]}
                           />
                         ))}
-                        <Line
-                          type="monotone"
-                          dataKey="Mean"
-                          stroke="#000"
-                          strokeWidth={3}
-                          strokeDasharray="5 5"
-                          dot={{ r: 4 }}
-                        />
-                      </LineChart>
+                        <Bar dataKey="Mean" fill="#111827" />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 )}
@@ -1514,12 +1477,10 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}>
                             <td className="py-2 px-3 border">{c}</td>
                             <td className="py-2 px-3 border">
-                              {data.processed_data.experiment_5_separate.values[i] != null
-                                ? Number(data.processed_data.experiment_5_separate.values[i]).toFixed(4)
-                                : "-"}
+                              {fmtPercent(data.processed_data.experiment_5_separate.values[i], 2)}
                             </td>
                             <td className="py-2 px-3 border">
-                              {data.processed_data.experiment_5_separate.cytometric_events[i] ?? "-"}
+                              {data.processed_data.experiment_5_separate.cytometric_events[i] ?? ""}
                             </td>
                           </tr>
                         ))}
@@ -1531,7 +1492,6 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </>
         )}
 
-        {/* Mean Data */}
         {activeTab === "results" && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
@@ -1574,40 +1534,30 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     <>
                       <p className="text-sm text-gray-600 mb-4">
                         <span className="font-semibold">Concentration Unit:</span>{" "}
-                        {block.concentration_unit ?? "N/A"}
+                        {block.concentration_unit ?? ""}
                       </p>
 
                       {meanChartData.length > 0 && (
                         <div className="mb-6">
                           <ResponsiveContainer width="100%" height={380}>
-                            <LineChart
+                            <BarChart
                               data={meanChartData}
                               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                             >
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="concentration" />
-                              <YAxis />
-                              <Tooltip />
+                              <YAxis label={{ value: "%", angle: -90, position: "insideLeft" }} />
+                              <Tooltip formatter={(value: any) => percentTooltip(value)} />
                               <Legend />
                               {block.experiments.map((exp, i) => (
-                                <Line
+                                <Bar
                                   key={exp.label}
-                                  type="monotone"
                                   dataKey={exp.label}
-                                  stroke={COLORS[i % COLORS.length]}
-                                  strokeWidth={2}
-                                  dot={{ r: 3 }}
+                                  fill={COLORS[i % COLORS.length]}
                                 />
                               ))}
-                              <Line
-                                type="monotone"
-                                dataKey="Mean"
-                                stroke="#000"
-                                strokeWidth={3}
-                                strokeDasharray="5 5"
-                                dot={{ r: 4 }}
-                              />
-                            </LineChart>
+                              <Bar dataKey="Mean" fill="#111827" />
+                            </BarChart>
                           </ResponsiveContainer>
                         </div>
                       )}
@@ -1630,9 +1580,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                                 <td className="py-2 px-3 border font-medium">{exp.label}</td>
                                 {block.concentrations.map((c, ci) => (
                                   <td key={ci} className="py-2 px-3 border text-center">
-                                    {exp.values[String(c)] != null
-                                      ? Number(exp.values[String(c)]).toFixed(4)
-                                      : "-"}
+                                    {fmtPercent(exp.values[String(c)], 2)}
                                   </td>
                                 ))}
                               </tr>
@@ -1642,7 +1590,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                               <td className="py-2 px-3 border">Mean</td>
                               {block.mean.map((m, i) => (
                                 <td key={i} className="py-2 px-3 border text-center">
-                                  {m != null ? Number(m).toFixed(4) : "-"}
+                                  {fmtPercent(m, 2)}
                                 </td>
                               ))}
                             </tr>
@@ -1651,7 +1599,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                               <td className="py-2 px-3 border font-semibold">SD</td>
                               {block.sd.map((s, i) => (
                                 <td key={i} className="py-2 px-3 border text-center">
-                                  {s != null ? Number(s).toFixed(4) : "-"}
+                                  {fmtPercent(s, 2)}
                                 </td>
                               ))}
                             </tr>
@@ -1663,12 +1611,11 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 })()}
               </>
             ) : (
-              <p className="text-center text-gray-500">No mean data available.</p>
+              <p className="text-center text-gray-500"></p>
             )}
           </div>
         )}
 
-        {/* Statistical Analysis */}
         {activeTab === "statistics" && data.statistical_analysis && (
           <>
             {data.statistical_analysis.fluorescence_sum_anova && (

@@ -165,6 +165,27 @@ interface TBFinalResults {
   sd_row: TBFinalAggregateRow;
 }
 
+interface TBTukeyComparison {
+  comparison: string;
+  mean_diff: number | null;
+  ci_95: string | null;
+  significant: string | null;
+  summary: string | null;
+  adjusted_p_value: number | null;
+}
+
+interface TBTukeyDetail {
+  comparison: string;
+  mean_1: number | null;
+  mean_2: number | null;
+  mean_diff: number | null;
+  se_of_diff: number | null;
+  n1: number | null;
+  n2: number | null;
+  q: number | null;
+  df: number | null;
+}
+
 interface TBStatisticalAnalysis {
   available?: boolean;
   software?: string | null;
@@ -182,6 +203,8 @@ interface TBStatisticalAnalysis {
     p_value_summary?: string | null;
     sd_significantly_different?: string | null;
   };
+  tukey_comparisons?: TBTukeyComparison[];
+  tukey_details?: TBTukeyDetail[];
 }
 
 interface TBData {
@@ -192,6 +215,14 @@ interface TBData {
     cell_line: CellLineData;
     treatment: TreatmentData;
   };
+  replication_metadata?: {
+    test_identifier_number: string | null;
+    test_start_date: string | null;
+    test_end_date: string | null;
+    replicate_label: string | null;
+    raw_sheet_name: string | null;
+    processed_sheet_name: string | null;
+  }[];
   raw_data: TBRawDataBlock[];
   processed_data: TBProcessedDataBlock[];
   final_results: TBFinalResults;
@@ -200,14 +231,20 @@ interface TBData {
 
 /* ============================ Helpers ============================ */
 
-type TabKey = "test-conditions" | "raw-data" | "processed-data" | "results";
+type TabKey =
+  | "test-conditions"
+  | "raw-data"
+  | "processed-data"
+  | "results"
+  | "statistical-analysis";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "test-conditions", label: "Test Conditions" },
-  { key: "raw-data", label: "Raw Data" },
-  { key: "processed-data", label: "Processed Data" },
-  { key: "results", label: "Final Results" },
-];
+  const TABS: { key: TabKey; label: string }[] = [
+    { key: "test-conditions", label: "Test Conditions" },
+    { key: "raw-data", label: "Raw Data" },
+    { key: "processed-data", label: "Processed Data" },
+    { key: "statistical-analysis", label: "Statistical Analysis" },
+    { key: "results", label: "Final Results" },
+  ];
 
 const COLORS = ["#2563eb", "#16a34a", "#ea580c", "#9333ea", "#dc2626", "#0891b2"];
 
@@ -297,9 +334,9 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     document.body.removeChild(link);
   };
 
-  const safeRawData = useMemo(() => (Array.isArray(data?.raw_data) ? data!.raw_data : []), [data?.raw_data]);
+  const safeRawData = useMemo(() => (Array.isArray(data?.raw_data) ? data.raw_data : []), [data?.raw_data]);
   const safeProcessedData = useMemo(
-    () => (Array.isArray(data?.processed_data) ? data!.processed_data : []),
+    () => (Array.isArray(data?.processed_data) ? data.processed_data : []),
     [data?.processed_data]
   );
 
@@ -628,14 +665,8 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </div>
 
                 <div className="mb-6 bg-blue-50 p-4 rounded-md">
-                  <h3 className="text-lg font-semibold mb-3">Run Details</h3>
+                  <h3 className="text-lg font-semibold mb-3">Protocol Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><p className="font-semibold">Run Label:</p><p>{currentRawRun?.run_label ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Plate Label:</p><p>{currentRawRun?.plate_label ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Test Identifier:</p><p>{currentRawRun?.test_identifier ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Metric Name:</p><p>{currentRawRun?.metric_name ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Raw Sheet:</p><p>{currentRawRun?.raw_sheet_name ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Processed Sheet:</p><p>{currentRawRun?.processed_sheet_name ?? "N/A"}</p></div>
                     <div><p className="font-semibold">Protocol Name:</p><p>{currentRawRun?.protocol_name ?? "N/A"}</p></div>
                     <div><p className="font-semibold">Protocol Number:</p><p>{currentRawRun?.protocol_number ?? "N/A"}</p></div>
                     <div><p className="font-semibold">Plate Type:</p><p>{currentRawRun?.plate_type ?? "N/A"}</p></div>
@@ -697,7 +728,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <div className="mt-6 bg-blue-50 p-4 rounded-md">
                     <h3 className="text-lg font-semibold mb-3">Assay Notes</h3>
                     <ul className="list-disc list-inside space-y-1">
-                      {currentRawRun!.assay_notes.map((note, index) => (
+                      {(currentRawRun?.assay_notes ?? []).map((note, index) => (
                         <li key={index}>{note}</li>
                       ))}
                     </ul>
@@ -736,21 +767,10 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </select>
                 </div>
 
-                <div className="mb-6 bg-blue-50 p-4 rounded-md">
-                  <h3 className="text-lg font-semibold mb-3">Processed Run Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><p className="font-semibold">Run Label:</p><p>{currentProcessedRun?.run_label ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Processed Sheet Name:</p><p>{currentProcessedRun?.processed_sheet_name ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Identifier:</p><p>{currentProcessedRun?.identifier ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Metric:</p><p>{currentProcessedRun?.metric_name ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Has Data:</p><p>{currentProcessedRun?.has_data ? "Yes" : "No"}</p></div>
-                  </div>
-                </div>
-
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold mb-3">Processed Values</h3>
                   <ResponsiveContainer width="100%" height={360}>
-                    <LineChart data={processedLineChartData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+                    <BarChart data={processedLineChartData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="condition" />
                       <YAxis
@@ -761,8 +781,12 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         }}
                       />
                       <Tooltip formatter={(value: any) => fmt(value, 2)} />
-                      <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={2} dot />
-                    </LineChart>
+                      <Bar dataKey="value">
+                        {processedLineChartData.map((_, index) => (
+                          <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
 
@@ -797,12 +821,12 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </div>
         )}
 
-        {activeTab === "results" && (
+        {activeTab === "statistical-analysis" && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-blue-800">TB Results</h2>
+              <h2 className="text-xl font-bold text-blue-800">Statistical Analysis</h2>
               <button
-                onClick={() => downloadTable("tbResultsTable", "TB_Results")}
+                onClick={() => downloadTable("tbStatsOverviewTable", "TB_Statistical_Analysis")}
                 className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
               >
                 <Download size={16} />
@@ -810,13 +834,137 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               </button>
             </div>
 
-            <div className="mb-6 bg-blue-50 p-4 rounded-md">
-              <h3 className="text-lg font-semibold mb-3">Final Results</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><p className="font-semibold">Sample Identifier:</p><p>{data.final_results.sample_identifier ?? "N/A"}</p></div>
-                <div><p className="font-semibold">Endpoint:</p><p>{data.final_results.endpoint ?? "N/A"}</p></div>
-                <div><p className="font-semibold">Statistics Available:</p><p>{data.statistical_analysis?.available ? "Yes" : "No"}</p></div>
-              </div>
+            {data.statistical_analysis?.available ? (
+              <>
+                <div className="overflow-x-auto mb-8">
+                  <table id="tbStatsOverviewTable" className="min-w-full bg-white border border-gray-200">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="py-2 px-4 border text-left">Metric</th>
+                        <th className="py-2 px-4 border text-left">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td className="py-2 px-4 border font-medium">Software</td><td className="py-2 px-4 border">{data.statistical_analysis.software ?? "N/A"}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">Test</td><td className="py-2 px-4 border">{data.statistical_analysis.test ?? "N/A"}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">ANOVA F value</td><td className="py-2 px-4 border">{fmt(data.statistical_analysis.anova_summary?.F, 4)}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">ANOVA P value</td><td className="py-2 px-4 border">{fmt(data.statistical_analysis.anova_summary?.p_value, 4)}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">P value summary</td><td className="py-2 px-4 border">{data.statistical_analysis.anova_summary?.p_value_summary ?? "N/A"}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">Significant difference</td><td className="py-2 px-4 border">{data.statistical_analysis.anova_summary?.significant_difference ?? "N/A"}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">R squared</td><td className="py-2 px-4 border">{fmt(data.statistical_analysis.anova_summary?.r_squared, 4)}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">Brown-Forsythe F (DFn, DFd)</td><td className="py-2 px-4 border">{data.statistical_analysis.brown_forsythe_test?.f_dfn_dfd ?? "N/A"}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">Brown-Forsythe P value</td><td className="py-2 px-4 border">{fmt(data.statistical_analysis.brown_forsythe_test?.p_value, 4)}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">Brown-Forsythe P value summary</td><td className="py-2 px-4 border">{data.statistical_analysis.brown_forsythe_test?.p_value_summary ?? "N/A"}</td></tr>
+                      <tr><td className="py-2 px-4 border font-medium">SD significantly different</td><td className="py-2 px-4 border">{data.statistical_analysis.brown_forsythe_test?.sd_significantly_different ?? "N/A"}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {(data.statistical_analysis.tukey_comparisons?.length ?? 0) > 0 && (
+                  <div className="mb-8">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-lg font-semibold">Tukey Multiple Comparisons</h3>
+                      <button
+                        onClick={() => downloadTable("tbTukeyComparisonsTable", "TB_Tukey_Comparisons")}
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                      >
+                        <Download size={14} />
+                        <span>Download</span>
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table id="tbTukeyComparisonsTable" className="min-w-full bg-white border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="py-2 px-4 border text-left">Comparison</th>
+                            <th className="py-2 px-4 border text-left">Mean Diff</th>
+                            <th className="py-2 px-4 border text-left">95% CI</th>
+                            <th className="py-2 px-4 border text-left">Significant</th>
+                            <th className="py-2 px-4 border text-left">Summary</th>
+                            <th className="py-2 px-4 border text-left">Adjusted P</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.statistical_analysis.tukey_comparisons!.map((row, idx) => (
+                            <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : ""}>
+                              <td className="py-2 px-4 border">{row.comparison}</td>
+                              <td className="py-2 px-4 border">{fmt(row.mean_diff, 4)}</td>
+                              <td className="py-2 px-4 border">{row.ci_95 ?? "N/A"}</td>
+                              <td className="py-2 px-4 border">{row.significant ?? "N/A"}</td>
+                              <td className="py-2 px-4 border">{row.summary ?? "N/A"}</td>
+                              <td className="py-2 px-4 border">{fmt(row.adjusted_p_value, 4)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {(data.statistical_analysis.tukey_details?.length ?? 0) > 0 && (
+                  <div className="mb-8">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-lg font-semibold">Tukey Test Details</h3>
+                      <button
+                        onClick={() => downloadTable("tbTukeyDetailsTable", "TB_Tukey_Details")}
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                      >
+                        <Download size={14} />
+                        <span>Download</span>
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table id="tbTukeyDetailsTable" className="min-w-full bg-white border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="py-2 px-4 border text-left">Comparison</th>
+                            <th className="py-2 px-4 border text-left">Mean 1</th>
+                            <th className="py-2 px-4 border text-left">Mean 2</th>
+                            <th className="py-2 px-4 border text-left">Mean Diff</th>
+                            <th className="py-2 px-4 border text-left">SE of Diff</th>
+                            <th className="py-2 px-4 border text-left">N1</th>
+                            <th className="py-2 px-4 border text-left">N2</th>
+                            <th className="py-2 px-4 border text-left">Q</th>
+                            <th className="py-2 px-4 border text-left">DF</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.statistical_analysis.tukey_details!.map((row, idx) => (
+                            <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : ""}>
+                              <td className="py-2 px-4 border">{row.comparison}</td>
+                              <td className="py-2 px-4 border">{fmt(row.mean_1, 4)}</td>
+                              <td className="py-2 px-4 border">{fmt(row.mean_2, 4)}</td>
+                              <td className="py-2 px-4 border">{fmt(row.mean_diff, 4)}</td>
+                              <td className="py-2 px-4 border">{fmt(row.se_of_diff, 4)}</td>
+                              <td className="py-2 px-4 border">{fmt(row.n1, 0)}</td>
+                              <td className="py-2 px-4 border">{fmt(row.n2, 0)}</td>
+                              <td className="py-2 px-4 border">{fmt(row.q, 4)}</td>
+                              <td className="py-2 px-4 border">{fmt(row.df, 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center text-gray-600">No statistical analysis available</div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "results" && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-blue-800">Trypan Blue exclusion assay</h2>
+              <button
+                onClick={() => downloadTable("tbResultsTable", "TB_Results")}
+                className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+              >
+                <Download size={16} />
+                <span>Download</span>
+              </button>
             </div>
 
             <div className="mb-8">
@@ -882,29 +1030,6 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </tbody>
               </table>
             </div>
-
-            {data.statistical_analysis?.available && (
-              <div className="bg-blue-50 p-4 rounded-md">
-                <h3 className="text-lg font-semibold mb-3">Statistical Analysis</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <p><span className="font-semibold">Software:</span> {data.statistical_analysis.software ?? "N/A"}</p>
-                    <p><span className="font-semibold">Test:</span> {data.statistical_analysis.test ?? "N/A"}</p>
-                    <p><span className="font-semibold">ANOVA F value:</span> {fmt(data.statistical_analysis.anova_summary?.F, 4)}</p>
-                    <p><span className="font-semibold">ANOVA P value:</span> {fmt(data.statistical_analysis.anova_summary?.p_value, 4)}</p>
-                    <p><span className="font-semibold">P value summary:</span> {data.statistical_analysis.anova_summary?.p_value_summary ?? "N/A"}</p>
-                    <p><span className="font-semibold">Significant difference:</span> {data.statistical_analysis.anova_summary?.significant_difference ?? "N/A"}</p>
-                    <p><span className="font-semibold">R squared:</span> {fmt(data.statistical_analysis.anova_summary?.r_squared, 4)}</p>
-                  </div>
-                  <div>
-                    <p><span className="font-semibold">Brown-Forsythe F (DFn, DFd):</span> {data.statistical_analysis.brown_forsythe_test?.f_dfn_dfd ?? "N/A"}</p>
-                    <p><span className="font-semibold">Brown-Forsythe P value:</span> {fmt(data.statistical_analysis.brown_forsythe_test?.p_value, 4)}</p>
-                    <p><span className="font-semibold">P value summary:</span> {data.statistical_analysis.brown_forsythe_test?.p_value_summary ?? "N/A"}</p>
-                    <p><span className="font-semibold">SD significantly different:</span> {data.statistical_analysis.brown_forsythe_test?.sd_significantly_different ?? "N/A"}</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

@@ -56,17 +56,18 @@ interface MaterialData {
   batch: string | null;
   vial: string | null;
   preparation_date: string | null;
-  endotoxin_absent: string | null;
   stock_concentration: string | null;
+  stock_concentration_secondary: string | null;
   molecular_weight: string | null;
   particles_stock: string | null;
+  endotoxin_status: string | null;
 }
 
 interface DispersionData {
   dispersion_protocol: string | null;
   dispersion_technique: string | null;
   dispersion_agent: string | null;
-  dispersion_agent_concentration: string | null;
+  agent_concentration: string | null;
   additives: string | null;
   dispersed_in_culture_medium: string | null;
   aids_used_to_disperse: string | null;
@@ -77,115 +78,110 @@ interface DispersionData {
 }
 
 interface CellLineData {
-  cell_type_specification: string | null;
+  cell_type: string | null;
   cell_line_short_name: string | null;
   supplier: string | null;
-  passage_numbers: Record<string, number | string | null> | null;
+  passage_numbers: (number | string | null)[];
   plate_details: string | null;
-  cells_per_chamber: number | string | null;
-  volume_per_chamber: string | null;
+  number_of_cells_per_chamber: number | string | null;
+  total_volume_per_chamber: string | null;
   medium: string | null;
   serum: string | null;
-  serum_concentration_culture: number | string | null;
-  serum_concentration_treatment: number | string | null;
+  serum_concentration_culture_medium: number | string | null;
+  serum_concentration_treatment_medium: number | string | null;
   serum_heat_inactivated: string | null;
   antibiotics: string | null;
   complete_growth_medium: string | null;
-  culture_conditions: string | null;
+  cell_culture_conditions: string | null;
   trypan_blue_solution: string | null;
-  incubation_time_tb: string | null;
-  volume: string | null;
+  incubation_time_with_tb: string | null;
+  tb_volume: string | null;
 }
 
 interface TreatmentData {
-  timeline: {
-    time_point_unit: string | null;
-    time_point_labels: string[];
-    time_points: (number | string | null)[];
-  };
-  concentration: {
-    unit: string | null;
-    labels: string[];
-    concentrations_ugml: (number | string | null)[];
-    concentrations_particles: (number | string | null)[];
-    controls_abbreviation: string | null;
-    controls_description: string | null;
-    number_of_experiments: string | number | null;
-  };
+  time_point_unit: string | null;
+  time_point_labels: string[];
+  time_points: (number | string | null)[];
+  concentration_unit: string | null;
+  concentration_labels: string[];
+  concentrations_ug_ml: (number | string | null)[];
+  concentrations_particles: (number | string | null)[];
+  controls_abbreviations: string[];
+  controls_description: string[];
+  number_of_experiments: string | number | null;
+  notes_a?: string | null;
+  notes_b?: string | null;
+  notes_c?: string | null;
 }
 
-interface TBRawReplicate {
-  test_identifier_number: string | null;
-  replicate_label: string | null;
+interface TBMeasurement {
+  chamber_label: string | null;
+  percent_cell_death: number | null;
 }
 
-interface TBProcessedReplicate {
-  replicate_id: string | null;
-  device_label: string | null;
-  metric: string | null;
-  treatments: Record<string, number>;
+interface TBRawDataBlock {
+  run_label: string | null;
+  plate_label: string | null;
+  test_identifier: string | null;
+  metric_name: string | null;
+  raw_sheet_name: string | null;
+  processed_sheet_name: string | null;
+  protocol_name: string | null;
+  protocol_number: string | null;
+  plate_type: string | null;
+  number_of_repeats: string | null;
+  protocol_created_by: string | null;
+  instrument_serial_number: string | null;
+  measurements: TBMeasurement[];
+  assay_notes: string[];
+}
+
+interface TBProcessedDataBlock {
+  run_label: string | null;
+  processed_sheet_name: string | null;
+  identifier: string | null;
+  metric_name: string | null;
+  condition_labels: string[];
+  values: (number | null)[];
+  has_data: boolean | null;
+}
+
+interface TBFinalReplicateRow {
+  replicate: string;
+  values: Record<string, number>;
+}
+
+interface TBFinalAggregateRow {
+  label: string;
+  values: Record<string, number>;
 }
 
 interface TBFinalResults {
-  material_id: string | null;
-  assay_name: string | null;
-  metric: string | null;
-  treatments: string[];
-  replicate_data: {
-    replicate_id: string;
-    values: Record<string, number>;
-  }[];
-  mean: Record<string, number>;
-  sd: Record<string, number>;
+  sample_identifier: string | null;
+  endpoint: string | null;
+  condition_labels: string[];
+  replicate_rows: TBFinalReplicateRow[];
+  mean_row: TBFinalAggregateRow;
+  sd_row: TBFinalAggregateRow;
 }
 
 interface TBStatisticalAnalysis {
-  tool?: string | null;
-  raw_data?: Record<string, number[]>;
+  available?: boolean;
+  software?: string | null;
+  test?: string | null;
   anova_summary?: {
-    f_value?: number | null;
+    F?: number | null;
     p_value?: number | null;
     p_value_summary?: string | null;
-    significant?: string | null;
+    significant_difference?: string | null;
     r_squared?: number | null;
   };
-  brown_forsythe?: {
+  brown_forsythe_test?: {
     f_dfn_dfd?: string | null;
     p_value?: number | null;
     p_value_summary?: string | null;
-    sds_significantly_different?: string | null;
+    sd_significantly_different?: string | null;
   };
-  anova_table?: {
-    source: string;
-    ss: number | null;
-    df: number | null;
-    ms: number | null;
-    f_dfn_dfd: string | null;
-    p_value: string | null;
-  }[];
-  data_summary?: {
-    number_of_treatments?: number;
-    number_of_values?: number;
-  };
-  tukey_comparisons?: {
-    comparison: string;
-    mean_diff: number | null;
-    ci_95: string | null;
-    significant: string | null;
-    summary: string | null;
-    adjusted_p_value: number | null;
-  }[];
-  tukey_details?: {
-    comparison: string;
-    mean_1: number | null;
-    mean_2: number | null;
-    mean_diff: number | null;
-    se_of_diff: number | null;
-    n1: number | null;
-    n2: number | null;
-    q: number | null;
-    df: number | null;
-  }[];
 }
 
 interface TBData {
@@ -196,8 +192,8 @@ interface TBData {
     cell_line: CellLineData;
     treatment: TreatmentData;
   };
-  raw_data: TBRawReplicate[];
-  processed_data: TBProcessedReplicate[];
+  raw_data: TBRawDataBlock[];
+  processed_data: TBProcessedDataBlock[];
   final_results: TBFinalResults;
   statistical_analysis: TBStatisticalAnalysis | null;
 }
@@ -222,12 +218,12 @@ const fmt = (v: any, digits = 2) => {
 };
 
 const fmtPassageNumbers = (
-  value: Record<string, number | string | null> | (number | string | null)[] | string | null | undefined
+  value: (number | string | null)[] | Record<string, number | string | null> | string | null | undefined
 ) => {
   if (value === null || value === undefined || value === "") return "N/A";
 
   if (Array.isArray(value)) {
-    return value.filter(Boolean).join(", ") || "N/A";
+    return value.filter((item) => item !== null && item !== undefined && item !== "").join(", ") || "N/A";
   }
 
   if (typeof value === "object") {
@@ -301,38 +297,44 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     document.body.removeChild(link);
   };
 
+  const safeRawData = useMemo(() => (Array.isArray(data?.raw_data) ? data!.raw_data : []), [data?.raw_data]);
+  const safeProcessedData = useMemo(
+    () => (Array.isArray(data?.processed_data) ? data!.processed_data : []),
+    [data?.processed_data]
+  );
+
   const currentRawRun = useMemo(() => {
-    if (!data?.raw_data?.length) return null;
-    return data.raw_data[selectedRun] || data.raw_data[0];
-  }, [data?.raw_data, selectedRun]);
+    if (!safeRawData.length) return null;
+    return safeRawData[selectedRun] || safeRawData[0];
+  }, [safeRawData, selectedRun]);
 
   const currentProcessedRun = useMemo(() => {
-    if (!data?.processed_data?.length) return null;
-    return data.processed_data[selectedRun] || data.processed_data[0];
-  }, [data?.processed_data, selectedRun]);
+    if (!safeProcessedData.length) return null;
+    return safeProcessedData[selectedRun] || safeProcessedData[0];
+  }, [safeProcessedData, selectedRun]);
 
   const rawBarChartData = useMemo(() => {
-    if (!data?.processed_data?.[selectedRun]?.treatments) return [];
-    return Object.entries(data.processed_data[selectedRun].treatments).map(([treatment, value]) => ({
-      chamber: treatment,
-      value,
+    if (!currentRawRun?.measurements?.length) return [];
+    return currentRawRun.measurements.map((measurement) => ({
+      chamber: measurement.chamber_label ?? "N/A",
+      value: measurement.percent_cell_death ?? 0,
     }));
-  }, [data?.processed_data, selectedRun]);
+  }, [currentRawRun]);
 
   const processedLineChartData = useMemo(() => {
-    if (!currentProcessedRun?.treatments) return [];
-    return Object.entries(currentProcessedRun.treatments).map(([condition, value]) => ({
+    if (!currentProcessedRun?.condition_labels?.length) return [];
+    return currentProcessedRun.condition_labels.map((condition, index) => ({
       condition,
-      value,
+      value: currentProcessedRun.values?.[index] ?? 0,
     }));
   }, [currentProcessedRun]);
 
   const finalMeanChartData = useMemo(() => {
-    if (!data?.final_results?.mean) return [];
-    return Object.entries(data.final_results.mean).map(([condition, mean]) => ({
+    if (!data?.final_results?.mean_row?.values) return [];
+    return data.final_results.condition_labels.map((condition) => ({
       condition,
-      mean,
-      sd: data?.final_results?.sd?.[condition] ?? 0,
+      mean: data.final_results.mean_row.values?.[condition] ?? 0,
+      sd: data.final_results.sd_row?.values?.[condition] ?? 0,
     }));
   }, [data?.final_results]);
 
@@ -354,10 +356,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     );
   }
 
-  const runOptionsCount = Math.max(
-    data.raw_data?.length || 0,
-    data.processed_data?.length || 0
-  );
+  const runOptionsCount = Math.max(safeRawData.length, safeProcessedData.length);
 
   return (
     <div className="bg-gray-50 min-h-screen py-8 text-black">
@@ -375,7 +374,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <span className="font-semibold">CMS Internal Identifier:</span> {element || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">ERM Identifier:</span> {data?.test_details?.material?.erm_id ?? "N/A"}
+                  <span className="font-semibold">ERM Identifier:</span> {data.test_details.material.erm_id ?? "N/A"}
                 </p>
               </div>
             </div>
@@ -384,22 +383,27 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <h2 className="text-lg font-semibold mb-3">Test Information</h2>
               <div className="bg-blue-50 p-4 rounded-md">
                 <p className="mb-2">
-                  <span className="font-semibold">Full Test Name:</span> {data?.test_details?.work_package?.full_test_name ?? "N/A"}
+                  <span className="font-semibold">Full Test Name:</span>{" "}
+                  {data.test_details.work_package.full_test_name ?? "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Test Acronym:</span> {data?.test_details?.work_package?.test_acronym ?? "N/A"}
+                  <span className="font-semibold">Test Acronym:</span>{" "}
+                  {data.test_details.work_package.test_acronym ?? "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Test Type:</span> {data?.test_details?.work_package?.test_type ?? "N/A"}
+                  <span className="font-semibold">Test Type:</span>{" "}
+                  {data.test_details.work_package.test_type ?? "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Endpoint:</span> {data?.test_details?.work_package?.endpoint ?? "N/A"}
+                  <span className="font-semibold">Endpoint:</span>{" "}
+                  {data.test_details.work_package.endpoint ?? "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">Endpoint Outcome:</span> {data?.test_details?.work_package?.endpoint_outcome ?? "N/A"}
+                  <span className="font-semibold">Endpoint Outcome:</span>{" "}
+                  {data.test_details.work_package.endpoint_outcome ?? "N/A"}
                 </p>
                 <p>
-                  <span className="font-semibold">SOP:</span> {data?.test_details?.work_package?.sop ?? "N/A"}
+                  <span className="font-semibold">SOP:</span> {data.test_details.work_package.sop ?? "N/A"}
                 </p>
               </div>
             </div>
@@ -447,21 +451,22 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td className="py-2 px-4 border font-medium">Material Identifier</td><td className="py-2 px-4 border">{data?.test_details?.material?.material_identifier ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">ERM Identifier</td><td className="py-2 px-4 border">{data?.test_details?.material?.erm_id ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Material Name</td><td className="py-2 px-4 border">{data?.test_details?.material?.material_name ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Core Chemistry</td><td className="py-2 px-4 border">{data?.test_details?.material?.core_chemistry ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">CAS No</td><td className="py-2 px-4 border">{data?.test_details?.material?.cas_no ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">CAS for Core</td><td className="py-2 px-4 border">{data?.test_details?.material?.cas_for_core ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Supplier</td><td className="py-2 px-4 border">{data?.test_details?.material?.material_supplier ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Material State</td><td className="py-2 px-4 border">{data?.test_details?.material?.material_state ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Batch</td><td className="py-2 px-4 border">{data?.test_details?.material?.batch ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Vial</td><td className="py-2 px-4 border">{data?.test_details?.material?.vial ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Preparation Date</td><td className="py-2 px-4 border">{data?.test_details?.material?.preparation_date ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Endotoxin Status</td><td className="py-2 px-4 border">{data?.test_details?.material?.endotoxin_absent ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Stock Concentration</td><td className="py-2 px-4 border">{data?.test_details?.material?.stock_concentration ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Molecular Weight</td><td className="py-2 px-4 border">{data?.test_details?.material?.molecular_weight ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Particles in Stock</td><td className="py-2 px-4 border">{data?.test_details?.material?.particles_stock ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Material Identifier</td><td className="py-2 px-4 border">{data.test_details.material.material_identifier ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">ERM Identifier</td><td className="py-2 px-4 border">{data.test_details.material.erm_id ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Material Name</td><td className="py-2 px-4 border">{data.test_details.material.material_name ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Core Chemistry</td><td className="py-2 px-4 border">{data.test_details.material.core_chemistry ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">CAS No</td><td className="py-2 px-4 border">{data.test_details.material.cas_no ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">CAS for Core</td><td className="py-2 px-4 border">{data.test_details.material.cas_for_core ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Supplier</td><td className="py-2 px-4 border">{data.test_details.material.material_supplier ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Material State</td><td className="py-2 px-4 border">{data.test_details.material.material_state ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Batch</td><td className="py-2 px-4 border">{data.test_details.material.batch ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Vial</td><td className="py-2 px-4 border">{data.test_details.material.vial ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Preparation Date</td><td className="py-2 px-4 border">{data.test_details.material.preparation_date ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Endotoxin Status</td><td className="py-2 px-4 border">{data.test_details.material.endotoxin_status ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Stock Concentration</td><td className="py-2 px-4 border">{data.test_details.material.stock_concentration ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Secondary Concentration</td><td className="py-2 px-4 border">{data.test_details.material.stock_concentration_secondary ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Molecular Weight</td><td className="py-2 px-4 border">{data.test_details.material.molecular_weight ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Particles in Stock</td><td className="py-2 px-4 border">{data.test_details.material.particles_stock ?? "N/A"}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -472,17 +477,17 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
                   <tbody>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersion Protocol</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.dispersion_protocol ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersion Technique</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.dispersion_technique ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersion Agent</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.dispersion_agent ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersion Agent Concentration</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.dispersion_agent_concentration ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Additives</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.additives ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersed in Culture Medium</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.dispersed_in_culture_medium ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Aids Used to Disperse</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.aids_used_to_disperse ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Sonication Bath</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.sonication_bath ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Sonication Tip</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.sonication_tip ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Time / Duration</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.time_duration ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Energy</td><td className="py-2 px-4 border">{data?.test_details?.dispersion?.energy ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Dispersion Protocol</td><td className="py-2 px-4 border">{data.test_details.dispersion.dispersion_protocol ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Dispersion Technique</td><td className="py-2 px-4 border">{data.test_details.dispersion.dispersion_technique ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Dispersion Agent</td><td className="py-2 px-4 border">{data.test_details.dispersion.dispersion_agent ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Agent Concentration</td><td className="py-2 px-4 border">{data.test_details.dispersion.agent_concentration ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Additives</td><td className="py-2 px-4 border">{data.test_details.dispersion.additives ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Dispersed in Culture Medium</td><td className="py-2 px-4 border">{data.test_details.dispersion.dispersed_in_culture_medium ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Aids Used to Disperse</td><td className="py-2 px-4 border">{data.test_details.dispersion.aids_used_to_disperse ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Sonication Bath</td><td className="py-2 px-4 border">{data.test_details.dispersion.sonication_bath ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Sonication Tip</td><td className="py-2 px-4 border">{data.test_details.dispersion.sonication_tip ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Time / Duration</td><td className="py-2 px-4 border">{data.test_details.dispersion.time_duration ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Energy</td><td className="py-2 px-4 border">{data.test_details.dispersion.energy ?? "N/A"}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -493,24 +498,24 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
                   <tbody>
-                    <tr><td className="py-2 px-4 border font-medium">Cell Type</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.cell_type_specification ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Cell Line Short Name</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.cell_line_short_name ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Supplier</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.supplier ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Passage Numbers</td><td className="py-2 px-4 border">{fmtPassageNumbers(data?.test_details?.cell_line?.passage_numbers)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Plate Details</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.plate_details ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Cells per Chamber</td><td className="py-2 px-4 border">{fmt(data?.test_details?.cell_line?.cells_per_chamber)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Volume per Chamber</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.volume_per_chamber ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Medium</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.medium ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Serum</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.serum ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Serum Concentration (Culture)</td><td className="py-2 px-4 border">{fmt(data?.test_details?.cell_line?.serum_concentration_culture)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Serum Concentration (Treatment)</td><td className="py-2 px-4 border">{fmt(data?.test_details?.cell_line?.serum_concentration_treatment)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Heat Inactivated</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.serum_heat_inactivated ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Antibiotics</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.antibiotics ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Complete Growth Medium</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.complete_growth_medium ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Culture Conditions</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.culture_conditions ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Trypan Blue Solution</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.trypan_blue_solution ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Incubation Time TB</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.incubation_time_tb ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Volume</td><td className="py-2 px-4 border">{data?.test_details?.cell_line?.volume ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Cell Type</td><td className="py-2 px-4 border">{data.test_details.cell_line.cell_type ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Cell Line Short Name</td><td className="py-2 px-4 border">{data.test_details.cell_line.cell_line_short_name ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Supplier</td><td className="py-2 px-4 border">{data.test_details.cell_line.supplier ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Passage Numbers</td><td className="py-2 px-4 border">{fmtPassageNumbers(data.test_details.cell_line.passage_numbers)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Plate Details</td><td className="py-2 px-4 border">{data.test_details.cell_line.plate_details ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Cells per Chamber</td><td className="py-2 px-4 border">{fmt(data.test_details.cell_line.number_of_cells_per_chamber)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Total Volume per Chamber</td><td className="py-2 px-4 border">{data.test_details.cell_line.total_volume_per_chamber ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Medium</td><td className="py-2 px-4 border">{data.test_details.cell_line.medium ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Serum</td><td className="py-2 px-4 border">{data.test_details.cell_line.serum ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Serum Concentration (Culture Medium)</td><td className="py-2 px-4 border">{fmt(data.test_details.cell_line.serum_concentration_culture_medium)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Serum Concentration (Treatment Medium)</td><td className="py-2 px-4 border">{fmt(data.test_details.cell_line.serum_concentration_treatment_medium)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Heat Inactivated</td><td className="py-2 px-4 border">{data.test_details.cell_line.serum_heat_inactivated ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Antibiotics</td><td className="py-2 px-4 border">{data.test_details.cell_line.antibiotics ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Complete Growth Medium</td><td className="py-2 px-4 border">{data.test_details.cell_line.complete_growth_medium ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Culture Conditions</td><td className="py-2 px-4 border">{data.test_details.cell_line.cell_culture_conditions ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Trypan Blue Solution</td><td className="py-2 px-4 border">{data.test_details.cell_line.trypan_blue_solution ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Incubation Time with TB</td><td className="py-2 px-4 border">{data.test_details.cell_line.incubation_time_with_tb ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">TB Volume</td><td className="py-2 px-4 border">{data.test_details.cell_line.tb_volume ?? "N/A"}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -521,16 +526,19 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
                   <tbody>
-                    <tr><td className="py-2 px-4 border font-medium">Time Point Unit</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.timeline?.time_point_unit ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Time Point Labels</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.timeline?.time_point_labels?.join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Time Points</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.timeline?.time_points?.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Concentration Unit</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.concentration?.unit ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Concentration Labels</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.concentration?.labels?.join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Concentrations (μg/mL)</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.concentration?.concentrations_ugml?.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Concentrations (Particles)</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.concentration?.concentrations_particles?.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Control Abbreviation</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.concentration?.controls_abbreviation ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Control Description</td><td className="py-2 px-4 border">{data?.test_details?.treatment?.concentration?.controls_description ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Number of Experiments</td><td className="py-2 px-4 border">{fmt(data?.test_details?.treatment?.concentration?.number_of_experiments)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Time Point Unit</td><td className="py-2 px-4 border">{data.test_details.treatment.time_point_unit ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Time Point Labels</td><td className="py-2 px-4 border">{data.test_details.treatment.time_point_labels.join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Time Points</td><td className="py-2 px-4 border">{data.test_details.treatment.time_points.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Concentration Unit</td><td className="py-2 px-4 border">{data.test_details.treatment.concentration_unit ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Concentration Labels</td><td className="py-2 px-4 border">{data.test_details.treatment.concentration_labels.join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Concentrations (μg/mL)</td><td className="py-2 px-4 border">{data.test_details.treatment.concentrations_ug_ml.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Concentrations (Particles)</td><td className="py-2 px-4 border">{data.test_details.treatment.concentrations_particles.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Control Abbreviations</td><td className="py-2 px-4 border">{data.test_details.treatment.controls_abbreviations.join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Control Description</td><td className="py-2 px-4 border">{data.test_details.treatment.controls_description.join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Number of Experiments</td><td className="py-2 px-4 border">{fmt(data.test_details.treatment.number_of_experiments)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Notes A</td><td className="py-2 px-4 border">{data.test_details.treatment.notes_a ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Notes B</td><td className="py-2 px-4 border">{data.test_details.treatment.notes_b ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Notes C</td><td className="py-2 px-4 border">{data.test_details.treatment.notes_c ?? "N/A"}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -548,7 +556,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {(data?.test_details?.work_package?.lead_scientists?.length ?? 0) > 0 ? (
+                      {(data.test_details.work_package.lead_scientists?.length ?? 0) > 0 ? (
                         data.test_details.work_package.lead_scientists.map((scientist, index) => (
                           <tr key={index}>
                             <td className="py-2 px-4 border">{scientist.name ?? "N/A"}</td>
@@ -574,7 +582,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {(data?.test_details?.work_package?.assay_scientists?.length ?? 0) > 0 ? (
+                      {(data.test_details.work_package.assay_scientists?.length ?? 0) > 0 ? (
                         data.test_details.work_package.assay_scientists.map((scientist, index) => (
                           <tr key={index}>
                             <td className="py-2 px-4 border">{scientist.name ?? "N/A"}</td>
@@ -614,7 +622,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   >
                     {Array.from({ length: runOptionsCount }).map((_, index) => (
                       <option key={index} value={index}>
-                        {getRunLabel(index)} - {data?.raw_data?.[index]?.test_identifier_number ?? "Replicate"}
+                        {getRunLabel(index)} - {safeRawData[index]?.test_identifier ?? "Replicate"}
                       </option>
                     ))}
                   </select>
@@ -623,14 +631,23 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="mb-6 bg-blue-50 p-4 rounded-md">
                   <h3 className="text-lg font-semibold mb-3">Run Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><p className="font-semibold">Test Identifier:</p><p>{currentRawRun?.test_identifier_number ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Replicate Label:</p><p>{currentRawRun?.replicate_label ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Processed Metric:</p><p>{data?.processed_data?.[selectedRun]?.metric ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Run Label:</p><p>{currentRawRun?.run_label ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Plate Label:</p><p>{currentRawRun?.plate_label ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Test Identifier:</p><p>{currentRawRun?.test_identifier ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Metric Name:</p><p>{currentRawRun?.metric_name ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Raw Sheet:</p><p>{currentRawRun?.raw_sheet_name ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Processed Sheet:</p><p>{currentRawRun?.processed_sheet_name ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Protocol Name:</p><p>{currentRawRun?.protocol_name ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Protocol Number:</p><p>{currentRawRun?.protocol_number ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Plate Type:</p><p>{currentRawRun?.plate_type ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Number of Repeats:</p><p>{currentRawRun?.number_of_repeats ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Protocol Created By:</p><p>{currentRawRun?.protocol_created_by ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Instrument Serial Number:</p><p>{currentRawRun?.instrument_serial_number ?? "N/A"}</p></div>
                   </div>
                 </div>
 
                 <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-3">% Cell Death by Treatment</h3>
+                  <h3 className="text-lg font-semibold mb-3">% Cell Death by Chamber</h3>
                   <ResponsiveContainer width="100%" height={380}>
                     <BarChart data={rawBarChartData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -656,7 +673,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <table id="tbRawTable" className="min-w-full bg-white border border-gray-200">
                     <thead>
                       <tr className="bg-gray-100">
-                        <th className="py-2 px-4 border text-left">Treatment</th>
+                        <th className="py-2 px-4 border text-left">Chamber</th>
                         <th className="py-2 px-4 border text-left">% Cell Death</th>
                       </tr>
                     </thead>
@@ -676,6 +693,17 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     </tbody>
                   </table>
                 </div>
+
+                {(currentRawRun?.assay_notes?.length ?? 0) > 0 && (
+                  <div className="mt-6 bg-blue-50 p-4 rounded-md">
+                    <h3 className="text-lg font-semibold mb-3">Assay Notes</h3>
+                    <ul className="list-disc list-inside space-y-1">
+                      {currentRawRun!.assay_notes.map((note, index) => (
+                        <li key={index}>{note}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-center text-gray-600">No raw data available</div>
@@ -689,7 +717,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <h2 className="text-xl font-bold text-blue-800">Processed Data</h2>
             </div>
 
-            {(data?.processed_data?.length ?? 0) > 0 ? (
+            {safeProcessedData.length > 0 ? (
               <>
                 <div className="mb-6">
                   <label htmlFor="tb-run-select-processed" className="block text-sm font-medium text-gray-700 mb-2">
@@ -701,9 +729,9 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     onChange={(e) => setSelectedRun(Number(e.target.value))}
                     className="w-full md:w-1/3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5"
                   >
-                    {data.processed_data.map((run, index) => (
+                    {safeProcessedData.map((run, index) => (
                       <option key={index} value={index}>
-                        {getRunLabel(index)} - {run.replicate_id ?? `Replicate ${index + 1}`}
+                        {getRunLabel(index)} - {run.identifier ?? `Replicate ${index + 1}`}
                       </option>
                     ))}
                   </select>
@@ -712,9 +740,11 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <div className="mb-6 bg-blue-50 p-4 rounded-md">
                   <h3 className="text-lg font-semibold mb-3">Processed Run Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><p className="font-semibold">Replicate ID:</p><p>{currentProcessedRun?.replicate_id ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Device Label:</p><p>{currentProcessedRun?.device_label ?? "N/A"}</p></div>
-                    <div><p className="font-semibold">Metric:</p><p>{currentProcessedRun?.metric ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Run Label:</p><p>{currentProcessedRun?.run_label ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Processed Sheet Name:</p><p>{currentProcessedRun?.processed_sheet_name ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Identifier:</p><p>{currentProcessedRun?.identifier ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Metric:</p><p>{currentProcessedRun?.metric_name ?? "N/A"}</p></div>
+                    <div><p className="font-semibold">Has Data:</p><p>{currentProcessedRun?.has_data ? "Yes" : "No"}</p></div>
                   </div>
                 </div>
 
@@ -746,11 +776,11 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {currentProcessedRun?.treatments ? (
-                        Object.entries(currentProcessedRun.treatments).map(([label, value], index) => (
+                      {(currentProcessedRun?.condition_labels?.length ?? 0) > 0 ? (
+                        currentProcessedRun!.condition_labels.map((label, index) => (
                           <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                             <td className="py-2 px-4 border">{label}</td>
-                            <td className="py-2 px-4 border">{fmt(value)}</td>
+                            <td className="py-2 px-4 border">{fmt(currentProcessedRun.values?.[index])}</td>
                           </tr>
                         ))
                       ) : (
@@ -784,9 +814,9 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             <div className="mb-6 bg-blue-50 p-4 rounded-md">
               <h3 className="text-lg font-semibold mb-3">Final Results</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><p className="font-semibold">Material ID:</p><p>{data?.final_results?.material_id ?? "N/A"}</p></div>
-                <div><p className="font-semibold">Assay Name:</p><p>{data?.final_results?.assay_name ?? "N/A"}</p></div>
-                <div><p className="font-semibold">Metric:</p><p>{data?.final_results?.metric ?? "N/A"}</p></div>
+                <div><p className="font-semibold">Sample Identifier:</p><p>{data.final_results.sample_identifier ?? "N/A"}</p></div>
+                <div><p className="font-semibold">Endpoint:</p><p>{data.final_results.endpoint ?? "N/A"}</p></div>
+                <div><p className="font-semibold">Statistics Available:</p><p>{data.statistical_analysis?.available ? "Yes" : "No"}</p></div>
               </div>
             </div>
 
@@ -818,89 +848,62 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="py-2 px-4 border text-left">Row</th>
-                    {data?.final_results?.treatments?.map((label, idx) => (
+                    {data.final_results.condition_labels.map((label, idx) => (
                       <th key={idx} className="py-2 px-4 border text-left">{label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {data?.final_results?.replicate_data?.map((row, idx) => (
+                  {data.final_results.replicate_rows.map((row, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : ""}>
-                      <td className="py-2 px-4 border">{row.replicate_id}</td>
-                      {data.final_results.treatments.map((label, j) => (
+                      <td className="py-2 px-4 border">{row.replicate}</td>
+                      {data.final_results.condition_labels.map((label, j) => (
                         <td key={j} className="py-2 px-4 border">{fmt(row.values?.[label])}</td>
                       ))}
                     </tr>
                   ))}
 
                   <tr className="bg-blue-50">
-                    <td className="py-2 px-4 border font-semibold">Mean</td>
-                    {data?.final_results?.treatments?.map((label, idx) => (
-                      <td key={idx} className="py-2 px-4 border font-semibold">{fmt(data?.final_results?.mean?.[label], 3)}</td>
+                    <td className="py-2 px-4 border font-semibold">{data.final_results.mean_row?.label ?? "MEAN"}</td>
+                    {data.final_results.condition_labels.map((label, idx) => (
+                      <td key={idx} className="py-2 px-4 border font-semibold">
+                        {fmt(data.final_results.mean_row?.values?.[label], 3)}
+                      </td>
                     ))}
                   </tr>
 
                   <tr className="bg-orange-50">
-                    <td className="py-2 px-4 border font-semibold">SD</td>
-                    {data?.final_results?.treatments?.map((label, idx) => (
-                      <td key={idx} className="py-2 px-4 border font-semibold">{fmt(data?.final_results?.sd?.[label], 3)}</td>
+                    <td className="py-2 px-4 border font-semibold">{data.final_results.sd_row?.label ?? "SD"}</td>
+                    {data.final_results.condition_labels.map((label, idx) => (
+                      <td key={idx} className="py-2 px-4 border font-semibold">
+                        {fmt(data.final_results.sd_row?.values?.[label], 3)}
+                      </td>
                     ))}
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            {data?.statistical_analysis && (
+            {data.statistical_analysis?.available && (
               <div className="bg-blue-50 p-4 rounded-md">
                 <h3 className="text-lg font-semibold mb-3">Statistical Analysis</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <p><span className="font-semibold">Tool:</span> {data?.statistical_analysis?.tool ?? "N/A"}</p>
-                    <p><span className="font-semibold">ANOVA F value:</span> {fmt(data?.statistical_analysis?.anova_summary?.f_value, 4)}</p>
-                    <p><span className="font-semibold">ANOVA P value:</span> {fmt(data?.statistical_analysis?.anova_summary?.p_value, 4)}</p>
-                    <p><span className="font-semibold">P value summary:</span> {data?.statistical_analysis?.anova_summary?.p_value_summary ?? "N/A"}</p>
-                    <p><span className="font-semibold">Significant:</span> {data?.statistical_analysis?.anova_summary?.significant ?? "N/A"}</p>
-                    <p><span className="font-semibold">R squared:</span> {fmt(data?.statistical_analysis?.anova_summary?.r_squared, 4)}</p>
+                    <p><span className="font-semibold">Software:</span> {data.statistical_analysis.software ?? "N/A"}</p>
+                    <p><span className="font-semibold">Test:</span> {data.statistical_analysis.test ?? "N/A"}</p>
+                    <p><span className="font-semibold">ANOVA F value:</span> {fmt(data.statistical_analysis.anova_summary?.F, 4)}</p>
+                    <p><span className="font-semibold">ANOVA P value:</span> {fmt(data.statistical_analysis.anova_summary?.p_value, 4)}</p>
+                    <p><span className="font-semibold">P value summary:</span> {data.statistical_analysis.anova_summary?.p_value_summary ?? "N/A"}</p>
+                    <p><span className="font-semibold">Significant difference:</span> {data.statistical_analysis.anova_summary?.significant_difference ?? "N/A"}</p>
+                    <p><span className="font-semibold">R squared:</span> {fmt(data.statistical_analysis.anova_summary?.r_squared, 4)}</p>
                   </div>
                   <div>
-                    <p><span className="font-semibold">Brown-Forsythe F (DFn, DFd):</span> {data?.statistical_analysis?.brown_forsythe?.f_dfn_dfd ?? "N/A"}</p>
-                    <p><span className="font-semibold">Brown-Forsythe P value:</span> {fmt(data?.statistical_analysis?.brown_forsythe?.p_value, 4)}</p>
-                    <p><span className="font-semibold">P value summary:</span> {data?.statistical_analysis?.brown_forsythe?.p_value_summary ?? "N/A"}</p>
-                    <p><span className="font-semibold">SDs significantly different:</span> {data?.statistical_analysis?.brown_forsythe?.sds_significantly_different ?? "N/A"}</p>
+                    <p><span className="font-semibold">Brown-Forsythe F (DFn, DFd):</span> {data.statistical_analysis.brown_forsythe_test?.f_dfn_dfd ?? "N/A"}</p>
+                    <p><span className="font-semibold">Brown-Forsythe P value:</span> {fmt(data.statistical_analysis.brown_forsythe_test?.p_value, 4)}</p>
+                    <p><span className="font-semibold">P value summary:</span> {data.statistical_analysis.brown_forsythe_test?.p_value_summary ?? "N/A"}</p>
+                    <p><span className="font-semibold">SD significantly different:</span> {data.statistical_analysis.brown_forsythe_test?.sd_significantly_different ?? "N/A"}</p>
                   </div>
                 </div>
-
-                {(data?.statistical_analysis?.tukey_comparisons?.length ?? 0) > 0 && (
-                  <div className="mt-6">
-                    <h4 className="text-md font-semibold mb-3">Tukey Multiple Comparisons</h4>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full bg-white border border-gray-200">
-                        <thead>
-                          <tr className="bg-gray-100">
-                            <th className="py-2 px-4 border text-left">Comparison</th>
-                            <th className="py-2 px-4 border text-left">Mean Diff</th>
-                            <th className="py-2 px-4 border text-left">95% CI</th>
-                            <th className="py-2 px-4 border text-left">Significant</th>
-                            <th className="py-2 px-4 border text-left">Summary</th>
-                            <th className="py-2 px-4 border text-left">Adjusted P</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.statistical_analysis.tukey_comparisons!.map((row, idx) => (
-                            <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : ""}>
-                              <td className="py-2 px-4 border">{row.comparison}</td>
-                              <td className="py-2 px-4 border">{fmt(row.mean_diff, 4)}</td>
-                              <td className="py-2 px-4 border">{row.ci_95 ?? "N/A"}</td>
-                              <td className="py-2 px-4 border">{row.significant ?? "N/A"}</td>
-                              <td className="py-2 px-4 border">{row.summary ?? "N/A"}</td>
-                              <td className="py-2 px-4 border">{fmt(row.adjusted_p_value, 4)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

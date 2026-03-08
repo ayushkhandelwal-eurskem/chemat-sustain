@@ -415,9 +415,8 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             {TABS.map((tab) => (
               <li key={tab.key} className="z-30 flex-auto text-center">
                 <button
-                  className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${
-                    activeTab === tab.key ? "bg-blue-600 text-white shadow-md" : "text-slate-600 bg-inherit"
-                  }`}
+                  className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${activeTab === tab.key ? "bg-blue-600 text-white shadow-md" : "text-slate-600 bg-inherit"
+                    }`}
                   onClick={() => setActiveTab(tab.key)}
                   role="tab"
                   aria-selected={activeTab === tab.key}
@@ -780,7 +779,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         currentProcessedRun!.condition_labels.map((label, index) => (
                           <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                             <td className="py-2 px-4 border">{label}</td>
-                            <td className="py-2 px-4 border">{fmt(currentProcessedRun.values?.[index])}</td>
+                            <td className="py-2 px-4 border">{fmt(currentProcessedRun?.values?.[index])}</td>
                           </tr>
                         ))
                       ) : (

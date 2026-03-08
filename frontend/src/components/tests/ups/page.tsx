@@ -576,8 +576,8 @@ const UPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       {currentRawBlock?.spectrum_points?.length ? (
                         currentRawBlock.spectrum_points.slice(0, 200).map((pt, i) => (
                           <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}>
-                            <td className="py-2 px-4 border">{pt.kinetic_energy_ev != null ? Number(pt.kinetic_energy_ev).toFixed(5) : "-"}</td>
-                            <td className="py-2 px-4 border">{pt.intensity_counts_per_s != null ? Number(pt.intensity_counts_per_s).toFixed(4) : "-"}</td>
+                            <td className="py-2 px-4 border">{pt.kinetic_energy_ev != null ? Number(pt.kinetic_energy_ev).toFixed(2) : "-"}</td>
+                            <td className="py-2 px-4 border">{pt.intensity_counts_per_s != null ? Number(pt.intensity_counts_per_s).toFixed(2) : "-"}</td>
                           </tr>
                         ))
                       ) : (

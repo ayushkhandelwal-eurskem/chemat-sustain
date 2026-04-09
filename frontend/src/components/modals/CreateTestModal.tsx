@@ -35,12 +35,12 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
     "CMS_4a_AuNP",
     "CMS_5a_AuNP",
     "CMS_6a_AuNP",
-    "CMS_7a_AgNP",
-    "CMS_8a_AgNP",
-    "CMS_9a_AgNP",
-    "CMS_10a_AgNP",
-    "CMS_11a_AgNP",
-    "CMS_12a_AgNP",
+    "CMS_7b_AgNP",
+    "CMS_8b_AgNP",
+    "CMS_9b_AgNP",
+    "CMS_10b_AgNP",
+    "CMS_11b_AgNP",
+    "CMS_12b_AgNP",
     "CMS_13a_AgNR",
     "CMS_14a_AgNR",
     "CMS_15a_TNR",
@@ -61,7 +61,7 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
     "CMS_30a_CH_TER"
   ]
 
-  const testNames = ['MTT', 'DLS','FTIR','HR-STEM','UV-VIS','ZETA','SIMS','ROS','UPS','XPS','TB']; // Static test names
+  const testNames = ['MTT','DLS','FTIR','HR-STEM','UV-VIS','ZETA','SIMS','ROS','UPS','XPS','TB']; // Static test names
 
   const handleToggleChange = (key: ReleaseKey) => {
     setRelease(prev => ({

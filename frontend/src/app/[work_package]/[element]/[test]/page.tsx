@@ -12,6 +12,9 @@ import ROSDataViewer from '@/components/tests/ros/page';
 import TBDataViewer from '@/components/tests/tb/page';
 import UPSDataViewer from '@/components/tests/ups/page';
 import XPSDataViewer from '@/components/tests/xps/page';
+import XRDDataViewer from '@/components/tests/xrd/page';
+import DSCDataViewer from '@/components/tests/dsc/page';
+import TGADataViewer from '@/components/tests/tga/page';
 // Define the props type for the page component
 interface PageProps {
   params: Promise<{
@@ -64,6 +67,15 @@ const DynamicRoutePage: FC<PageProps> = async ({ params }) => {
   }
   if (test.toLocaleLowerCase() === "xps"){
     return (<XPSDataViewer work_package={work_package} element={element} test={test} file={""}></XPSDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "xrd"){
+    return (<XRDDataViewer work_package={work_package} element={element} test={test} file={""}></XRDDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "dsc"){
+    return (<DSCDataViewer work_package={work_package} element={element} test={test} file={""}></DSCDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "tga"){
+    return (<TGADataViewer work_package={work_package} element={element} test={test} file={""}></TGADataViewer>)
   }
 };
 

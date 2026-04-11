@@ -12,6 +12,17 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
+# =========================================================
+# The universal pattern: captures WP number, DLS number,
+# the variant LETTER (a, b, c, ...), and the run number.
+#
+#   Group 1 = WP number       (e.g. "2")
+#   Group 2 = DLS number      (e.g. "7")
+#   Group 3 = variant letter  (e.g. "b")
+#   Group 4 = run number      (e.g. "1")
+# =========================================================
+_ID_PATTERN = r'WP(\d+)_DLS_(\d+)([a-zA-Z])R(\d+)'
+
 # Dataclasses (unchanged, included for completeness)
 @dataclass
 class Scientist:
@@ -253,13 +264,6 @@ class DLSParser:
         unmatched_keys = set(expected_keys)
         potential_matches = []
 
-        logger.debug("Test Information sheet (columns A:E, rows 1:50) for Material Data:")
-        for row_idx in range(1, min(self.ws.max_row + 1, 51)):
-            row = self.ws[row_idx]
-            values = [str(cell.value)[:30] if cell.value else "None" for cell in row[:5]]
-            has_comment = "Y" if row[0].comment else "N"
-            logger.debug(f"Row {row_idx} [Comment: {has_comment}]: {values}")
-
         for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
             key_cell = row[0].value
             if not key_cell:
@@ -270,33 +274,21 @@ class DLSParser:
                 continue
 
             value = None
-            value_col = None
             for col_idx in range(1, 5):
                 if col_idx < len(row) and row[col_idx].value is not None:
                     value = row[col_idx].value
-                    value_col = col_idx + 1
                     break
-
-            logger.debug(f"Row {row_idx}: Raw Key='{raw_key}', Normalized Key='{key}', Value='{value}', Value Col={value_col}")
 
             if key in expected_keys:
                 unmatched_keys.discard(key)
                 data.append({"Key": key, "Value": value})
-                logger.debug(f"Exact match: Key='{key}', Value='{value}' at row {row_idx}, col {value_col}")
             else:
                 for expected_key in expected_keys:
                     similarity = SequenceMatcher(None, key, expected_key).ratio()
                     if similarity > 0.85:
                         unmatched_keys.discard(expected_key)
                         data.append({"Key": expected_key, "Value": value})
-                        logger.debug(f"Fuzzy match: Key='{key}' matched '{expected_key}' (similarity={similarity:.2f}), Value='{value}' at row {row_idx}, col {value_col}")
-                    elif similarity > 0.5:
-                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' at row {row_idx}, col 1, similarity={similarity:.2f}")
 
-        if potential_matches:
-            logger.debug("Potential key matches for Material Data:")
-            for match in potential_matches:
-                logger.debug(match)
         if unmatched_keys:
             logger.warning(f"Unmatched material data keys: {unmatched_keys}")
 
@@ -313,7 +305,6 @@ class DLSParser:
             particles_stock=next((d["Value"] for d in data if d["Key"] == "no_of_particles_in_stock_"), None),
             molar_concentration=next((d["Value"] for d in data if d["Key"] == "molar_concentration"), None)
         ))
-        logger.debug(f"Material data extracted: {material_data}")
         return material_data
 
     def extract_sample_preparation_data(self):
@@ -333,14 +324,6 @@ class DLSParser:
             "additional_information"
         ]
         unmatched_keys = set(expected_keys)
-        potential_matches = []
-
-        logger.debug("Test Information sheet (columns A:E, rows 1:50) for Sample Preparation Data:")
-        for row_idx in range(1, min(self.ws.max_row + 1, 51)):
-            row = self.ws[row_idx]
-            values = [str(cell.value)[:30] if cell.value else "None" for cell in row[:5]]
-            has_comment = "Y" if row[0].comment else "N"
-            logger.debug(f"Row {row_idx} [Comment: {has_comment}]: {values}")
 
         for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
             key_cell = row[0].value
@@ -352,33 +335,21 @@ class DLSParser:
                 continue
 
             value = None
-            value_col = None
             for col_idx in range(1, 5):
                 if col_idx < len(row) and row[col_idx].value is not None:
                     value = row[col_idx].value
-                    value_col = col_idx + 1
                     break
-
-            logger.debug(f"Row {row_idx}: Raw Key='{raw_key}', Normalized Key='{key}', Value='{value}', Value Col={value_col}")
 
             if key in expected_keys:
                 unmatched_keys.discard(key)
                 data.append({"Key": key, "Value": value})
-                logger.debug(f"Exact match: Key='{key}', Value='{value}' at row {row_idx}, col {value_col}")
             else:
                 for expected_key in expected_keys:
                     similarity = SequenceMatcher(None, key, expected_key).ratio()
                     if similarity > 0.85:
                         unmatched_keys.discard(expected_key)
                         data.append({"Key": expected_key, "Value": value})
-                        logger.debug(f"Fuzzy match: Key='{key}' matched '{expected_key}' (similarity={similarity:.2f}), Value='{value}' at row {row_idx}, col {value_col}")
-                    elif similarity > 0.5:
-                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' at row {row_idx}, col 1, similarity={similarity:.2f}")
 
-        if potential_matches:
-            logger.debug("Potential key matches for Sample Preparation Data:")
-            for match in potential_matches:
-                logger.debug(match)
         if unmatched_keys:
             logger.warning(f"Unmatched sample preparation data keys: {unmatched_keys}")
 
@@ -396,7 +367,6 @@ class DLSParser:
             final_concentration=next((d["Value"] for d in data if d["Key"] == "final_sample_concentration_mg_l_or_ppm_"), None),
             additional_info=next((d["Value"] for d in data if d["Key"] == "additional_information"), None)
         ))
-        logger.debug(f"Sample preparation data extracted: {sample_preparation_data}")
         return sample_preparation_data
 
     def extract_instrumentation_data(self):
@@ -420,14 +390,6 @@ class DLSParser:
             "viscosity_of_the_medium"
         ]
         unmatched_keys = set(expected_keys)
-        potential_matches = []
-
-        logger.debug("Test Information sheet (columns A:E, rows 1:50) for Instrumentation Data:")
-        for row_idx in range(1, min(self.ws.max_row + 1, 51)):
-            row = self.ws[row_idx]
-            values = [str(cell.value)[:30] if cell.value else "None" for cell in row[:5]]
-            has_comment = "Y" if row[0].comment else "N"
-            logger.debug(f"Row {row_idx} [Comment: {has_comment}]: {values}")
 
         for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
             key_cell = row[0].value
@@ -439,33 +401,21 @@ class DLSParser:
                 continue
 
             value = None
-            value_col = None
             for col_idx in range(1, 5):
                 if col_idx < len(row) and row[col_idx].value is not None:
                     value = row[col_idx].value
-                    value_col = col_idx + 1
                     break
-
-            logger.debug(f"Row {row_idx}: Raw Key='{raw_key}', Normalized Key='{key}', Value='{value}', Value Col={value_col}")
 
             if key in expected_keys:
                 unmatched_keys.discard(key)
                 data.append({"Key": key, "Value": value})
-                logger.debug(f"Exact match: Key='{key}', Value='{value}' at row {row_idx}, col {value_col}")
             else:
                 for expected_key in expected_keys:
                     similarity = SequenceMatcher(None, key, expected_key).ratio()
                     if similarity > 0.85:
                         unmatched_keys.discard(expected_key)
                         data.append({"Key": expected_key, "Value": value})
-                        logger.debug(f"Fuzzy match: Key='{key}' matched '{expected_key}' (similarity={similarity:.2f}), Value='{value}' at row {row_idx}, col {value_col}")
-                    elif similarity > 0.5:
-                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' at row {row_idx}, col 1, similarity={similarity:.2f}")
 
-        if potential_matches:
-            logger.debug("Potential key matches for Instrumentation Data:")
-            for match in potential_matches:
-                logger.debug(match)
         if unmatched_keys:
             logger.warning(f"Unmatched instrumentation data keys: {unmatched_keys}")
 
@@ -515,13 +465,12 @@ class DLSParser:
             refractive_index_medium=refractive_index_medium,
             viscosity_medium=next((d["Value"] for d in data if d["Key"] == "viscosity_of_the_medium"), None)
         ))
-        logger.debug(f"Instrumentation data extracted: {instrumentation_data}")
         return instrumentation_data
 
     def extract_replications(self):
         replications = []
         raw_sheets = [name for name in self.wb.sheetnames
-          if re.match(r'WP(\d+)_DLS_(\d+)aR(\d+)', name, re.IGNORECASE)]
+          if re.match(_ID_PATTERN, name, re.IGNORECASE)]
         if not raw_sheets:
             logger.warning("No raw data sheets found matching expected patterns.")
             return replications
@@ -529,14 +478,15 @@ class DLSParser:
         logger.debug(f"Found raw data sheets: {raw_sheets}")
         
         for raw_sheet in raw_sheets:
-            match = re.search(r'WP(\d+)_DLS_(\d+)aR(\d+)', raw_sheet, re.IGNORECASE)
+            match = re.search(_ID_PATTERN, raw_sheet, re.IGNORECASE)
             if not match:
                 logger.warning(f"Invalid raw sheet name format: {raw_sheet}")
                 continue
-            wp_number = match.group(1)  # Capture WP number (1-5)
-            dls_number = match.group(2)  # Capture DLS number (1-20)
-            run_number = match.group(3)  # Capture aR number (1-5)
-            test_identifier = f"WP{wp_number}_DLS_{dls_number}aR{run_number}"
+            wp_number = match.group(1)
+            dls_number = match.group(2)
+            letter = match.group(3)       # ← captured letter (a, b, c, …)
+            run_number = match.group(4)    # ← shifted from group(3)
+            test_identifier = f"WP{wp_number}_DLS_{dls_number}{letter}R{run_number}"
             
             start_date = None
             end_date = None
@@ -567,8 +517,8 @@ class DLSParser:
     def extract_raw_data(self, raw_sheet_name: str, processed_sheet_name: str):
         logger.debug(f"Extracting run data for raw sheet: {raw_sheet_name}, processed sheet: {processed_sheet_name}")
         
-        match = re.search(r'WP(\d+)_DLS_(\d+)aR(\d+)', raw_sheet_name, re.IGNORECASE)
-        run_number = int(match.group(3)) if match else 0
+        match = re.search(_ID_PATTERN, raw_sheet_name, re.IGNORECASE)
+        run_number = int(match.group(4)) if match else 0   # ← group(4) now
         if run_number == 0:
             logger.warning(f"Could not extract run number from {raw_sheet_name}, defaulting to 0")
 
@@ -583,16 +533,11 @@ class DLSParser:
         raw_ws = self.wb[raw_sheet_name]
         logger.debug(f"Processing raw data sheet: {raw_sheet_name}")
 
-        logger.debug(f"Raw sheet {raw_sheet_name} first 5 rows:")
-        for row_idx, row in enumerate(raw_ws.iter_rows(min_row=1, max_row=5, max_col=5), start=1):
-            values = [str(cell.value)[:30] if cell.value else "None" for cell in row]
-            logger.debug(f"Row {row_idx}: {values}")
-
         correlation_start_row = None
         for row_idx, row in enumerate(raw_ws.iter_rows(min_row=1, min_col=1, max_col=2), start=1):
             time_header = str(row[0].value).lower() if row[0].value else ""
             corr_header = str(row[1].value).lower() if row[1].value else ""
-            if ("time" in time_header and "μs" in time_header) and ("correlation" in corr_header and "coefficient" in corr_header in corr_header):
+            if ("time" in time_header and "μs" in time_header) and ("correlation" in corr_header and "coefficient" in corr_header):
                 correlation_start_row = row_idx + 1
                 logger.debug(f"Found correlation header at row {row_idx}: {row[0].value}, {row[1].value}")
                 break
@@ -605,7 +550,6 @@ class DLSParser:
                 if time_us is None and corr_coeff is None:
                     empty_row_count += 1
                     if empty_row_count >= 5:
-                        logger.debug(f"Reached end of correlation data at row {row[0].row}")
                         break
                     continue
                 empty_row_count = 0
@@ -616,7 +560,7 @@ class DLSParser:
                         correlation_data.time_us.append(time_us_float)
                         correlation_data.correlation_coefficient.append(corr_coeff_float)
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Invalid correlation data at row {row[0].row}: time={time_us}, coeff={corr_coeff}, error={e}")
+                    logger.warning(f"Invalid correlation data at row {row[0].row}: {e}")
                     continue
             logger.debug(f"Extracted {len(correlation_data.time_us)} correlation data points")
         else:
@@ -629,11 +573,6 @@ class DLSParser:
         processed_ws = self.wb[processed_sheet_name]
         logger.debug(f"Processing processed data sheet: {processed_sheet_name}")
 
-        logger.debug(f"Processed sheet {processed_sheet_name} first 5 rows:")
-        for row_idx, row in enumerate(processed_ws.iter_rows(min_row=1, max_row=5, max_col=5), start=1):
-            values = [str(cell.value)[:30] if cell.value else "None" for cell in row]
-            logger.debug(f"Row {row_idx}: {values}")
-
         header_row = None
         for row_idx, row in enumerate(processed_ws.iter_rows(min_row=1, max_col=10), start=1):
             for col_idx in range(len(row) - 1):
@@ -643,7 +582,6 @@ class DLSParser:
                     header_row = row_idx
                     size_col_idx = col_idx + 1
                     intensity_col_idx = col_idx + 2
-                    logger.debug(f"Found size distribution header at row {row_idx}, cols {size_col_idx},{intensity_col_idx}: {row[col_idx].value}, {row[col_idx + 1].value}")
                     break
             if header_row:
                 break
@@ -654,11 +592,9 @@ class DLSParser:
             for row_idx in range(header_row + 1, max_rows + 1):
                 size_nm = processed_ws.cell(row=row_idx, column=size_col_idx).value
                 mean_intensity = processed_ws.cell(row=row_idx, column=intensity_col_idx).value
-                logger.debug(f"Size distribution row {row_idx}: size={size_nm}, intensity={mean_intensity}")
                 if size_nm is None and mean_intensity is None:
                     empty_row_count += 1
                     if empty_row_count >= 5:
-                        logger.debug(f"Reached end of size distribution data at row {row_idx}")
                         break
                     continue
                 empty_row_count = 0
@@ -669,7 +605,7 @@ class DLSParser:
                         size_distribution.size_nm.append(size_nm_float)
                         size_distribution.mean_intensity_percent.append(intensity_float)
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Invalid size distribution data at row {row_idx}: size={size_nm}, intensity={mean_intensity}, error={e}")
+                    logger.warning(f"Invalid size distribution data at row {row_idx}: {e}")
                     continue
             logger.debug(f"Extracted {len(size_distribution.size_nm)} size distribution data points")
         else:
@@ -694,21 +630,18 @@ class DLSParser:
                                 if value_cell.value is not None:
                                     try:
                                         setattr(metrics, metric_name.replace("standard_deviation_", "std_dev_").replace("_relative", "_intensity"), float(value_cell.value))
-                                        logger.debug(f"Metric {metric_name} = {value_cell.value} at row {row_idx + offset[0]}, col {value_cell.column}")
                                     except (ValueError, TypeError):
                                         setattr(metrics, metric_name.replace("standard_deviation_", "std_dev_").replace("_relative", "_intensity"), None)
-                                        logger.warning(f"Invalid value for {metric_name} at row {row_idx + offset[0]}, col {value_cell.column}: {value_cell.value}")
                                     break
                             except:
                                 continue
-        logger.debug(f"Extracted metrics: {metrics}")
+
         raw_data = RawData(
             run_number=run_number,
             correlation_data=correlation_data,
             size_distribution=size_distribution,
             metrics=metrics
         )
-        logger.debug(f"Run {run_number} extracted: Z-ave={raw_data.metrics.z_ave_hydrodynamic_diameter}, PDI={raw_data.metrics.pdi}")
         return asdict(raw_data)
 
     def extract_final_results(self):
@@ -719,7 +652,6 @@ class DLSParser:
             return asdict(ResultsData())
 
         ws = self.wb[final_sheet_name]
-        logger.debug(f"Processing final results sheet: {final_sheet_name}")
 
         metrics = {}
         statistic_table = []
@@ -735,7 +667,6 @@ class DLSParser:
                     size_col_idx = col_idx + 1
                     intensity_col_idx = col_idx + 2
                     std_dev_col_idx = col_idx + 3
-                    logger.debug(f"Found statistic table header at row {row_idx}, cols {size_col_idx},{intensity_col_idx},{std_dev_col_idx}: {row[col_idx].value}, {row[col_idx + 1].value}, {row[col_idx + 2].value}")
                     break
             if stat_start_row:
                 break
@@ -747,11 +678,9 @@ class DLSParser:
                 size_nm = ws.cell(row=row_idx, column=size_col_idx).value
                 mean_intensity = ws.cell(row=row_idx, column=intensity_col_idx).value
                 std_dev = ws.cell(row=row_idx, column=std_dev_col_idx).value
-                logger.debug(f"Statistic table row {row_idx}: size={size_nm}, intensity={mean_intensity}, std_dev={std_dev}")
                 if size_nm is None and mean_intensity is None and std_dev is None:
                     empty_row_count += 1
                     if empty_row_count >= 5:
-                        logger.debug(f"Reached end of statistic table at row {row_idx}")
                         break
                     continue
                 empty_row_count = 0
@@ -766,7 +695,7 @@ class DLSParser:
                             std_dev=std_dev_float
                         ))
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Invalid statistic table entry at row {row_idx}: size={size_nm}, intensity={mean_intensity}, std_dev={std_dev}, error={e}")
+                    logger.warning(f"Invalid statistic table entry at row {row_idx}: {e}")
                     continue
             logger.debug(f"Extracted {len(statistic_table)} statistic table entries")
         else:
@@ -796,14 +725,11 @@ class DLSParser:
                                 if value_cell.value is not None:
                                     try:
                                         metrics[metric_name] = float(value_cell.value)
-                                        logger.debug(f"Metric {metric_name} = {metrics[metric_name]} at row {row_idx + offset[0]}, col {value_cell.column}")
                                     except (ValueError, TypeError):
                                         metrics[metric_name] = None
-                                        logger.warning(f"Invalid value for {metric_name} at row {row_idx + offset[0]}, col {value_cell.column}: {value_cell.value}")
                                     break
                             except:
                                 continue
-        logger.debug(f"Extracted metrics: {metrics}")
 
         results_data = ResultsData(
             z_ave_hydrodynamic_diameter=metrics.get("z_ave_hydrodynamic_diameter"),
@@ -825,7 +751,6 @@ class DLSParser:
             derived_count_rate=metrics.get("derived_count_rate"),
             statistic_table=statistic_table
         )
-        logger.debug(f"Final results extracted: Z-ave={results_data.z_ave_hydrodynamic_diameter}, PDI={results_data.pdi}, Stats table size={len(statistic_table)}")
         return asdict(results_data)
 
     def parse_all_data(self) -> Dict[str, Union[Dict, List]]:
@@ -846,33 +771,36 @@ class DLSParser:
                 'processed_data': [],
                 'final_results': {}
             }
-            logger.debug(f"-------------------------------------------------------------------------")
-            logger.debug(f"Parsed test details here at parse all data: {parsed_data}")
 
-            SHEET_PATTERN = r'^({prefix}_WP[1-5]_DLS_\d+aR[1-5])$'
+            # -------------------------------------------------------
+            # Sheet pattern now accepts ANY letter between number & R
+            # e.g.  Raw data_WP2_DLS_7aR1  AND  Raw data_WP2_DLS_7bR1
+            # -------------------------------------------------------
+            SHEET_PATTERN = r'^({prefix}_' + _ID_PATTERN + r')$'
 
-             # Function to filter sheets based on prefix
             def filter_sheets(sheetnames, prefix):
-                 pattern = SHEET_PATTERN.format(prefix=prefix)
-                 return [name for name in sheetnames if re.match(pattern, name, re.IGNORECASE)]
+                pattern = SHEET_PATTERN.format(prefix=prefix)
+                return [name for name in sheetnames if re.match(pattern, name, re.IGNORECASE)]
 
-            # Filter raw and processed sheets
             raw_sheets = filter_sheets(self.wb.sheetnames, "Raw data")
             processed_sheets = filter_sheets(self.wb.sheetnames, "Processed data")
 
             for raw_sheet in raw_sheets:
-                match = re.search(r'WP(\d+)_DLS_(\d+)aR(\d+)', raw_sheet, re.IGNORECASE)
+                match = re.search(_ID_PATTERN, raw_sheet, re.IGNORECASE)
                 if not match:
                     logger.warning(f"Invalid raw sheet name format: {raw_sheet}")
                     continue
                 wp_number = match.group(1)
                 dls_number = match.group(2)
-                run_number = match.group(3)
+                letter = match.group(3)        # ← captured letter
+                run_number = match.group(4)    # ← shifted from group(3)
                 if not (1 <= int(wp_number) <= 10 and 1 <= int(dls_number) <= 30 and 1 <= int(run_number) <= 10):
                    logger.warning(f"Invalid number range in sheet name: {raw_sheet}")
                    continue
+
+                # Match processed sheet using the SAME letter
                 processed_sheet = next((name for name in processed_sheets 
-                if re.search(rf'^.*WP{wp_number}_DLS_{dls_number}aR{run_number}$', name, re.IGNORECASE)),
+                    if re.search(rf'^.*WP{wp_number}_DLS_{dls_number}{letter}R{run_number}$', name, re.IGNORECASE)),
                     None)
                 if not processed_sheet:
                     logger.warning(f"No matching processed data sheet for {raw_sheet}")
@@ -881,19 +809,8 @@ class DLSParser:
                 try:
                     raw_data = self.extract_raw_data(raw_sheet, processed_sheet)
                     
-                    # Structure raw_data to match frontend expectations
-                    raw_data_entry = {
-                        'run_number': raw_data.get('run_number', 0),
-                        'correlation_data': raw_data.get('correlation_data', {
-                            'time_us': [],
-                           'correlation_coefficient': []
-                        })
-                    }
-                    #print(f"Raw data for run {run_number}: {raw_data_entry}")
-                    #parsed_data['replications'].append(raw_data_entry)
                     parsed_data['replications'].append(raw_data)
 
-                    # Structure processed_data to match frontend expectations
                     processed_data_entry = {
                         'run_number': raw_data.get('run_number', 0),
                         'size_distribution': raw_data.get('size_distribution', {
@@ -916,13 +833,12 @@ class DLSParser:
                         }
                     }
                     parsed_data['processed_data'].append(processed_data_entry)
-                    logger.debug(f"Processed run {run_number}: {processed_data_entry}")
+                    logger.debug(f"Processed run {run_number}: done")
                 except Exception as e:
                     logger.error(f"Error processing run {run_number} from {raw_sheet}: {e}\n{traceback.format_exc()}")
                     continue
 
             parsed_data['final_results'] = self.extract_final_results()
-            
 
             logger.info(f"Parsed data: {len(parsed_data['replications'])} raw data entries, {len(parsed_data['processed_data'])} processed data entries")
             return parsed_data
@@ -946,9 +862,6 @@ if __name__ == "__main__":
     try:
         parsed_data = parse_excel_dls(file_path)
         print("Parsed Data:")
-        #print("Test Details:", parsed_data['test_details'])
-        #print("Raw Data:", parsed_data['replications'])
         print("Processed Data:", parsed_data['processed_data'])
-        #print("Final Results:", parsed_data['final_results'])
     except Exception as e:
         print(f"Error: {e}")

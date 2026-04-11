@@ -24,6 +24,9 @@ from parsers.ros import parse_excel_ros
 from parsers.tb import parse_excel_tb
 from parsers.ups import parse_excel_ups
 from parsers.xps import parse_excel_xps
+from parsers.xrd import parse_excel_xrd
+from parsers.dsc import parse_excel_dsc
+from parsers.tga import parse_excel_tga
 import tempfile
 import math
 import shutil
@@ -88,7 +91,13 @@ async def create_test(
             elif request.test_name == "UPS":
                 file_data = parse_excel_ups(path)
             elif request.test_name == "XPS":
-                file_data = parse_excel_xps(path)              
+                file_data = parse_excel_xps(path)
+            elif request.test_name == "XRD":
+                file_data = parse_excel_xrd(path)
+            elif request.test_name == "DSC":
+                file_data = parse_excel_dsc(path)
+            elif request.test_name == "TGA":
+                file_data = parse_excel_tga(path)     
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

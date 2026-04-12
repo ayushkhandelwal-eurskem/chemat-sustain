@@ -528,31 +528,39 @@ class ZetaParser:
         distribution = []
         results = ZetaProcessedResults()
 
-        # Results row4 D-H
+    # Results row 4, columns D-H
         try:
-            results.mean_zeta = float(proc_ws.cell(row=4, column=4).value)
-            results.std_dev = float(proc_ws.cell(row=4, column=5).value)
-            results.peak_max = float(proc_ws.cell(row=4, column=6).value)
-            results.mobility = float(proc_ws.cell(row=4, column=7).value)
-            results.conductivity = float(proc_ws.cell(row=4, column=8).value)
+            results.mean_zeta = float(proc_ws.cell(row=4, column=4).value) if proc_ws.cell(row=4, column=4).value is not None else None
+            results.std_dev = float(proc_ws.cell(row=4, column=5).value) if proc_ws.cell(row=4, column=5).value is not None else None
+            results.peak_max = float(proc_ws.cell(row=4, column=6).value) if proc_ws.cell(row=4, column=6).value is not None else None
+            results.mobility = float(proc_ws.cell(row=4, column=7).value) if proc_ws.cell(row=4, column=7).value is not None else None
+            results.conductivity = float(proc_ws.cell(row=4, column=8).value) if proc_ws.cell(row=4, column=8).value is not None else None
         except (ValueError, TypeError):
             logger.warning(f"Invalid results values in {processed_sheet_name}")
 
-        # Distribution A:B from row3? but row3 empty, row4 data
+    # Distribution from columns A:B
         for row_idx in range(4, proc_ws.max_row + 1):
-            zeta = round(proc_ws.cell(row=row_idx, column=1).value, 2)
-            freq = round(proc_ws.cell(row=row_idx, column=2).value, 2)
+            zeta_raw = proc_ws.cell(row=row_idx, column=1).value
+            freq_raw = proc_ws.cell(row=row_idx, column=2).value
 
-            if zeta is None:
+        # stop when the distribution block ends
+            if zeta_raw is None:
                 break
 
             try:
+                zeta = round(float(zeta_raw), 2)
+                freq = round(float(freq_raw), 2) if freq_raw is not None else 0.0
+
                 distribution.append(ZetaDistribution(
-                    zeta_mv=float(zeta),
-                    frequency=float(freq) if freq else 0.0
+                    zeta_mv=zeta,
+                    frequency=freq
                 ))
             except (ValueError, TypeError):
-                pass
+                logger.warning(
+                    f"Skipping invalid distribution row {row_idx} in {processed_sheet_name}: "
+                    f"zeta={zeta_raw}, freq={freq_raw}"
+                )
+                continue
 
         return ZetaProcessedData(
             run_number=run_number,

@@ -16,7 +16,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   Cell,
 } from "recharts";
@@ -219,6 +218,7 @@ const MEAN_COLOR = "#2563eb"; // blue-600
    Helpers
    ================================================================ */
 
+const degC = (s: string) => s.replace(/oC/g, "°C");
 const fmt = (value: any, digits = 4) => {
   if (value === null || value === undefined || value === "") return "";
   if (typeof value === "number") return value.toFixed(digits);
@@ -959,6 +959,11 @@ const XRDDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           type="number"
                           domain={["dataMin", "dataMax"]}
                           tickCount={15}
+                          label={{
+                            value: "2θ (°)",
+                            position: "insideBottom",
+                            offset: -5,
+                          }}
                         />
                         <YAxis
                           label={{
@@ -978,7 +983,6 @@ const XRDDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             `2θ = ${Number(label).toFixed(3)}°`
                           }
                         />
-                        <Legend />
 
                         {/* Individual scans (drawn first, behind mean) */}
                         {showIndividualScans &&
@@ -1015,11 +1019,10 @@ const XRDDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </div>
                 )}
 
-                {/* Raw data table (first 100 rows) */}
+                {/* Raw data table */}
                 <div className="mt-6">
                   <h4 className="text-md font-semibold mb-3">
-                    Raw Data Preview (First 100 rows of{" "}
-                    {safeRawBlocks[selectedRawBlock].point_count ?? 0})
+                    Raw Data ({safeRawBlocks[selectedRawBlock].point_count ?? 0} points)
                   </h4>
                   <div className="overflow-x-auto">
                     <table
@@ -1053,7 +1056,6 @@ const XRDDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       </thead>
                       <tbody>
                         {safeRawBlocks[selectedRawBlock].spectrum_points
-                          .slice(0, 100)
                           .map((p, pi) => (
                             <tr
                               key={pi}
@@ -1315,6 +1317,40 @@ const XRDDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
 
             {safeFinalResults.length > 0 ? (
               <>
+                {/* Visual summary cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  {safeFinalResults.map((fr, i) => (
+                    <React.Fragment key={i}>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 text-center">
+                        <p className="text-sm text-blue-600 font-medium mb-1">
+                          Crystal Structure
+                        </p>
+                        <p className="text-2xl font-bold text-blue-800 capitalize">
+                          {fr.crystal_structure ?? "N/A"}
+                        </p>
+                      </div>
+
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-5 text-center">
+                        <p className="text-sm text-green-600 font-medium mb-1">
+                          Other Crystal Forms
+                        </p>
+                        <p className="text-2xl font-bold text-green-800 capitalize">
+                          {fr.other_crystal_forms ?? "N/A"}
+                        </p>
+                      </div>
+
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 text-center">
+                        <p className="text-sm text-gray-600 font-medium mb-1">
+                          Other Forms Concentration
+                        </p>
+                        <p className="text-xl font-bold text-gray-800">
+                          {fr.other_crystal_forms_concentration ?? "N/A"}
+                        </p>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+
                 {/* Results table */}
                 <div className="overflow-x-auto">
                   <table

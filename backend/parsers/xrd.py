@@ -675,10 +675,20 @@ class XRDParser:
             raise
 
 
+def _fix_degree_symbols(obj):
+    """Recursively replace oC with °C in all string values."""
+    if isinstance(obj, str):
+        return obj.replace("oC", "°C")
+    if isinstance(obj, dict):
+        return {(k.replace("oC", "°C") if isinstance(k, str) else k): _fix_degree_symbols(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_fix_degree_symbols(v) for v in obj]
+    return obj
+
 def parse_excel_xrd(file_path: str, sheet_name: str = "Test Information") -> Dict[str, Union[Dict, List]]:
     try:
         parser = XRDParser(file_path, sheet_name)
-        return parser.parse_all_data()
+        return _fix_degree_symbols(parser.parse_all_data())
     except Exception as e:
         logger.error("Error in parse_excel_xrd: %s\n%s", e, traceback.format_exc())
         raise

@@ -12,6 +12,17 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
+# =========================================================
+# Universal FTIR identifier pattern — accepts any letter
+# (a, b, c, …) between the number and R.
+#
+#   Group 1 = WP number        (e.g. "2")
+#   Group 2 = FTIR number      (e.g. "16")
+#   Group 3 = variant letter   (e.g. "a" or "b")
+#   Group 4 = run number       (e.g. "1")
+# =========================================================
+_FTIR_ID = r'WP(\d+)_FTIR_(\d+)([a-zA-Z])R(\d+)'
+
 # Dataclasses (adapted for FTIR)
 @dataclass
 class Scientist:
@@ -370,19 +381,21 @@ class FTIRParser:
 
     def extract_replications(self):
         replications = []
-        raw_sheets = [name for name in self.wb.sheetnames if re.match(r'Raw data_WP\d+_FTIR_\d+aR\d+', name, re.IGNORECASE)]
+        # FIX: accept any letter (a, b, c, …) before R
+        raw_sheets = [name for name in self.wb.sheetnames if re.match(r'Raw data_' + _FTIR_ID, name, re.IGNORECASE)]
         logger.debug(f"Found raw data sheets: {raw_sheets}")
         
         for raw_sheet in raw_sheets:
-            match = re.search(r'WP(\d+)_FTIR_(\d+)aR(\d+)', raw_sheet, re.IGNORECASE)
+            match = re.search(_FTIR_ID, raw_sheet, re.IGNORECASE)
             if not match:
                 logger.warning(f"Raw sheet name {raw_sheet} does not match expected pattern")
                 continue
             wp_number = match.group(1)
             ftir_number = match.group(2)
-            run_number = match.group(3)
-            test_identifier = f"WP{wp_number}_FTIR_{ftir_number}aR{run_number}"
-            logger.debug(f"Processing replication for sheet {raw_sheet}: test_identifier={test_identifier}, run_number={run_number}")
+            letter = match.group(3)        # ← captured letter
+            run_number = match.group(4)    # ← shifted from group(3)
+            test_identifier = f"WP{wp_number}_FTIR_{ftir_number}{letter}R{run_number}"
+            logger.debug(f"Processing replication for sheet {raw_sheet}: test_identifier={test_identifier}")
             
             start_date = None
             end_date = None
@@ -398,16 +411,15 @@ class FTIRParser:
                 test_start_date=start_date,
                 test_end_date=end_date
             ))
-            logger.debug(f"Extracted replication data: {replication}")
             replications.append(replication)
 
         return replications
 
     def extract_raw_data(self, raw_sheet_name: str):
-        run_number = 1  # Default, adapt if multiple
-        match = re.search(r'R(\d+)', raw_sheet_name)
+        run_number = 1  # Default
+        match = re.search(_FTIR_ID, raw_sheet_name, re.IGNORECASE)
         if match:
-            run_number = int(match.group(1))
+            run_number = int(match.group(4))   # ← group(4) now
         logger.debug(f"Extracting raw data for sheet {raw_sheet_name}, run_number={run_number}")
 
         wavelength_transmittance = WavelengthTransmittanceData()
@@ -422,7 +434,7 @@ class FTIRParser:
         for row_idx, row in enumerate(raw_ws.iter_rows(min_row=1, max_col=2), start=1):
             wav_header = str(row[0].value).lower() if row[0].value else ""
             trans_header = str(row[1].value).lower() if row[1].value else ""
-            if "wavelength" in wav_header and "transmitance" in trans_header:  # Note: typo in data 'Transmitance'
+            if "wavelength" in wav_header and "transmitance" in trans_header:
                 header_row = row_idx
                 logger.debug(f"Found raw data header at row {row_idx}: {wav_header}, {trans_header}")
                 break
@@ -437,7 +449,7 @@ class FTIRParser:
                     wavelength_transmittance.wavelengths.append(float(wavelength))
                     wavelength_transmittance.transmittances.append(float(transmittance))
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Failed to parse raw data at row {row[0].row}: wavelength={wavelength}, transmittance={transmittance}, error={e}")
+                    logger.warning(f"Failed to parse raw data at row {row[0].row}: {e}")
                     continue
             logger.debug(f"Extracted {len(wavelength_transmittance.wavelengths)} raw data points for run {run_number}")
         else:
@@ -446,10 +458,10 @@ class FTIRParser:
         return asdict(RawData(run_number=run_number, wavelength_transmittance=wavelength_transmittance))
 
     def extract_processed_data(self, processed_sheet_name: str):
-        run_number = 1  # Default, adapt if multiple
-        match = re.search(r'R(\d+)', processed_sheet_name)
+        run_number = 1  # Default
+        match = re.search(_FTIR_ID, processed_sheet_name, re.IGNORECASE)
         if match:
-            run_number = int(match.group(1))
+            run_number = int(match.group(4))   # ← group(4) now
         logger.debug(f"Extracting processed data for sheet {processed_sheet_name}, run_number={run_number}")
 
         peak_transmittance = PeakTransmittanceData()
@@ -463,32 +475,26 @@ class FTIRParser:
 
         header_row = None
         for row_idx, row in enumerate(processed_ws.iter_rows(min_row=2, max_col=3), start=2):
-            logger.debug(f"Row {row_idx} has {len(row)} cells: {[cell.value for cell in row]}")
             peak_header = str(row[1].value).lower() if len(row) > 1 and row[1].value else ""
             trans_header = str(row[2].value).lower() if len(row) > 2 and row[2].value else ""
-            logger.debug(f"Checking row {row_idx}: peak_header={peak_header}, trans_header={trans_header}")
             if "peak position [cm-1]" in peak_header and "transmitance [%]" in trans_header:
                 header_row = row_idx
-                logger.debug(f"Found processed data header at row {row_idx}: {peak_header}, {trans_header}")
+                logger.debug(f"Found processed data header at row {row_idx}")
                 break
 
         if header_row:
             for row in processed_ws.iter_rows(min_row=header_row + 1, min_col=2, max_col=3):
-                logger.debug(f"Processing data row {row[0].row} with {len(row)} cells: {[cell.value for cell in row]}")
                 if len(row) < 2:
-                    logger.warning(f"Row {row[0].row} in {processed_sheet_name} has fewer than 2 columns")
                     continue
-                peak = row[0].value  # Column B (min_col=2)
-                transmittance = row[1].value  # Column C
+                peak = row[0].value
+                transmittance = row[1].value
                 if peak is None or transmittance is None:
-                    logger.debug(f"Skipping row {row[0].row} in {processed_sheet_name}: peak={peak}, transmittance={transmittance}")
                     continue
                 try:
                     peak_transmittance.peaks.append(float(peak))
                     peak_transmittance.transmittances.append(float(transmittance))
-                    logger.debug(f"Added processed data point: peak={peak}, transmittance={transmittance}")
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Failed to parse processed data at row {row[0].row}: peak={peak}, transmittance={transmittance}, error={e}")
+                    logger.warning(f"Failed to parse processed data at row {row[0].row}: {e}")
                     continue
             logger.debug(f"Extracted {len(peak_transmittance.peaks)} processed data points for run {run_number}")
         else:
@@ -503,25 +509,20 @@ class FTIRParser:
             logger.warning("No final results sheet found")
             return asdict(ResultsData())
 
-        # Select the first final results sheet
         ws = self.wb[final_sheet_names[0]]
         functional_groups = []
 
-        # Check header row (A2, row 2)
         header_row = 2
         first_cell = ws.cell(row=header_row, column=1).value
         if not first_cell or "functional group" not in str(first_cell).lower().strip():
             logger.warning(f"Header row {header_row} does not contain 'functional group': found '{first_cell}'")
             return asdict(ResultsData())
 
-        logger.debug(f"Found functional group header at row {header_row}")
-        data_row = 4  # Data row is C2 (row 4)
-
+        data_row = 4
         if data_row > ws.max_row:
             logger.warning(f"Data row {data_row} exceeds sheet's maximum row {ws.max_row}")
             return asdict(ResultsData())
 
-        # Process the data row up to max column 7
         max_col = 30
         row = ws[data_row]
         for i in range(0, min(len(row), max_col), 2):
@@ -530,12 +531,10 @@ class FTIRParser:
             if group_name and peaks_str:
                 peaks = []
                 try:
-                    # Split peaks_str by commas and process each value
                     for p in str(peaks_str).split(','):
                         p = p.strip()
-                        if p:  # Ensure non-empty string
+                        if p:
                             peaks.append(float(p))
-                    # Validate group_name length
                     if len(group_name) > 100:
                         logger.warning(f"Group name '{group_name}' exceeds 100 characters, truncating")
                         group_name = group_name[:100]
@@ -543,9 +542,7 @@ class FTIRParser:
                     logger.debug(f"Extracted functional group: {group_name}, peaks={peaks}")
                 except (ValueError, TypeError) as e:
                     logger.warning(f"Error parsing peaks for group '{group_name}': {peaks_str}, error: {e}")
-                    continue  # Skip to next pair on error
-            else:
-                logger.debug(f"Skipping invalid pair at index {i}: group_name={group_name}, peaks={peaks_str}")
+                    continue
 
         if not functional_groups:
             logger.warning("No valid functional groups extracted from data row")
@@ -567,38 +564,40 @@ class FTIRParser:
                     'sample_preparation': sample_preparation_data,
                     'instrumentation': instrumentation_data
                 },
+                'replication_metadata': self.extract_replications(),
                 'replications': [],
                 'processed_data': [],
                 'final_results': {}
             }
 
-            raw_sheets = [name for name in self.wb.sheetnames if re.match(r'Raw data_WP\d+_FTIR_\d+aR\d+', name, re.IGNORECASE)]
-            processed_sheets = [name for name in self.wb.sheetnames if re.match(r'Processed data_WP\d+_FTIR_\d+aR\d+', name, re.IGNORECASE)]
+            # FIX: accept any letter (a, b, c, …) before R
+            raw_sheets = [name for name in self.wb.sheetnames if re.match(r'Raw data_' + _FTIR_ID, name, re.IGNORECASE)]
+            processed_sheets = [name for name in self.wb.sheetnames if re.match(r'Processed data_' + _FTIR_ID, name, re.IGNORECASE)]
             logger.debug(f"Found raw data sheets: {raw_sheets}")
             logger.debug(f"Found processed data sheets: {processed_sheets}")
 
             for raw_sheet in raw_sheets:
-                match = re.search(r'WP(\d+)_FTIR_(\d+)aR(\d+)', raw_sheet, re.IGNORECASE)
+                match = re.search(_FTIR_ID, raw_sheet, re.IGNORECASE)
                 if not match:
                     logger.warning(f"Raw sheet name {raw_sheet} does not match expected pattern")
                     continue
                 wp_number = match.group(1)
                 ftir_number = match.group(2)
-                run_number = match.group(3)
-                logger.debug(f"Processing raw sheet {raw_sheet}: wp_number={wp_number}, ftir_number={ftir_number}, run_number={run_number}")
+                letter = match.group(3)        # ← captured letter
+                run_number = match.group(4)    # ← shifted from group(3)
+                logger.debug(f"Processing raw sheet {raw_sheet}: wp={wp_number}, ftir={ftir_number}, letter={letter}, run={run_number}")
 
+                # Match processed sheet using the SAME letter
                 processed_sheet = next((name for name in processed_sheets 
-                                    if re.search(rf'WP{wp_number}_FTIR_{ftir_number}aR{run_number}', name, re.IGNORECASE)), None)
+                                    if re.search(rf'WP{wp_number}_FTIR_{ftir_number}{letter}R{run_number}', name, re.IGNORECASE)), None)
                 logger.debug(f"Matched processed sheet for run {run_number}: {processed_sheet}")
 
                 raw_data = self.extract_raw_data(raw_sheet)
                 parsed_data['replications'].append(raw_data)
-                logger.debug(f"Added raw data for run {run_number} to replications")
 
                 if processed_sheet:
                     processed_data = self.extract_processed_data(processed_sheet)
                     parsed_data['processed_data'].append(processed_data)
-                    logger.debug(f"Added processed data for run {run_number} to processed_data")
                 else:
                     logger.warning(f"No matching processed data sheet found for raw sheet {raw_sheet}")
 
@@ -609,6 +608,16 @@ class FTIRParser:
             logger.error(f"Error parsing Excel file: {e}\n{traceback.format_exc()}")
             raise
 
+def _fix_degree_symbols(obj):
+    """Recursively replace oC with °C in all string values."""
+    if isinstance(obj, str):
+        return obj.replace("oC", "°C")
+    if isinstance(obj, dict):
+        return {(k.replace("oC", "°C") if isinstance(k, str) else k): _fix_degree_symbols(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_fix_degree_symbols(v) for v in obj]
+    return obj
+
 def parse_excel_ftir(file_path: str) -> Dict[str, Union[Dict, List]]:
     """
     Parse FTIR Excel file and return data in a format compatible with TestCreate schema.
@@ -618,7 +627,7 @@ def parse_excel_ftir(file_path: str) -> Dict[str, Union[Dict, List]]:
         parser = FTIRParser(file_path)
         parsed_data = parser.parse_all_data()
         logger.debug(f"Successfully parsed data: {parsed_data}")
-        return parsed_data
+        return _fix_degree_symbols(parsed_data)
     except Exception as e:
         logger.error(f"Error in parse_excel_ftir: {e}\n{traceback.format_exc()}")
         raise

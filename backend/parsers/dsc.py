@@ -11,16 +11,12 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-
-# =========================================================
-# Dataclasses
-# =========================================================
+_DSC_ID = r'WP(\d+)_DSC_(\d+)([a-zA-Z])R(\d+)'
 
 @dataclass
 class Scientist:
     name: Optional[str] = None
     email: Optional[str] = None
-
 
 @dataclass
 class WorkPackageData:
@@ -36,7 +32,6 @@ class WorkPackageData:
     path: Optional[str] = None
     lead_scientists: List[Scientist] = field(default_factory=list)
     assay_scientists: List[Scientist] = field(default_factory=list)
-
 
 @dataclass
 class MaterialData:
@@ -55,7 +50,6 @@ class MaterialData:
     molar_concentration: Optional[str] = None
     particles_stock: Optional[str] = None
 
-
 @dataclass
 class DispersionData:
     dispersion_protocol: Optional[str] = None
@@ -71,7 +65,6 @@ class DispersionData:
     final_concentration: Optional[str] = None
     additional_info: Optional[str] = None
 
-
 @dataclass
 class InstrumentationData:
     instrument_model: Optional[str] = None
@@ -83,7 +76,6 @@ class InstrumentationData:
     temperature_range: Optional[str] = None
     heating_speed: Optional[str] = None
 
-
 @dataclass
 class ReplicationMetadata:
     test_identifier_number: Optional[str] = None
@@ -93,21 +85,22 @@ class ReplicationMetadata:
     raw_sheet_name: Optional[str] = None
     processed_sheet_name: Optional[str] = None
 
-
 @dataclass
 class DSCDataPoint:
     time_min: Optional[float] = None
     temperature_c: Optional[float] = None
     heat_flow_mw_per_mg: Optional[float] = None
-
+    sensitivity_uv_per_mw: Optional[float] = None
 
 @dataclass
 class DSCRawDataBlock:
     metric_name: Optional[str] = None
     raw_sheet_name: Optional[str] = None
+    run_label: Optional[str] = None
     time_unit: Optional[str] = "min"
-    temperature_unit: Optional[str] = "°C"
+    temperature_unit: Optional[str] = "oC"
     heat_flow_unit: Optional[str] = "mW/mg"
+    sensitivity_unit: Optional[str] = "uV/mW"
     point_count: Optional[int] = None
     min_time_min: Optional[float] = None
     max_time_min: Optional[float] = None
@@ -117,627 +110,276 @@ class DSCRawDataBlock:
     max_heat_flow: Optional[float] = None
     data_points: List[DSCDataPoint] = field(default_factory=list)
 
+@dataclass
+class DSCProcessedReplicateRow:
+    replicate_label: Optional[str] = None
+    values: Dict[str, Optional[float]] = field(default_factory=dict)
 
 @dataclass
-class DSCThermalEvent:
-    event_name: Optional[str] = None
-    enthalpy_j_per_g: Optional[float] = None
-    onset_temperature_c: Optional[Union[float, str]] = None
-    standard_deviation_pct: Optional[Union[float, str]] = None
+class DSCProcessedDataBlock:
+    headers: List[str] = field(default_factory=list)
+    replicates: List[DSCProcessedReplicateRow] = field(default_factory=list)
+    mean_row: Optional[DSCProcessedReplicateRow] = None
+    std_dev_row: Optional[DSCProcessedReplicateRow] = None
+    legend: Dict[str, str] = field(default_factory=dict)
+
+@dataclass
+class DSCFinalResultEntry:
+    metric_name: Optional[str] = None
+    value: Optional[Union[float, str]] = None
+    std_dev: Optional[Union[float, str]] = None
+    std_dev_unit: Optional[str] = None
     character: Optional[str] = None
 
-
-# =========================================================
-# Parser
-# =========================================================
 
 class DSCParser:
     def __init__(self, file_path: str, sheet_name: str = "Test Information"):
         self.file_path = file_path
         self.sheet_name = sheet_name
         self.parser_warnings: List[Dict[str, Any]] = []
-
         try:
             self.wb = openpyxl.load_workbook(file_path, data_only=True)
             self.ws = self.wb[sheet_name]
-            logger.info("Successfully loaded DSC workbook: %s", file_path)
         except Exception as e:
-            logger.error("Failed to load workbook or sheet '%s': %s", sheet_name, e)
+            logger.error("Failed to load workbook: %s", e)
             raise
-
         self.email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
-    # -----------------------------------------------------
-    # Generic helpers
-    # -----------------------------------------------------
-    def normalize_key(self, key: Optional[str]) -> Optional[str]:
-        if key is None:
-            return None
-        normalized = str(key).strip().lower()
-        normalized = re.sub(r"[^a-z0-9]+", "_", normalized)
-        normalized = re.sub(r"_+", "_", normalized).strip("_")
-        return normalized
+    def normalize_key(self, key):
+        if key is None: return None
+        n = re.sub(r"[^a-z0-9]+", "_", str(key).strip().lower())
+        return re.sub(r"_+", "_", n).strip("_")
 
-    def excel_date_to_string(self, value) -> Optional[str]:
+    def excel_date_to_string(self, value):
         try:
-            if isinstance(value, datetime):
-                return value.strftime("%Y-%m-%d")
-
-            if isinstance(value, (int, float)):
-                base_date = datetime(1899, 12, 30)
-                return (base_date + timedelta(days=float(value))).strftime("%Y-%m-%d")
-
+            if isinstance(value, datetime): return value.strftime("%Y-%m-%d")
+            if isinstance(value, (int, float)): return (datetime(1899, 12, 30) + timedelta(days=float(value))).strftime("%Y-%m-%d")
             if isinstance(value, str):
-                for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d.%m.%Y"):
-                    try:
-                        return datetime.strptime(value.strip(), fmt).strftime("%Y-%m-%d")
-                    except ValueError:
-                        pass
-
+                for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d.%m.%Y"):
+                    try: return datetime.strptime(value.strip(), fmt).strftime("%Y-%m-%d")
+                    except ValueError: pass
             return str(value).strip() if value not in (None, "") else None
-        except Exception as e:
-            logger.warning("Failed to convert date '%s': %s", value, e)
-            return str(value).strip() if value not in (None, "") else None
+        except: return str(value).strip() if value not in (None, "") else None
 
-    def _safe_float(self, value) -> Optional[float]:
-        if value in (None, ""):
-            return None
+    def _safe_float(self, value):
+        if value in (None, ""): return None
         try:
-            if isinstance(value, str):
-                value = value.replace(",", ".").strip()
+            if isinstance(value, str): value = value.replace(",", ".").strip()
             return float(value)
-        except (ValueError, TypeError):
-            return None
+        except (ValueError, TypeError): return None
 
-    def _get_first_value_in_row(self, row, start_col: int = 2, end_col: int = 6):
-        for col_idx in range(start_col, end_col + 1):
-            if col_idx - 1 < len(row):
-                value = row[col_idx - 1].value
-                if value is not None:
-                    return value
+    def _get_first_value(self, row, start=2, end=6):
+        for c in range(start, end + 1):
+            if c - 1 < len(row) and row[c - 1].value is not None: return row[c - 1].value
         return None
 
-    def _sheet_key_values(self) -> List[Dict[str, Any]]:
+    def _kv(self):
         data = []
-        for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=6), start=1):
-            key_cell = row[0].value
-            if not key_cell:
-                continue
-
-            raw_key = str(key_cell).strip()
-            key = self.normalize_key(raw_key)
-            if not key:
-                continue
-
-            value = self._get_first_value_in_row(row, 2, 6)
-            email = row[3].value if len(row) > 3 else None
-
-            data.append({
-                "row": row_idx,
-                "raw_key": raw_key,
-                "key": key,
-                "value": value,
-                "email": email,
-            })
+        for ri, row in enumerate(self.ws.iter_rows(min_row=1, max_col=6), start=1):
+            k = row[0].value
+            if not k: continue
+            key = self.normalize_key(k)
+            if not key: continue
+            data.append({"row": ri, "key": key, "value": self._get_first_value(row, 2, 6), "email": row[3].value if len(row) > 3 else None})
         return data
 
-    def _find_raw_sheets(self) -> List[str]:
-        return sorted([
-            s for s in self.wb.sheetnames
-            if s.lower().startswith("raw data") or s.lower().startswith("raw_data")
-        ])
+    def _find_sheets(self, prefix):
+        p = prefix.lower()
+        return sorted([s for s in self.wb.sheetnames if s.lower().startswith(p) or s.lower().startswith(p.replace(" ", "_"))])
 
-    def _find_final_results_sheets(self) -> List[str]:
-        return sorted([
-            s for s in self.wb.sheetnames
-            if s.lower().startswith("final results") or s.lower().startswith("final_results")
-        ])
+    def extract_work_package_data(self):
+        rows = self._kv()
+        lead, assay = [], []
+        for r in rows:
+            if "lead_scientist" in r["key"]:
+                lead.append(Scientist(name=r["value"], email=r["email"] if r["email"] and re.match(self.email_regex, str(r["email"])) else None))
+            if "assay_test_work_conducted_by" in r["key"]:
+                assay.append(Scientist(name=r["value"], email=r["email"] if r["email"] and re.match(self.email_regex, str(r["email"])) else None))
+        g = lambda *keys: next((r["value"] for r in rows if any(k in r["key"] for k in keys) and r["value"] is not None), None)
+        return asdict(WorkPackageData(wp_name=g("project_work_package"), partner=g("partner_conducting_test_assay"), laboratory_name=g("test_facility_laboratory_name"), full_test_name=g("full_name_of_test_assay"), test_acronym=g("short_name_or_acronym"), test_type=g("type_or_class_of_experimental"), endpoint=g("end_point_being_investigated"), endpoint_outcome=g("metric_s_used_to_assess"), sop=g("sop_s_for_test"), path=g("path_link_to_sop"), lead_scientists=lead, assay_scientists=assay))
 
-    # -----------------------------------------------------
-    # Test details
-    # -----------------------------------------------------
-    def extract_work_package_data(self) -> Dict[str, Any]:
-        rows = self._sheet_key_values()
-        lead_scientists: List[Scientist] = []
-        assay_scientists: List[Scientist] = []
+    def extract_material_data(self):
+        rows = self._kv()
+        g = lambda *keys: next((r["value"] for r in rows if any(k in r["key"] for k in keys) and r["value"] is not None), None)
+        batch = g("batch"); batch = str(batch) if batch is not None else None
+        return asdict(MaterialData(material_identifier=next((r["value"] for r in rows if r["key"] == "sample_cms_internal_identifier"), None), erm_id=g("erm_identifier"), material_name=next((r["value"] for r in rows if r["key"] == "material_name"), None), core_chemistry=g("core_chemistry"), cas_no=next((r["value"] for r in rows if r["key"] == "cas_no"), None), cas_for_core=g("cas_for_core"), material_supplier=next((r["value"] for r in rows if r["key"] == "material_supplier"), None), catalog_number=g("catalog_number"), material_state=next((r["value"] for r in rows if r["key"] == "material_state"), None), batch=batch, vial=g("vial"), preparation_date=self.excel_date_to_string(g("date_of_sample_preparation", "date_of_preparation")), molar_concentration=g("molar_concentration"), particles_stock=g("number_of_particles", "no_of_particles")))
 
-        for row in rows:
-            key = row["key"]
-            value = row["value"]
-            email = row["email"]
+    def extract_dispersion_data(self):
+        rows = self._kv()
+        g = lambda *keys: next((r["value"] for r in rows if any(k in r["key"] for k in keys) and r["value"] is not None), None)
+        return asdict(DispersionData(dispersion_protocol=g("standard_dispersion_protocol"), dispersion_technique=g("dispersion_technique", "otherwise_specify_dispersion"), dispersion_medium=g("dispersion_dilution_medium"), sonicator_type=g("sonicator"), power_w=next((r["value"] for r in rows if r["key"] == "power_w"), None), sonication_time_s=g("sonication_time"), tip_thickness_mm=g("tip_thickness"), tip_composition=g("tip_composition"), bath_volume_dm3=g("ultrasonic_bath", "water_volume"), sample_volume=next((r["value"] for r in rows if r["key"] == "sample_volume"), None), final_concentration=g("final_sample_concentration"), additional_info=g("additional_information")))
 
-            if "lead_scientist" in key:
-                lead_scientists.append(Scientist(
-                    name=value,
-                    email=email if email and re.match(self.email_regex, str(email)) else None,
-                ))
-            if "assay_test_work_conducted_by" in key:
-                assay_scientists.append(Scientist(
-                    name=value,
-                    email=email if email and re.match(self.email_regex, str(email)) else None,
-                ))
-
-        result = WorkPackageData(
-            wp_name=next((r["value"] for r in rows if r["key"] == "project_work_package"), None),
-            partner=next((r["value"] for r in rows if r["key"] == "partner_conducting_test_assay"), None),
-            laboratory_name=next((r["value"] for r in rows if r["key"] == "test_facility_laboratory_name"), None),
-            full_test_name=next((r["value"] for r in rows if "full_name_of_test_assay" in r["key"]), None),
-            test_acronym=next((r["value"] for r in rows if "short_name_or_acronym" in r["key"]), None),
-            test_type=next((r["value"] for r in rows if "type_or_class_of_experimental" in r["key"]), None),
-            endpoint=next((r["value"] for r in rows if "end_point_being_investigated" in r["key"]), None),
-            endpoint_outcome=next((r["value"] for r in rows if "metric_s_used_to_assess" in r["key"]), None),
-            sop=next((r["value"] for r in rows if "sop_s_for_test" in r["key"]), None),
-            path=next((r["value"] for r in rows if "path_link_to_sop" in r["key"]), None),
-            lead_scientists=lead_scientists,
-            assay_scientists=assay_scientists,
-        )
-        return asdict(result)
-
-    def extract_material_data(self) -> Dict[str, Any]:
-        rows = self._sheet_key_values()
-
-        batch_val = next((r["value"] for r in rows if r["key"] == "batch"), None)
-        if batch_val is not None:
-            batch_val = str(batch_val)
-
-        result = MaterialData(
-            material_identifier=next((r["value"] for r in rows if r["key"] == "sample_cms_internal_identifier"), None),
-            erm_id=next((r["value"] for r in rows if "erm_identifier" in r["key"]), None),
-            material_name=next((r["value"] for r in rows if r["key"] == "material_name"), None),
-            core_chemistry=next((r["value"] for r in rows if "core_chemistry" in r["key"]), None),
-            cas_no=next((r["value"] for r in rows if r["key"] == "cas_no"), None),
-            cas_for_core=next((r["value"] for r in rows if "cas_for_core" in r["key"] or "cas_no_for_core" in r["key"]), None),
-            material_supplier=next((r["value"] for r in rows if r["key"] == "material_supplier"), None),
-            catalog_number=next((r["value"] for r in rows if "catalog_number" in r["key"] or "catalogue_number" in r["key"]), None),
-            material_state=next((r["value"] for r in rows if r["key"] == "material_state"), None),
-            batch=batch_val,
-            vial=next((r["value"] for r in rows if r["key"] == "vial"), None),
-            preparation_date=self.excel_date_to_string(
-                next((r["value"] for r in rows if "date_of_sample_preparation" in r["key"] or "date_of_preparation" in r["key"]), None)
-            ),
-            molar_concentration=next((r["value"] for r in rows if "molar_concentration" in r["key"]), None),
-            particles_stock=next((r["value"] for r in rows if "no_of_particles" in r["key"] or "number_of_particles" in r["key"]), None),
-        )
-        return asdict(result)
-
-    def extract_dispersion_data(self) -> Dict[str, Any]:
-        rows = self._sheet_key_values()
-
-        result = DispersionData(
-            dispersion_protocol=next(
-                (r["value"] for r in rows if "standard_dispersion_protocol" in r["key"] or "specify_standard_dispersion" in r["key"]),
-                None,
-            ),
-            dispersion_technique=next(
-                (r["value"] for r in rows if "dispersion_technique" in r["key"] or "otherwise_specify_dispersion" in r["key"]),
-                None,
-            ),
-            dispersion_medium=next(
-                (r["value"] for r in rows if "dispersion_dilution_medium" in r["key"] or "dispersion_medium" in r["key"]),
-                None,
-            ),
-            sonicator_type=next((r["value"] for r in rows if "sonicator" in r["key"] and "type" in r["key"]), None),
-            power_w=next((r["value"] for r in rows if r["key"] == "power_w"), None),
-            sonication_time_s=next((r["value"] for r in rows if "sonication_time" in r["key"]), None),
-            tip_thickness_mm=next((r["value"] for r in rows if "tip_thickness" in r["key"]), None),
-            tip_composition=next((r["value"] for r in rows if "tip_composition" in r["key"]), None),
-            bath_volume_dm3=next((r["value"] for r in rows if "ultrasonic_bath" in r["key"] or "water_volume" in r["key"]), None),
-            sample_volume=next((r["value"] for r in rows if r["key"] == "sample_volume"), None),
-            final_concentration=next((r["value"] for r in rows if "final_sample_concentration" in r["key"]), None),
-            additional_info=next((r["value"] for r in rows if "additional_information" in r["key"]), None),
-        )
-        return asdict(result)
-
-    def extract_instrumentation_data(self) -> Dict[str, Any]:
-        rows = self._sheet_key_values()
+    def extract_instrumentation_data(self):
+        rows = self._kv()
         ws = self.ws
-
-        # Replicate labels from row 61 (cols 3+)
-        replicate_labels: List[str] = []
-        for col_idx in range(3, 15):
-            v = ws.cell(row=61, column=col_idx).value
-            if v is not None:
-                replicate_labels.append(str(v))
-
-        # Sample masses from rows 62-64
-        sample_masses: List[Dict[str, Optional[str]]] = []
+        g = lambda *keys: next((r["value"] for r in rows if any(k in r["key"] for k in keys) and r["value"] is not None), None)
+        rep_labels = [str(ws.cell(row=61, column=c).value) for c in range(3, 15) if ws.cell(row=61, column=c).value is not None]
+        masses = []
         for r in range(62, 65):
-            label = ws.cell(row=r, column=1).value
-            value = ws.cell(row=r, column=2).value
-            if label is not None:
-                sample_masses.append({
-                    "label": str(label).strip(),
-                    "value": str(value).strip() if value is not None else None,
-                })
+            lbl = ws.cell(row=r, column=1).value
+            val = ws.cell(row=r, column=2).value
+            if lbl is None: continue
+            entry = {"label": str(lbl).strip(), "value": str(val).strip() if val else None}
+            notes = [str(ws.cell(row=r, column=c).value).strip() for c in range(3, 7) if ws.cell(row=r, column=c).value is not None]
+            if notes: entry["notes"] = "; ".join(notes)
+            masses.append(entry)
+        return asdict(InstrumentationData(instrument_model=g("instrumentation"), crucible_type=g("crucible"), replication_count=ws.cell(row=61, column=2).value, replicate_labels=rep_labels, sample_masses=masses, protective_atmosphere=g("protective_atmosphere"), temperature_range=g("temperature_range"), heating_speed=g("heating_speed")))
 
-        result = InstrumentationData(
-            instrument_model=next(
-                (r["value"] for r in rows if "instrumentation" in r["key"] and ("model" in r["key"] or "company" in r["key"])),
-                None,
-            ),
-            crucible_type=next((r["value"] for r in rows if "crucible" in r["key"]), None),
-            replication_count=ws.cell(row=61, column=2).value,
-            replicate_labels=replicate_labels,
-            sample_masses=sample_masses,
-            protective_atmosphere=next((r["value"] for r in rows if "protective_atmosphere" in r["key"]), None),
-            temperature_range=next((r["value"] for r in rows if "temperature_range" in r["key"]), None),
-            heating_speed=next((r["value"] for r in rows if "heating_speed" in r["key"]), None),
-        )
-        return asdict(result)
+    def extract_replication_metadata(self):
+        ws = self.ws; raw_sheets = self._find_sheets("raw data"); proc_sheets = self._find_sheets("processed data"); meta = []
+        for ri in range(39, 42):
+            tid = ws.cell(row=ri, column=2).value
+            if tid is None: continue
+            ts = str(tid).strip()
+            raw = next((s for s in raw_sheets if ts.lower() in s.lower()), None)
+            meta.append(asdict(ReplicationMetadata(test_identifier_number=ts, test_start_date=self.excel_date_to_string(ws.cell(row=ri, column=3).value), test_end_date=self.excel_date_to_string(ws.cell(row=ri, column=4).value), replicate_label="DSC Thermogram", raw_sheet_name=raw, processed_sheet_name=proc_sheets[0] if proc_sheets else None)))
+        return meta
 
-    # -----------------------------------------------------
-    # Replication metadata
-    # -----------------------------------------------------
-    def extract_replication_metadata(self) -> List[Dict[str, Any]]:
-        ws = self.ws
-        raw_sheets = self._find_raw_sheets()
-        metadata: List[Dict[str, Any]] = []
+    def extract_raw_data(self):
+        return [self._extract_raw_block(s) for s in self._find_sheets("raw data")]
 
-        # Scan rows 39-41 for test identifiers
-        for row_idx in range(39, 42):
-            test_id = ws.cell(row=row_idx, column=2).value
-            if test_id is None:
-                continue
+    def _extract_raw_block(self, sn):
+        ws = self.wb[sn]
+        cm = {}
+        for c in range(1, ws.max_column + 1):
+            h = ws.cell(row=1, column=c).value
+            if h is None: continue
+            hl = str(h).strip().lower()
+            if "time" in hl: cm["time"] = c
+            elif "temp" in hl: cm["temp"] = c
+            elif "dsc" in hl or "heat" in hl: cm["hf"] = c
+            elif "sensit" in hl: cm["sens"] = c
+        tc, tempc, hfc, sc = cm.get("time", 1), cm.get("temp", 2), cm.get("hf", 3), cm.get("sens")
 
-            test_start = self.excel_date_to_string(ws.cell(row=row_idx, column=3).value)
-            test_end = self.excel_date_to_string(ws.cell(row=row_idx, column=4).value)
+        # Units
+        hf_unit, sens_unit = "mW/mg", "uV/mW"
+        hh = ws.cell(row=1, column=hfc).value
+        if hh and "/" in str(hh):
+            p = str(hh).split("/", 1)
+            if len(p) > 1: hf_unit = p[1].strip().strip("()")
+        if sc:
+            sh = ws.cell(row=1, column=sc).value
+            if sh and "/" in str(sh):
+                p = str(sh).split("/", 1)
+                if len(p) > 1: sens_unit = p[1].strip().strip("()")
 
-            # Match raw sheet if available
-            raw_sheet_name = None
-            for rs in raw_sheets:
-                if str(test_id).strip().lower() in rs.lower():
-                    raw_sheet_name = rs
-                    break
-            if raw_sheet_name is None and raw_sheets:
-                raw_sheet_name = raw_sheets[0]
+        m = re.search(_DSC_ID, sn, re.IGNORECASE)
+        run_label = f"R{m.group(4)}" if m else sn
 
-            metadata.append(asdict(ReplicationMetadata(
-                test_identifier_number=str(test_id).strip(),
-                test_start_date=test_start,
-                test_end_date=test_end,
-                replicate_label="DSC Thermogram",
-                raw_sheet_name=raw_sheet_name,
-                processed_sheet_name=None,
-            )))
+        pts, tv, tempv, hfv = [], [], [], []
+        for r in range(2, ws.max_row + 1):
+            t = self._safe_float(ws.cell(row=r, column=tc).value)
+            if t is None: continue
+            temp = self._safe_float(ws.cell(row=r, column=tempc).value)
+            hf = self._safe_float(ws.cell(row=r, column=hfc).value)
+            sens = self._safe_float(ws.cell(row=r, column=sc).value) if sc else None
+            pts.append(asdict(DSCDataPoint(time_min=t, temperature_c=temp, heat_flow_mw_per_mg=hf, sensitivity_uv_per_mw=sens)))
+            tv.append(t)
+            if temp is not None: tempv.append(temp)
+            if hf is not None: hfv.append(hf)
 
-        # Fallback: if no metadata found but raw sheets exist
-        if not metadata and raw_sheets:
-            for rs in raw_sheets:
-                metadata.append(asdict(ReplicationMetadata(
-                    test_identifier_number=None,
-                    test_start_date=None,
-                    test_end_date=None,
-                    replicate_label="DSC Thermogram",
-                    raw_sheet_name=rs,
-                    processed_sheet_name=None,
-                )))
+        return asdict(DSCRawDataBlock(metric_name=f"DSC Thermogram {run_label}", raw_sheet_name=sn, run_label=run_label, heat_flow_unit=hf_unit, sensitivity_unit=sens_unit, point_count=len(pts), min_time_min=min(tv) if tv else None, max_time_min=max(tv) if tv else None, min_temperature_c=min(tempv) if tempv else None, max_temperature_c=max(tempv) if tempv else None, min_heat_flow=min(hfv) if hfv else None, max_heat_flow=max(hfv) if hfv else None, data_points=pts))
 
-        return metadata
+    def extract_processed_data(self):
+        sheets = self._find_sheets("processed data")
+        if not sheets: return {"available": False, "blocks": []}
+        blocks = []
+        for sn in sheets:
+            ws = self.wb[sn]
+            headers = []
+            for c in range(2, ws.max_column + 1):
+                h = ws.cell(row=1, column=c).value
+                if h is not None: headers.append({"col": c, "name": str(h).strip()})
+            replicates, mean_row, sd_row = [], None, None
+            for r in range(2, ws.max_row + 1):
+                label = ws.cell(row=r, column=1).value
+                if label is None: continue
+                ls = str(label).strip()
+                col2 = ws.cell(row=r, column=2).value
+                if col2 is not None and isinstance(col2, str) and self._safe_float(col2) is None: continue
+                vals = {hd["name"]: self._safe_float(ws.cell(row=r, column=hd["col"]).value) for hd in headers}
+                rd = asdict(DSCProcessedReplicateRow(replicate_label=ls, values=vals))
+                if ls.lower() in ("xm", "mean"): mean_row = rd
+                elif ls.lower() in ("δ", "sd", "sigma", "std"): sd_row = rd
+                else: replicates.append(rd)
+            legend = {}
+            for r in range(max(2, len(replicates) + 4), ws.max_row + 1):
+                k, v = ws.cell(row=r, column=1).value, ws.cell(row=r, column=2).value
+                if k and v and isinstance(v, str): legend[str(k).strip()] = str(v).strip()
+            blocks.append(asdict(DSCProcessedDataBlock(headers=[h["name"] for h in headers], replicates=replicates, mean_row=mean_row, std_dev_row=sd_row, legend=legend)))
+        return {"available": True, "blocks": blocks}
 
-    # -----------------------------------------------------
-    # Raw data
-    # -----------------------------------------------------
-    def extract_raw_data(self) -> List[Dict[str, Any]]:
-        raw_sheets = self._find_raw_sheets()
-        raw_blocks: List[Dict[str, Any]] = []
-
-        for raw_sheet_name in raw_sheets:
-            raw_blocks.append(self._extract_raw_block(raw_sheet_name))
-
-        return raw_blocks
-
-    def _extract_raw_block(self, raw_sheet_name: str) -> Dict[str, Any]:
-        ws = self.wb[raw_sheet_name]
-
-        # Detect column layout from header row
-        headers: Dict[int, str] = {}
-        for col_idx in range(1, ws.max_column + 1):
-            v = ws.cell(row=1, column=col_idx).value
-            if v is not None:
-                headers[col_idx] = str(v).strip()
-
-        time_col: Optional[int] = None
-        temp_col: Optional[int] = None
-        heat_flow_col: Optional[int] = None
-
-        for col_idx, header in headers.items():
-            h_lower = header.lower()
-            if "time" in h_lower:
-                time_col = col_idx
-            elif "temp" in h_lower:
-                temp_col = col_idx
-            elif "dsc" in h_lower or "heat" in h_lower or "mw" in h_lower:
-                heat_flow_col = col_idx
-
-        # Fallback: assume col 1=time, 2=temp, 3=heat flow
-        if time_col is None:
-            time_col = 1
-        if temp_col is None:
-            temp_col = 2
-        if heat_flow_col is None:
-            heat_flow_col = 3
-
-        # Detect units from header text
-        time_unit = "min"
-        temp_unit = "°C"
-        heat_flow_unit = "mW/mg"
-
-        for col_idx, header in headers.items():
-            if col_idx == time_col and "[" in header:
-                time_unit = header.split("[")[-1].rstrip("]").strip()
-            elif col_idx == temp_col and "[" in header:
-                temp_unit = header.split("[")[-1].rstrip("]").strip()
-            elif col_idx == heat_flow_col:
-                # Parse unit from header like "DSC/(mW/mg)"
-                if "/" in header:
-                    parts = header.split("/", 1)
-                    if len(parts) > 1:
-                        heat_flow_unit = parts[1].strip().strip("()")
-
-        data_points: List[Dict[str, Any]] = []
-        time_vals: List[float] = []
-        temp_vals: List[float] = []
-        hf_vals: List[float] = []
-
-        for row_idx in range(2, ws.max_row + 1):
-            t = self._safe_float(ws.cell(row=row_idx, column=time_col).value)
-            if t is None:
-                continue
-
-            temp = self._safe_float(ws.cell(row=row_idx, column=temp_col).value)
-            hf = self._safe_float(ws.cell(row=row_idx, column=heat_flow_col).value)
-
-            data_points.append(asdict(DSCDataPoint(
-                time_min=t,
-                temperature_c=temp,
-                heat_flow_mw_per_mg=hf,
-            )))
-            time_vals.append(t)
-            if temp is not None:
-                temp_vals.append(temp)
-            if hf is not None:
-                hf_vals.append(hf)
-
-        result = DSCRawDataBlock(
-            metric_name="DSC Thermogram (Temperature vs Heat Flow)",
-            raw_sheet_name=raw_sheet_name,
-            time_unit=time_unit,
-            temperature_unit=temp_unit,
-            heat_flow_unit=heat_flow_unit,
-            point_count=len(data_points),
-            min_time_min=min(time_vals) if time_vals else None,
-            max_time_min=max(time_vals) if time_vals else None,
-            min_temperature_c=min(temp_vals) if temp_vals else None,
-            max_temperature_c=max(temp_vals) if temp_vals else None,
-            min_heat_flow=min(hf_vals) if hf_vals else None,
-            max_heat_flow=max(hf_vals) if hf_vals else None,
-            data_points=data_points,
-        )
-        return asdict(result)
-
-    # -----------------------------------------------------
-    # Final results (thermal events)
-    # -----------------------------------------------------
-    def extract_final_results(self) -> List[Dict[str, Any]]:
-        final_sheets = self._find_final_results_sheets()
-
-        if not final_sheets:
-            self.parser_warnings.append({
-                "type": "missing_sheet",
-                "sheet": "Final results",
-                "note": "No Final results sheet found in this DSC workbook.",
-            })
-            return []
-
-        events: List[Dict[str, Any]] = []
-
-        for fs_name in final_sheets:
-            ws = self.wb[fs_name]
-
-            # Row 2 contains headers in groups of 4 columns per thermal event
-            # Row 3+ contains data values
-            # Detect event groups from header row
-            header_row = 2
-            event_groups: List[Dict[str, Any]] = []
-
-            col = 1
+    def extract_final_results(self):
+        sheets = self._find_sheets("final results")
+        if not sheets: return []
+        events = []
+        for sn in sheets:
+            ws = self.wb[sn]
+            hr = 2; col = 1; groups = []
             while col <= ws.max_column:
-                header_val = ws.cell(row=header_row, column=col).value
-                if header_val is None:
-                    col += 1
-                    continue
-
-                header_str = str(header_val).strip()
-
-                # Check if this looks like an enthalpy / event header
-                if "h" in header_str.lower() and ("j/g" in header_str.lower() or "deg" in header_str.lower()):
-                    # This is an event group starting column
-                    event_name = self._extract_event_name(header_str)
-
-                    event_groups.append({
-                        "event_name": event_name,
-                        "enthalpy_col": col,
-                        "temperature_col": col + 1 if col + 1 <= ws.max_column else None,
-                        "sd_col": col + 2 if col + 2 <= ws.max_column else None,
-                        "character_col": col + 3 if col + 3 <= ws.max_column else None,
-                    })
-                    col += 4
-                else:
-                    col += 1
-
-            # Extract values from data rows (row 3+)
-            for data_row in range(3, ws.max_row + 1):
-                row_has_data = False
-                for eg in event_groups:
-                    enthalpy = self._safe_float(ws.cell(row=data_row, column=eg["enthalpy_col"]).value)
-                    if enthalpy is not None:
-                        row_has_data = True
-
-                if not row_has_data:
-                    continue
-
-                for eg in event_groups:
-                    enthalpy = self._safe_float(ws.cell(row=data_row, column=eg["enthalpy_col"]).value)
-                    temp_val = ws.cell(row=data_row, column=eg["temperature_col"]).value if eg["temperature_col"] else None
-                    sd_val = ws.cell(row=data_row, column=eg["sd_col"]).value if eg["sd_col"] else None
-                    char_val = ws.cell(row=data_row, column=eg["character_col"]).value if eg["character_col"] else None
-
-                    events.append(asdict(DSCThermalEvent(
-                        event_name=eg["event_name"],
-                        enthalpy_j_per_g=enthalpy,
-                        onset_temperature_c=self._safe_float(temp_val) if temp_val is not None else None,
-                        standard_deviation_pct=self._safe_float(sd_val) if sd_val is not None else None,
-                        character=str(char_val).strip() if char_val is not None else None,
-                    )))
-
+                h = ws.cell(row=hr, column=col).value
+                if h is None: col += 1; continue
+                hs = str(h).strip().lower()
+                if "standard deviation" in hs or "std" in hs or "character" in hs: col += 1; continue
+                mn = str(ws.cell(row=hr, column=col).value).strip()
+                vc = col; nc = col + 1; sdc = None; sdu = None; cc = None
+                if nc <= ws.max_column:
+                    nh = ws.cell(row=hr, column=nc).value
+                    if nh and ("standard deviation" in str(nh).lower() or "std" in str(nh).lower()):
+                        sdc = nc; um = re.search(r'\(([^)]+)\)|\[([^\]]+)\]', str(nh)); sdu = (um.group(1) or um.group(2)) if um else None; nc += 1
+                if nc <= ws.max_column:
+                    ch = ws.cell(row=hr, column=nc).value
+                    if ch and "character" in str(ch).lower(): cc = nc; nc += 1
+                groups.append({"mn": mn, "vc": vc, "sdc": sdc, "sdu": sdu, "cc": cc}); col = nc
+            for dr in range(3, ws.max_row + 1):
+                if not any(ws.cell(row=dr, column=g["vc"]).value is not None for g in groups): continue
+                for g in groups:
+                    events.append(asdict(DSCFinalResultEntry(metric_name=g["mn"], value=self._safe_float(ws.cell(row=dr, column=g["vc"]).value), std_dev=self._safe_float(ws.cell(row=dr, column=g["sdc"]).value) if g["sdc"] else None, std_dev_unit=g["sdu"], character=str(ws.cell(row=dr, column=g["cc"]).value).strip() if g["cc"] and ws.cell(row=dr, column=g["cc"]).value else None)))
         return events
 
-    def _extract_event_name(self, header: str) -> str:
-        """Extract a readable event name from the enthalpy column header."""
-        h = header.strip()
-        # Remove the ΔH / enthalpy unit suffix
-        for suffix in ["ΔH Deg. [J/g]", "ΔH [J/g]", "[J/g]", "ΔH Deg.", "ΔH"]:
-            if suffix in h:
-                h = h.replace(suffix, "").strip()
-                break
+    def extract_statistical_analysis(self):
+        return {"available": False, "notes": "No statistical analysis in this DSC workbook."}
 
-        # Clean up trailing colons, punctuation
-        h = h.strip(": ").strip()
-
-        if not h:
-            return "Thermal Event"
-
-        return h
-
-    # -----------------------------------------------------
-    # Processed data (DSC typically has none)
-    # -----------------------------------------------------
-    def extract_processed_data(self) -> Dict[str, Any]:
-        processed_sheets = [
-            s for s in self.wb.sheetnames
-            if s.lower().startswith("processed data") or s.lower().startswith("processed_data")
-        ]
-
-        if not processed_sheets:
-            return {
-                "available": False,
-                "notes": "No dedicated processed data sheet found in this DSC workbook.",
-            }
-
-        return {
-            "available": True,
-            "sheets": processed_sheets,
-            "notes": "Processed data sheets found but no specific parsing implemented.",
-        }
-
-    # -----------------------------------------------------
-    # Statistical analysis
-    # -----------------------------------------------------
-    def extract_statistical_analysis(self) -> Dict[str, Any]:
-        return {
-            "available": False,
-            "notes": "No dedicated statistical analysis section was found in this DSC workbook.",
-        }
-
-    # -----------------------------------------------------
-    # Parse all
-    # -----------------------------------------------------
-    def parse_all_data(self) -> Dict[str, Union[Dict, List]]:
+    def parse_all_data(self):
         try:
-            work_package_data = self.extract_work_package_data()
-            material_data = self.extract_material_data()
-            dispersion_data = self.extract_dispersion_data()
-            instrumentation_data = self.extract_instrumentation_data()
-
-            replication_metadata = self.extract_replication_metadata()
-            raw_data = self.extract_raw_data()
-            processed_data = self.extract_processed_data()
-            final_results = self.extract_final_results()
-            statistical_analysis = self.extract_statistical_analysis()
-
-            parsed_data = {
-                "test_details": {
-                    "work_package": work_package_data,
-                    "material": material_data,
-                    "cell_line": {},
-                    "dispersion": dispersion_data,
-                    "instrumentation": instrumentation_data,
-                },
-                "replication_metadata": replication_metadata,
-                "replications": raw_data,
-                "processed_data": processed_data,
-                "final_results": final_results,
-                "statistical_analysis": statistical_analysis,
-            }
-
-            if self.parser_warnings:
-                parsed_data["parser_warnings"] = self.parser_warnings
-
-            logger.info("FINAL DSC JSON:\n%s", json.dumps(parsed_data, indent=2, default=str))
-            return parsed_data
-
+            d = {"test_details": {"work_package": self.extract_work_package_data(), "material": self.extract_material_data(), "cell_line": {}, "dispersion": self.extract_dispersion_data(), "instrumentation": self.extract_instrumentation_data()}, "replication_metadata": self.extract_replication_metadata(), "replications": self.extract_raw_data(), "processed_data": self.extract_processed_data(), "final_results": self.extract_final_results(), "statistical_analysis": self.extract_statistical_analysis()}
+            if self.parser_warnings: d["parser_warnings"] = self.parser_warnings
+            return d
         except Exception as e:
-            logger.error("Error parsing DSC file: %s\n%s", e, traceback.format_exc())
-            raise
+            logger.error("Error: %s\n%s", e, traceback.format_exc()); raise
 
+def _fix_degree_symbols(obj):
+    """Recursively replace oC with °C in all string values."""
+    if isinstance(obj, str):
+        return obj.replace("oC", "°C")
+    if isinstance(obj, dict):
+        return {(k.replace("oC", "°C") if isinstance(k, str) else k): _fix_degree_symbols(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_fix_degree_symbols(v) for v in obj]
+    return obj
 
-def parse_excel_dsc(file_path: str, sheet_name: str = "Test Information") -> Dict[str, Union[Dict, List]]:
-    try:
-        parser = DSCParser(file_path, sheet_name)
-        return parser.parse_all_data()
-    except Exception as e:
-        logger.error("Error in parse_excel_dsc: %s\n%s", e, traceback.format_exc())
-        raise
-
+def parse_excel_dsc(file_path, sheet_name="Test Information"):
+    return _fix_degree_symbols(DSCParser(file_path, sheet_name).parse_all_data())
 
 if __name__ == "__main__":
     import sys
-
-    file_path = sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/uploads/WP2_DSC_29aR1.xlsx"
-    parsed_data = parse_excel_dsc(file_path)
-
-    print("=" * 70)
-    print("DSC PARSER OUTPUT SUMMARY")
-    print("=" * 70)
-
-    wp = parsed_data["test_details"]["work_package"]
-    print(f"\nWP: {wp['wp_name']}, Partner: {wp['partner']}")
-    print(f"Test: {wp['test_acronym']} - {wp['full_test_name']}")
-    print(f"Lead Scientists: {[s['name'] for s in wp['lead_scientists']]}")
-
-    mat = parsed_data["test_details"]["material"]
-    print(f"\nMaterial: {mat['material_name']} ({mat['material_identifier']})")
-    print(f"CAS: {mat['cas_no']}, Supplier: {mat['material_supplier']}")
-
-    inst = parsed_data["test_details"]["instrumentation"]
-    print(f"\nInstrument: {inst['instrument_model']}")
-    print(f"Crucible: {inst['crucible_type']}")
-    print(f"Temp Range: {inst['temperature_range']}, Heating: {inst['heating_speed']}")
-
-    print(f"\nReplication Metadata: {len(parsed_data['replication_metadata'])}")
-    for rm in parsed_data["replication_metadata"]:
-        print(f"  {rm['test_identifier_number']}: {rm['test_start_date']} to {rm['test_end_date']}")
-
-    print(f"\nRaw Data Blocks: {len(parsed_data['replications'])}")
-    for block in parsed_data["replications"]:
-        print(f"  {block['metric_name']}: {block['point_count']} points")
-        print(f"    Time: {block['min_time_min']:.2f} - {block['max_time_min']:.2f} {block['time_unit']}")
-        print(f"    Temp: {block['min_temperature_c']:.1f} - {block['max_temperature_c']:.1f} {block['temperature_unit']}")
-        print(f"    Heat Flow: {block['min_heat_flow']:.4f} - {block['max_heat_flow']:.4f} {block['heat_flow_unit']}")
-
-    print(f"\nFinal Results (Thermal Events): {len(parsed_data['final_results'])}")
-    for ev in parsed_data["final_results"]:
-        print(f"  {ev['event_name']}: ΔH={ev['enthalpy_j_per_g']} J/g, "
-              f"Onset={ev['onset_temperature_c']}°C, "
-              f"Character={ev['character']}")
-
-    if "parser_warnings" in parsed_data:
-        print(f"\nParser Warnings ({len(parsed_data['parser_warnings'])}):")
-        for w in parsed_data["parser_warnings"]:
-            print(f"  [{w['type']}] {w.get('note', '')}")
-
-    print("\n--- JSON Preview ---")
-    preview = json.loads(json.dumps(parsed_data, default=str))
-    for block in preview.get("replications", []):
-        block["data_points"] = f"[{len(block['data_points'])} points]"
-    print(json.dumps(preview, indent=2, default=str)[:5000])
+    fp = sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/uploads/WP2_DSC_27aR1_R3.xlsx"
+    data = parse_excel_dsc(fp)
+    print("=" * 70); print("DSC PARSER OUTPUT SUMMARY"); print("=" * 70)
+    wp = data["test_details"]["work_package"]; mat = data["test_details"]["material"]; inst = data["test_details"]["instrumentation"]
+    print(f"\nWP: {wp['wp_name']}, Partner: {wp['partner']}, Test: {wp['test_acronym']}")
+    print(f"Material: {mat['material_name']} ({mat['material_identifier']})")
+    print(f"Instrument: {inst['instrument_model']}, Reps: {inst['replication_count']}")
+    for sm in inst["sample_masses"]: print(f"  {sm['label']}: {sm['value']}{' — ' + sm.get('notes','') if sm.get('notes') else ''}")
+    print(f"\nReplication Metadata: {len(data['replication_metadata'])}")
+    for rm in data["replication_metadata"]: print(f"  {rm['test_identifier_number']}: {rm['test_start_date']} → {rm['raw_sheet_name']}")
+    print(f"\nRaw Blocks: {len(data['replications'])}")
+    for b in data["replications"]: print(f"  {b['run_label']}: {b['point_count']} pts, T={b['min_temperature_c']}..{b['max_temperature_c']}°C")
+    pd = data["processed_data"]; print(f"\nProcessed: available={pd['available']}")
+    for blk in pd.get("blocks", []):
+        print(f"  Headers: {blk['headers']}")
+        for rep in blk["replicates"]: print(f"    {rep['replicate_label']}: { {k: v for k, v in rep['values'].items() if v is not None} }")
+        if blk["mean_row"]: print(f"    Mean: {blk['mean_row']['values']}")
+        if blk["std_dev_row"]: print(f"    SD:   {blk['std_dev_row']['values']}")
+    print(f"\nFinal Results: {len(data['final_results'])}")
+    for fr in data["final_results"]: print(f"  {fr['metric_name']}: {fr['value']} ± {fr['std_dev']} {fr.get('std_dev_unit','')}, {fr['character']}")

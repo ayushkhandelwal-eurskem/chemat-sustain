@@ -11,16 +11,12 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-
-# =========================================================
-# Dataclasses
-# =========================================================
+_TGA_ID = r'WP(\d+)_TGA_(\d+)([a-zA-Z])R(\d+)'
 
 @dataclass
 class Scientist:
     name: Optional[str] = None
     email: Optional[str] = None
-
 
 @dataclass
 class WorkPackageData:
@@ -36,7 +32,6 @@ class WorkPackageData:
     path: Optional[str] = None
     lead_scientists: List[Scientist] = field(default_factory=list)
     assay_scientists: List[Scientist] = field(default_factory=list)
-
 
 @dataclass
 class MaterialData:
@@ -55,7 +50,6 @@ class MaterialData:
     molar_concentration: Optional[str] = None
     particles_stock: Optional[str] = None
 
-
 @dataclass
 class DispersionData:
     dispersion_protocol: Optional[str] = None
@@ -71,7 +65,6 @@ class DispersionData:
     final_concentration: Optional[str] = None
     additional_info: Optional[str] = None
 
-
 @dataclass
 class InstrumentationData:
     instrument_model: Optional[str] = None
@@ -83,7 +76,6 @@ class InstrumentationData:
     temperature_range: Optional[str] = None
     heating_speed: Optional[str] = None
 
-
 @dataclass
 class ReplicationMetadata:
     test_identifier_number: Optional[str] = None
@@ -93,25 +85,22 @@ class ReplicationMetadata:
     raw_sheet_name: Optional[str] = None
     processed_sheet_name: Optional[str] = None
 
-
 @dataclass
 class TGADataPoint:
     time_min: Optional[float] = None
     temperature_c: Optional[float] = None
-    mass_mg: Optional[float] = None
-    dtg_pct_per_min: Optional[float] = None
     mass_pct: Optional[float] = None
-
+    dtg_pct_per_min: Optional[float] = None
 
 @dataclass
 class TGARawDataBlock:
     metric_name: Optional[str] = None
     raw_sheet_name: Optional[str] = None
+    run_label: Optional[str] = None
     time_unit: Optional[str] = "min"
-    temperature_unit: Optional[str] = "°C"
-    mass_unit: Optional[str] = "mg"
-    dtg_unit: Optional[str] = "%/min"
+    temperature_unit: Optional[str] = "oC"
     mass_pct_unit: Optional[str] = "%"
+    dtg_unit: Optional[str] = "%/min"
     point_count: Optional[int] = None
     min_time_min: Optional[float] = None
     max_time_min: Optional[float] = None
@@ -123,465 +112,256 @@ class TGARawDataBlock:
     max_dtg: Optional[float] = None
     data_points: List[TGADataPoint] = field(default_factory=list)
 
+@dataclass
+class TGAProcessedReplicateRow:
+    replicate_label: Optional[str] = None
+    values: Dict[str, Optional[float]] = field(default_factory=dict)
 
 @dataclass
-class TGADecompositionStage:
-    replicate_label: Optional[str] = None
-    t_start_c: Optional[float] = None
-    t_end_c: Optional[float] = None
-    t_peak_c: Optional[float] = None
-    mass_loss_pct: Optional[float] = None
-    mass_loss_at_final_temp_pct: Optional[float] = None
-
+class TGAProcessedDataBlock:
+    headers: List[str] = field(default_factory=list)
+    replicates: List[TGAProcessedReplicateRow] = field(default_factory=list)
+    mean_row: Optional[TGAProcessedReplicateRow] = None
+    std_dev_row: Optional[TGAProcessedReplicateRow] = None
+    legend: Dict[str, str] = field(default_factory=dict)
 
 @dataclass
 class TGAFinalResultEntry:
     metric_name: Optional[str] = None
     value: Optional[Union[float, str]] = None
-    std_dev_pct: Optional[Union[float, str]] = None
+    std_dev: Optional[Union[float, str]] = None
+    std_dev_unit: Optional[str] = None
 
-
-# =========================================================
-# Parser
-# =========================================================
 
 class TGAParser:
     def __init__(self, file_path: str, sheet_name: str = "Test Information"):
         self.file_path = file_path
         self.sheet_name = sheet_name
         self.parser_warnings: List[Dict[str, Any]] = []
-
         try:
             self.wb = openpyxl.load_workbook(file_path, data_only=True)
             self.ws = self.wb[sheet_name]
-            logger.info("Successfully loaded TGA workbook: %s", file_path)
         except Exception as e:
-            logger.error("Failed to load workbook or sheet '%s': %s", sheet_name, e)
-            raise
-
+            logger.error("Failed to load workbook: %s", e); raise
         self.email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
-    # ---- Generic helpers (same as DSC/XRD) ----
-    def normalize_key(self, key: Optional[str]) -> Optional[str]:
-        if key is None:
-            return None
-        normalized = str(key).strip().lower()
-        normalized = re.sub(r"[^a-z0-9]+", "_", normalized)
-        normalized = re.sub(r"_+", "_", normalized).strip("_")
-        return normalized
+    def normalize_key(self, key):
+        if key is None: return None
+        return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", str(key).strip().lower())).strip("_")
 
-    def excel_date_to_string(self, value) -> Optional[str]:
+    def excel_date_to_string(self, value):
         try:
-            if isinstance(value, datetime):
-                return value.strftime("%Y-%m-%d")
-            if isinstance(value, (int, float)):
-                return (datetime(1899, 12, 30) + timedelta(days=float(value))).strftime("%Y-%m-%d")
+            if isinstance(value, datetime): return value.strftime("%Y-%m-%d")
+            if isinstance(value, (int, float)): return (datetime(1899, 12, 30) + timedelta(days=float(value))).strftime("%Y-%m-%d")
             if isinstance(value, str):
-                for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d.%m.%Y"):
-                    try:
-                        return datetime.strptime(value.strip(), fmt).strftime("%Y-%m-%d")
-                    except ValueError:
-                        pass
+                for f in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d.%m.%Y"):
+                    try: return datetime.strptime(value.strip(), f).strftime("%Y-%m-%d")
+                    except ValueError: pass
             return str(value).strip() if value not in (None, "") else None
-        except Exception as e:
-            logger.warning("Failed to convert date '%s': %s", value, e)
-            return str(value).strip() if value not in (None, "") else None
+        except: return str(value).strip() if value not in (None, "") else None
 
-    def _safe_float(self, value) -> Optional[float]:
-        if value in (None, ""):
-            return None
+    def _safe_float(self, v):
+        if v in (None, ""): return None
         try:
-            if isinstance(value, str):
-                value = value.replace(",", ".").strip()
-            return float(value)
-        except (ValueError, TypeError):
-            return None
+            if isinstance(v, str): v = v.replace(",", ".").strip()
+            return float(v)
+        except (ValueError, TypeError): return None
 
-    def _get_first_value_in_row(self, row, start_col: int = 2, end_col: int = 6):
-        for col_idx in range(start_col, end_col + 1):
-            if col_idx - 1 < len(row):
-                value = row[col_idx - 1].value
-                if value is not None:
-                    return value
+    def _get_first_value(self, row, s=2, e=6):
+        for c in range(s, e + 1):
+            if c - 1 < len(row) and row[c - 1].value is not None: return row[c - 1].value
         return None
 
-    def _sheet_key_values(self) -> List[Dict[str, Any]]:
+    def _kv(self):
         data = []
-        for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=6), start=1):
-            key_cell = row[0].value
-            if not key_cell:
-                continue
-            raw_key = str(key_cell).strip()
-            key = self.normalize_key(raw_key)
-            if not key:
-                continue
-            value = self._get_first_value_in_row(row, 2, 6)
-            email = row[3].value if len(row) > 3 else None
-            data.append({"row": row_idx, "raw_key": raw_key, "key": key, "value": value, "email": email})
+        for ri, row in enumerate(self.ws.iter_rows(min_row=1, max_col=6), start=1):
+            k = row[0].value
+            if not k: continue
+            key = self.normalize_key(k)
+            if not key: continue
+            data.append({"row": ri, "key": key, "value": self._get_first_value(row, 2, 6), "email": row[3].value if len(row) > 3 else None})
         return data
 
-    def _find_sheets(self, prefix: str) -> List[str]:
-        prefix_lower = prefix.lower()
-        return sorted([
-            s for s in self.wb.sheetnames
-            if s.lower().startswith(prefix_lower) or s.lower().startswith(prefix_lower.replace(" ", "_"))
-        ])
+    def _find_sheets(self, prefix):
+        p = prefix.lower()
+        return sorted([s for s in self.wb.sheetnames if s.lower().startswith(p) or s.lower().startswith(p.replace(" ", "_"))])
 
-    # ---- Test details ----
-    def extract_work_package_data(self) -> Dict[str, Any]:
-        rows = self._sheet_key_values()
-        lead, assay = [], []
+    def _g(self, rows, *keys):
+        """Get first non-None value where key contains any of the given substrings."""
+        return next((r["value"] for r in rows if any(k in r["key"] for k in keys) and r["value"] is not None), None)
+
+    # ---- Test Details ----
+    def extract_work_package_data(self):
+        rows = self._kv(); lead, assay = [], []
         for r in rows:
-            if "lead_scientist" in r["key"]:
-                lead.append(Scientist(name=r["value"], email=r["email"] if r["email"] and re.match(self.email_regex, str(r["email"])) else None))
-            if "assay_test_work_conducted_by" in r["key"]:
-                assay.append(Scientist(name=r["value"], email=r["email"] if r["email"] and re.match(self.email_regex, str(r["email"])) else None))
+            if "lead_scientist" in r["key"]: lead.append(Scientist(name=r["value"], email=r["email"] if r["email"] and re.match(self.email_regex, str(r["email"])) else None))
+            if "assay_test_work_conducted_by" in r["key"]: assay.append(Scientist(name=r["value"], email=r["email"] if r["email"] and re.match(self.email_regex, str(r["email"])) else None))
+        g = lambda *k: self._g(rows, *k)
+        return asdict(WorkPackageData(wp_name=g("project_work_package"), partner=g("partner_conducting_test_assay"), laboratory_name=g("test_facility_laboratory_name"), full_test_name=g("full_name_of_test_assay"), test_acronym=g("short_name_or_acronym"), test_type=g("type_or_class_of_experimental"), endpoint=g("end_point_being_investigated"), endpoint_outcome=g("metric_s_used_to_assess"), sop=g("sop_s_for_test"), path=g("path_link_to_sop"), lead_scientists=lead, assay_scientists=assay))
 
-        return asdict(WorkPackageData(
-            wp_name=next((r["value"] for r in rows if r["key"] == "project_work_package"), None),
-            partner=next((r["value"] for r in rows if r["key"] == "partner_conducting_test_assay"), None),
-            laboratory_name=next((r["value"] for r in rows if r["key"] == "test_facility_laboratory_name"), None),
-            full_test_name=next((r["value"] for r in rows if "full_name_of_test_assay" in r["key"]), None),
-            test_acronym=next((r["value"] for r in rows if "short_name_or_acronym" in r["key"]), None),
-            test_type=next((r["value"] for r in rows if "type_or_class_of_experimental" in r["key"]), None),
-            endpoint=next((r["value"] for r in rows if "end_point_being_investigated" in r["key"]), None),
-            endpoint_outcome=next((r["value"] for r in rows if "metric_s_used_to_assess" in r["key"]), None),
-            sop=next((r["value"] for r in rows if "sop_s_for_test" in r["key"]), None),
-            path=next((r["value"] for r in rows if "path_link_to_sop" in r["key"]), None),
-            lead_scientists=lead, assay_scientists=assay,
-        ))
+    def extract_material_data(self):
+        rows = self._kv(); g = lambda *k: self._g(rows, *k)
+        batch = g("batch"); batch = str(batch) if batch is not None else None
+        return asdict(MaterialData(material_identifier=next((r["value"] for r in rows if r["key"] == "sample_cms_internal_identifier"), None), erm_id=g("erm_identifier"), material_name=next((r["value"] for r in rows if r["key"] == "material_name"), None), core_chemistry=g("core_chemistry"), cas_no=next((r["value"] for r in rows if r["key"] == "cas_no"), None), cas_for_core=g("cas_for_core"), material_supplier=next((r["value"] for r in rows if r["key"] == "material_supplier"), None), catalog_number=g("catalog_number"), material_state=next((r["value"] for r in rows if r["key"] == "material_state"), None), batch=batch, vial=g("vial"), preparation_date=self.excel_date_to_string(g("date_of_sample_preparation", "date_of_preparation")), molar_concentration=g("molar_concentration"), particles_stock=g("number_of_particles", "no_of_particles")))
 
-    def extract_material_data(self) -> Dict[str, Any]:
-        rows = self._sheet_key_values()
-        batch_val = next((r["value"] for r in rows if r["key"] == "batch"), None)
-        return asdict(MaterialData(
-            material_identifier=next((r["value"] for r in rows if r["key"] == "sample_cms_internal_identifier"), None),
-            erm_id=next((r["value"] for r in rows if "erm_identifier" in r["key"]), None),
-            material_name=next((r["value"] for r in rows if r["key"] == "material_name"), None),
-            core_chemistry=next((r["value"] for r in rows if "core_chemistry" in r["key"]), None),
-            cas_no=next((r["value"] for r in rows if r["key"] == "cas_no"), None),
-            cas_for_core=next((r["value"] for r in rows if "cas_for_core" in r["key"] or "cas_no_for_core" in r["key"]), None),
-            material_supplier=next((r["value"] for r in rows if r["key"] == "material_supplier"), None),
-            catalog_number=next((r["value"] for r in rows if "catalog_number" in r["key"]), None),
-            material_state=next((r["value"] for r in rows if r["key"] == "material_state"), None),
-            batch=str(batch_val) if batch_val is not None else None,
-            vial=next((r["value"] for r in rows if r["key"] == "vial"), None),
-            preparation_date=self.excel_date_to_string(next((r["value"] for r in rows if "date_of_sample_preparation" in r["key"] or "date_of_preparation" in r["key"]), None)),
-            molar_concentration=next((r["value"] for r in rows if "molar_concentration" in r["key"]), None),
-            particles_stock=next((r["value"] for r in rows if "no_of_particles" in r["key"] or "number_of_particles" in r["key"]), None),
-        ))
+    def extract_dispersion_data(self):
+        rows = self._kv(); g = lambda *k: self._g(rows, *k)
+        return asdict(DispersionData(dispersion_protocol=g("standard_dispersion_protocol"), dispersion_technique=g("dispersion_technique", "otherwise_specify_dispersion"), dispersion_medium=g("dispersion_dilution_medium"), sonicator_type=g("sonicator"), power_w=next((r["value"] for r in rows if r["key"] == "power_w"), None), sonication_time_s=g("sonication_time"), tip_thickness_mm=g("tip_thickness"), tip_composition=g("tip_composition"), bath_volume_dm3=g("ultrasonic_bath", "water_volume"), sample_volume=next((r["value"] for r in rows if r["key"] == "sample_volume"), None), final_concentration=g("final_sample_concentration"), additional_info=g("additional_information")))
 
-    def extract_dispersion_data(self) -> Dict[str, Any]:
-        rows = self._sheet_key_values()
-        return asdict(DispersionData(
-            dispersion_protocol=next((r["value"] for r in rows if "standard_dispersion_protocol" in r["key"] or "specify_standard_dispersion" in r["key"]), None),
-            dispersion_technique=next((r["value"] for r in rows if "dispersion_technique" in r["key"] or "otherwise_specify_dispersion" in r["key"]), None),
-            dispersion_medium=next((r["value"] for r in rows if "dispersion_dilution_medium" in r["key"] or "dispersion_medium" in r["key"]), None),
-            sonicator_type=next((r["value"] for r in rows if "sonicator" in r["key"] and "type" in r["key"]), None),
-            power_w=next((r["value"] for r in rows if r["key"] == "power_w"), None),
-            sonication_time_s=next((r["value"] for r in rows if "sonication_time" in r["key"]), None),
-            tip_thickness_mm=next((r["value"] for r in rows if "tip_thickness" in r["key"]), None),
-            tip_composition=next((r["value"] for r in rows if "tip_composition" in r["key"]), None),
-            bath_volume_dm3=next((r["value"] for r in rows if "ultrasonic_bath" in r["key"] or "water_volume" in r["key"]), None),
-            sample_volume=next((r["value"] for r in rows if r["key"] == "sample_volume"), None),
-            final_concentration=next((r["value"] for r in rows if "final_sample_concentration" in r["key"]), None),
-            additional_info=next((r["value"] for r in rows if "additional_information" in r["key"]), None),
-        ))
-
-    def extract_instrumentation_data(self) -> Dict[str, Any]:
-        rows = self._sheet_key_values()
-        ws = self.ws
-        replicate_labels = [str(ws.cell(row=61, column=c).value) for c in range(3, 15) if ws.cell(row=61, column=c).value is not None]
-        sample_masses = []
+    def extract_instrumentation_data(self):
+        rows = self._kv(); ws = self.ws; g = lambda *k: self._g(rows, *k)
+        rep_labels = [str(ws.cell(row=61, column=c).value) for c in range(3, 15) if ws.cell(row=61, column=c).value is not None]
+        masses = []
         for r in range(62, 65):
-            label = ws.cell(row=r, column=1).value
-            value = ws.cell(row=r, column=2).value
-            if label is not None:
-                sample_masses.append({"label": str(label).strip(), "value": str(value).strip() if value is not None else None})
+            lbl = ws.cell(row=r, column=1).value; val = ws.cell(row=r, column=2).value
+            if lbl is None: continue
+            entry = {"label": str(lbl).strip(), "value": str(val).strip() if val else None}
+            notes = [str(ws.cell(row=r, column=c).value).strip() for c in range(3, 7) if ws.cell(row=r, column=c).value is not None]
+            if notes: entry["notes"] = "; ".join(notes)
+            masses.append(entry)
+        return asdict(InstrumentationData(instrument_model=g("instrumentation"), crucible_type=g("crucible"), replication_count=ws.cell(row=61, column=2).value, replicate_labels=rep_labels, sample_masses=masses, protective_atmosphere=g("protective_atmosphere"), temperature_range=g("temperature_range"), heating_speed=g("heating_speed")))
 
-        return asdict(InstrumentationData(
-            instrument_model=next((r["value"] for r in rows if "instrumentation" in r["key"] and ("model" in r["key"] or "company" in r["key"])), None),
-            crucible_type=next((r["value"] for r in rows if "crucible" in r["key"]), None),
-            replication_count=ws.cell(row=61, column=2).value,
-            replicate_labels=replicate_labels,
-            sample_masses=sample_masses,
-            protective_atmosphere=next((r["value"] for r in rows if "protective_atmosphere" in r["key"]), None),
-            temperature_range=next((r["value"] for r in rows if "temperature_range" in r["key"]), None),
-            heating_speed=next((r["value"] for r in rows if "heating_speed" in r["key"]), None),
-        ))
+    # ---- Replication Metadata ----
+    def extract_replication_metadata(self):
+        ws = self.ws; raw_sheets = self._find_sheets("raw data"); proc_sheets = self._find_sheets("processed data"); meta = []
+        for ri in range(39, 42):
+            tid = ws.cell(row=ri, column=2).value
+            if tid is None: continue
+            ts = str(tid).strip()
+            raw = next((s for s in raw_sheets if ts.lower() in s.lower()), None)
+            meta.append(asdict(ReplicationMetadata(test_identifier_number=ts, test_start_date=self.excel_date_to_string(ws.cell(row=ri, column=3).value), test_end_date=self.excel_date_to_string(ws.cell(row=ri, column=4).value), replicate_label="TGA Thermogram", raw_sheet_name=raw, processed_sheet_name=proc_sheets[0] if proc_sheets else None)))
+        return meta
 
-    # ---- Replication metadata ----
-    def extract_replication_metadata(self) -> List[Dict[str, Any]]:
-        ws = self.ws
-        raw_sheets = self._find_sheets("raw data")
-        proc_sheets = self._find_sheets("processed data")
-        metadata = []
-
-        for row_idx in range(39, 42):
-            test_id = ws.cell(row=row_idx, column=2).value
-            if test_id is None:
-                continue
-            test_id_str = str(test_id).strip()
-            raw_match = next((s for s in raw_sheets if test_id_str.lower() in s.lower()), raw_sheets[0] if raw_sheets else None)
-            proc_match = next((s for s in proc_sheets if test_id_str.lower() in s.lower()), proc_sheets[0] if proc_sheets else None)
-
-            metadata.append(asdict(ReplicationMetadata(
-                test_identifier_number=test_id_str,
-                test_start_date=self.excel_date_to_string(ws.cell(row=row_idx, column=3).value),
-                test_end_date=self.excel_date_to_string(ws.cell(row=row_idx, column=4).value),
-                replicate_label="TGA Thermogram",
-                raw_sheet_name=raw_match,
-                processed_sheet_name=proc_match,
-            )))
-
-        if not metadata and raw_sheets:
-            metadata.append(asdict(ReplicationMetadata(
-                replicate_label="TGA Thermogram", raw_sheet_name=raw_sheets[0],
-                processed_sheet_name=proc_sheets[0] if proc_sheets else None,
-            )))
-        return metadata
-
-    # ---- Raw data ----
-    def extract_raw_data(self) -> List[Dict[str, Any]]:
+    # ---- Raw Data ----
+    def extract_raw_data(self):
         return [self._extract_raw_block(s) for s in self._find_sheets("raw data")]
 
-    def _extract_raw_block(self, raw_sheet_name: str) -> Dict[str, Any]:
-        ws = self.wb[raw_sheet_name]
-
-        # Detect columns from header row
-        col_map: Dict[str, int] = {}
+    def _extract_raw_block(self, sn):
+        ws = self.wb[sn]
+        cm = {}
         for c in range(1, ws.max_column + 1):
             h = ws.cell(row=1, column=c).value
-            if h is None:
-                continue
+            if h is None: continue
             hl = str(h).strip().lower()
-            if "time" in hl:
-                col_map["time"] = c
-            elif "temp" in hl and "mass" not in hl:
-                col_map["temp"] = c
-            elif "dtg" in hl:
-                col_map["dtg"] = c
-            elif "mass" in hl and "%" in hl:
-                col_map["mass_pct"] = c
-            elif "mass" in hl:
-                col_map["mass"] = c
+            if "time" in hl: cm["time"] = c
+            elif "temp" in hl and "mass" not in hl: cm["temp"] = c
+            elif "dtg" in hl: cm["dtg"] = c
+            elif "mass" in hl and "%" in hl: cm["mass_pct"] = c
+            elif "mass" in hl: cm["mass_pct"] = c  # fallback for "Mass [%]"
+        tc, tempc = cm.get("time", 1), cm.get("temp", 2)
+        mpc, dtgc = cm.get("mass_pct", 3), cm.get("dtg", 4)
 
-        time_c = col_map.get("time", 1)
-        temp_c = col_map.get("temp", 2)
-        mass_c = col_map.get("mass", 3)
-        dtg_c = col_map.get("dtg", 4)
-        mass_pct_c = col_map.get("mass_pct", 7)
+        m = re.search(_TGA_ID, sn, re.IGNORECASE)
+        run_label = f"R{m.group(4)}" if m else sn
 
-        pts: List[Dict] = []
-        time_v, temp_v, mass_pct_v, dtg_v = [], [], [], []
-
+        pts, tv, tempv, mpv, dtgv = [], [], [], [], []
         for r in range(2, ws.max_row + 1):
-            t = self._safe_float(ws.cell(row=r, column=time_c).value)
-            if t is None:
-                continue
-            temp = self._safe_float(ws.cell(row=r, column=temp_c).value)
-            mass = self._safe_float(ws.cell(row=r, column=mass_c).value)
-            dtg = self._safe_float(ws.cell(row=r, column=dtg_c).value)
-            mpct = self._safe_float(ws.cell(row=r, column=mass_pct_c).value)
+            t = self._safe_float(ws.cell(row=r, column=tc).value)
+            if t is None: continue
+            temp = self._safe_float(ws.cell(row=r, column=tempc).value)
+            mp = self._safe_float(ws.cell(row=r, column=mpc).value)
+            dtg = self._safe_float(ws.cell(row=r, column=dtgc).value)
+            pts.append(asdict(TGADataPoint(time_min=t, temperature_c=temp, mass_pct=mp, dtg_pct_per_min=dtg)))
+            tv.append(t)
+            if temp is not None: tempv.append(temp)
+            if mp is not None: mpv.append(mp)
+            if dtg is not None: dtgv.append(dtg)
 
-            pts.append(asdict(TGADataPoint(time_min=t, temperature_c=temp, mass_mg=mass, dtg_pct_per_min=dtg, mass_pct=mpct)))
-            time_v.append(t)
-            if temp is not None: temp_v.append(temp)
-            if mpct is not None: mass_pct_v.append(mpct)
-            if dtg is not None: dtg_v.append(dtg)
+        return asdict(TGARawDataBlock(metric_name=f"TGA Thermogram {run_label}", raw_sheet_name=sn, run_label=run_label, point_count=len(pts), min_time_min=min(tv) if tv else None, max_time_min=max(tv) if tv else None, min_temperature_c=min(tempv) if tempv else None, max_temperature_c=max(tempv) if tempv else None, min_mass_pct=min(mpv) if mpv else None, max_mass_pct=max(mpv) if mpv else None, min_dtg=min(dtgv) if dtgv else None, max_dtg=max(dtgv) if dtgv else None, data_points=pts))
 
-        return asdict(TGARawDataBlock(
-            metric_name="TGA Thermogram (Temperature vs Mass %)",
-            raw_sheet_name=raw_sheet_name,
-            point_count=len(pts),
-            min_time_min=min(time_v) if time_v else None,
-            max_time_min=max(time_v) if time_v else None,
-            min_temperature_c=min(temp_v) if temp_v else None,
-            max_temperature_c=max(temp_v) if temp_v else None,
-            min_mass_pct=min(mass_pct_v) if mass_pct_v else None,
-            max_mass_pct=max(mass_pct_v) if mass_pct_v else None,
-            min_dtg=min(dtg_v) if dtg_v else None,
-            max_dtg=max(dtg_v) if dtg_v else None,
-            data_points=pts,
-        ))
-
-    # ---- Processed data (decomposition stages) ----
-    def extract_processed_data(self) -> Dict[str, Any]:
+    # ---- Processed Data ----
+    def extract_processed_data(self):
         sheets = self._find_sheets("processed data")
-        if not sheets:
-            return {"available": False, "stages": [], "notes": "No processed data sheet found."}
-
-        stages = []
-        for sname in sheets:
-            ws = self.wb[sname]
-
-            # Parse header row to build column map
-            col_map: Dict[str, int] = {}
-            for c in range(1, ws.max_column + 1):
-                h = ws.cell(row=1, column=c).value
-                if h is None:
-                    continue
-                hl = str(h).strip().lower()
-                if "tstart" in hl or "t_start" in hl:
-                    col_map["t_start"] = c
-                elif "tend" in hl or "t_end" in hl:
-                    col_map["t_end"] = c
-                elif "tpeak" in hl or "t_peak" in hl:
-                    col_map["t_peak"] = c
-                elif "mass loss" in hl and "600" not in hl and "1000" not in hl:
-                    col_map["mass_loss"] = c
-                elif "mass loss" in hl and ("600" in hl or "1000" in hl):
-                    col_map["mass_loss_final"] = c
-
-            label_c = 1
-            t_start_c = col_map.get("t_start", 2)
-            t_end_c = col_map.get("t_end", 3)
-            t_peak_c = col_map.get("t_peak", 4)
-            ml_c = col_map.get("mass_loss", 5)
-            mlf_c = col_map.get("mass_loss_final", 6)
-
+        if not sheets: return {"available": False, "blocks": []}
+        blocks = []
+        for sn in sheets:
+            ws = self.wb[sn]
+            headers = [{"col": c, "name": str(ws.cell(row=1, column=c).value).strip()} for c in range(2, ws.max_column + 1) if ws.cell(row=1, column=c).value is not None]
+            replicates, mean_row, sd_row = [], None, None
             for r in range(2, ws.max_row + 1):
-                label = ws.cell(row=r, column=label_c).value
-                ts = self._safe_float(ws.cell(row=r, column=t_start_c).value)
-                if ts is None and label is None:
-                    continue
+                label = ws.cell(row=r, column=1).value
+                if label is None: continue
+                ls = str(label).strip()
+                col2 = ws.cell(row=r, column=2).value
+                if col2 is not None and isinstance(col2, str) and self._safe_float(col2) is None: continue
+                vals = {hd["name"]: self._safe_float(ws.cell(row=r, column=hd["col"]).value) for hd in headers}
+                rd = asdict(TGAProcessedReplicateRow(replicate_label=ls, values=vals))
+                if ls.lower() in ("xm", "mean"): mean_row = rd
+                elif ls.lower() in ("δ", "sd", "sigma", "std"): sd_row = rd
+                else: replicates.append(rd)
+            legend = {}
+            for r in range(max(2, len(replicates) + 4), ws.max_row + 1):
+                k, v = ws.cell(row=r, column=1).value, ws.cell(row=r, column=2).value
+                if k and v and isinstance(v, str): legend[str(k).strip()] = str(v).strip()
+            blocks.append(asdict(TGAProcessedDataBlock(headers=[h["name"] for h in headers], replicates=replicates, mean_row=mean_row, std_dev_row=sd_row, legend=legend)))
+        return {"available": True, "blocks": blocks}
 
-                stages.append(asdict(TGADecompositionStage(
-                    replicate_label=str(label).strip() if label else None,
-                    t_start_c=ts,
-                    t_end_c=self._safe_float(ws.cell(row=r, column=t_end_c).value),
-                    t_peak_c=self._safe_float(ws.cell(row=r, column=t_peak_c).value),
-                    mass_loss_pct=self._safe_float(ws.cell(row=r, column=ml_c).value),
-                    mass_loss_at_final_temp_pct=self._safe_float(ws.cell(row=r, column=mlf_c).value),
-                )))
-
-        return {"available": True, "stages": stages}
-
-    # ---- Final results ----
-    def extract_final_results(self) -> List[Dict[str, Any]]:
+    # ---- Final Results ----
+    def extract_final_results(self):
         sheets = self._find_sheets("final results")
-        if not sheets:
-            self.parser_warnings.append({"type": "missing_sheet", "sheet": "Final results", "note": "No Final results sheet found."})
-            return []
-
-        results = []
-        for sname in sheets:
-            ws = self.wb[sname]
-
-            # Row 2 has headers in pairs: metric name, "Std,dev, (%)"
-            # Row 3+ has data
-            header_row = 2
-            col = 1
-            metric_cols: List[Dict[str, Any]] = []
-
+        if not sheets: return []
+        events = []
+        for sn in sheets:
+            ws = self.wb[sn]
+            hr = 2; col = 1; groups = []
             while col <= ws.max_column:
-                h = ws.cell(row=header_row, column=col).value
-                if h is None:
-                    col += 1
-                    continue
-                hs = str(h).strip()
-                if "std" in hs.lower() and "dev" in hs.lower():
-                    col += 1
-                    continue
+                h = ws.cell(row=hr, column=col).value
+                if h is None: col += 1; continue
+                hs = str(h).strip().lower()
+                if "standard deviation" in hs or "std" in hs: col += 1; continue
+                mn = str(ws.cell(row=hr, column=col).value).strip(); vc = col; nc = col + 1; sdc = None; sdu = None
+                if nc <= ws.max_column:
+                    nh = ws.cell(row=hr, column=nc).value
+                    if nh and ("standard deviation" in str(nh).lower() or "std" in str(nh).lower()):
+                        sdc = nc; um = re.search(r'\(([^)]+)\)|\[([^\]]+)\]', str(nh)); sdu = (um.group(1) or um.group(2)) if um else None; nc += 1
+                groups.append({"mn": mn, "vc": vc, "sdc": sdc, "sdu": sdu}); col = nc
+            for dr in range(3, ws.max_row + 1):
+                if not any(ws.cell(row=dr, column=g["vc"]).value is not None for g in groups): continue
+                for g in groups:
+                    events.append(asdict(TGAFinalResultEntry(metric_name=g["mn"], value=self._safe_float(ws.cell(row=dr, column=g["vc"]).value), std_dev=self._safe_float(ws.cell(row=dr, column=g["sdc"]).value) if g["sdc"] else None, std_dev_unit=g["sdu"])))
+        return events
 
-                # This is a metric header; next col is its std dev
-                metric_cols.append({"name": hs, "value_col": col, "sd_col": col + 1})
-                col += 2
+    def extract_statistical_analysis(self):
+        return {"available": False, "notes": "No statistical analysis in this TGA workbook."}
 
-            for data_row in range(3, ws.max_row + 1):
-                has_data = any(
-                    ws.cell(row=data_row, column=mc["value_col"]).value is not None
-                    for mc in metric_cols
-                )
-                if not has_data:
-                    continue
-
-                for mc in metric_cols:
-                    val = ws.cell(row=data_row, column=mc["value_col"]).value
-                    sd = ws.cell(row=data_row, column=mc["sd_col"]).value if mc["sd_col"] <= ws.max_column else None
-
-                    results.append(asdict(TGAFinalResultEntry(
-                        metric_name=mc["name"],
-                        value=self._safe_float(val) if val is not None else None,
-                        std_dev_pct=self._safe_float(sd) if sd is not None else None,
-                    )))
-
-        return results
-
-    # ---- Statistical analysis (none for TGA) ----
-    def extract_statistical_analysis(self) -> Dict[str, Any]:
-        return {"available": False, "notes": "No dedicated statistical analysis section was found in this TGA workbook."}
-
-    # ---- Parse all ----
-    def parse_all_data(self) -> Dict[str, Union[Dict, List]]:
+    def parse_all_data(self):
         try:
-            parsed_data = {
-                "test_details": {
-                    "work_package": self.extract_work_package_data(),
-                    "material": self.extract_material_data(),
-                    "cell_line": {},
-                    "dispersion": self.extract_dispersion_data(),
-                    "instrumentation": self.extract_instrumentation_data(),
-                },
-                "replication_metadata": self.extract_replication_metadata(),
-                "replications": self.extract_raw_data(),
-                "processed_data": self.extract_processed_data(),
-                "final_results": self.extract_final_results(),
-                "statistical_analysis": self.extract_statistical_analysis(),
-            }
-            if self.parser_warnings:
-                parsed_data["parser_warnings"] = self.parser_warnings
-
-            logger.info("FINAL TGA JSON:\n%s", json.dumps(parsed_data, indent=2, default=str))
-            return parsed_data
+            return {"test_details": {"work_package": self.extract_work_package_data(), "material": self.extract_material_data(), "cell_line": {}, "dispersion": self.extract_dispersion_data(), "instrumentation": self.extract_instrumentation_data()}, "replication_metadata": self.extract_replication_metadata(), "replications": self.extract_raw_data(), "processed_data": self.extract_processed_data(), "final_results": self.extract_final_results(), "statistical_analysis": self.extract_statistical_analysis()}
         except Exception as e:
-            logger.error("Error parsing TGA file: %s\n%s", e, traceback.format_exc())
-            raise
+            logger.error("Error: %s\n%s", e, traceback.format_exc()); raise
 
+def _fix_degree_symbols(obj):
+    """Recursively replace oC with °C in all string values."""
+    if isinstance(obj, str):
+        return obj.replace("oC", "°C")
+    if isinstance(obj, dict):
+        return {(k.replace("oC", "°C") if isinstance(k, str) else k): _fix_degree_symbols(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_fix_degree_symbols(v) for v in obj]
+    return obj
 
-def parse_excel_tga(file_path: str, sheet_name: str = "Test Information") -> Dict[str, Union[Dict, List]]:
-    try:
-        parser = TGAParser(file_path, sheet_name)
-        return parser.parse_all_data()
-    except Exception as e:
-        logger.error("Error in parse_excel_tga: %s\n%s", e, traceback.format_exc())
-        raise
-
+def parse_excel_tga(file_path, sheet_name="Test Information"):
+    return _fix_degree_symbols(TGAParser(file_path, sheet_name).parse_all_data())
 
 if __name__ == "__main__":
     import sys
-    file_path = sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/uploads/WP2_TGA_29aR1.xlsx"
-    data = parse_excel_tga(file_path)
-
-    print("=" * 70)
-    print("TGA PARSER OUTPUT SUMMARY")
-    print("=" * 70)
-
-    wp = data["test_details"]["work_package"]
-    print(f"\nWP: {wp['wp_name']}, Partner: {wp['partner']}")
-    print(f"Test: {wp['test_acronym']} - {wp['full_test_name']}")
-
-    mat = data["test_details"]["material"]
+    fp = sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/uploads/WP2_TGA_27aR1_R3.xlsx"
+    d = parse_excel_tga(fp)
+    print("=" * 70); print("TGA PARSER OUTPUT SUMMARY"); print("=" * 70)
+    wp = d["test_details"]["work_package"]; mat = d["test_details"]["material"]; inst = d["test_details"]["instrumentation"]
+    print(f"\nWP: {wp['wp_name']}, Partner: {wp['partner']}, Test: {wp['test_acronym']}")
     print(f"Material: {mat['material_name']} ({mat['material_identifier']})")
-
-    inst = data["test_details"]["instrumentation"]
-    print(f"Instrument: {inst['instrument_model']}, Range: {inst['temperature_range']}")
-
-    print(f"\nRaw Data Blocks: {len(data['replications'])}")
-    for b in data["replications"]:
-        print(f"  {b['point_count']} pts | Temp {b['min_temperature_c']:.0f}-{b['max_temperature_c']:.0f}°C | Mass {b['min_mass_pct']:.1f}-{b['max_mass_pct']:.1f}%")
-
-    pd = data["processed_data"]
-    print(f"\nProcessed Data: available={pd['available']}, stages={len(pd.get('stages', []))}")
-    for s in pd.get("stages", []):
-        print(f"  {s['replicate_label']}: TStart={s['t_start_c']}°C, TEnd={s['t_end_c']}°C, TPeak={s['t_peak_c']}°C, Loss={s['mass_loss_pct']}%, Final={s['mass_loss_at_final_temp_pct']}%")
-
-    print(f"\nFinal Results: {len(data['final_results'])}")
-    for fr in data["final_results"]:
-        print(f"  {fr['metric_name']}: {fr['value']} (SD: {fr['std_dev_pct']})")
-
-    preview = json.loads(json.dumps(data, default=str))
-    for b in preview.get("replications", []):
-        b["data_points"] = f"[{len(b['data_points'])} points]"
-    print("\n--- JSON Preview ---")
-    print(json.dumps(preview, indent=2, default=str)[:4000])
+    print(f"Instrument: {inst['instrument_model']}, Reps: {inst['replication_count']}")
+    for sm in inst["sample_masses"]: print(f"  {sm['label']}: {sm['value']}{' — ' + sm.get('notes','') if sm.get('notes') else ''}")
+    print(f"\nReplication Metadata: {len(d['replication_metadata'])}")
+    for rm in d["replication_metadata"]: print(f"  {rm['test_identifier_number']}: {rm['test_start_date']} → {rm['raw_sheet_name']}")
+    print(f"\nRaw Blocks: {len(d['replications'])}")
+    for b in d["replications"]: print(f"  {b['run_label']}: {b['point_count']} pts, T={b['min_temperature_c']:.1f}..{b['max_temperature_c']:.1f}, Mass={b['min_mass_pct']:.2f}..{b['max_mass_pct']:.2f}%")
+    pd = d["processed_data"]; print(f"\nProcessed: available={pd['available']}")
+    for blk in pd.get("blocks", []):
+        print(f"  Headers: {blk['headers']}")
+        for rep in blk["replicates"]: print(f"    {rep['replicate_label']}: { {k:v for k,v in rep['values'].items() if v is not None} }")
+        if blk["mean_row"]: print(f"    Mean: {blk['mean_row']['values']}")
+        if blk["std_dev_row"]: print(f"    SD:   {blk['std_dev_row']['values']}")
+    print(f"\nFinal Results: {len(d['final_results'])}")
+    for fr in d["final_results"]: print(f"  {fr['metric_name']}: {fr['value']} ± {fr['std_dev']} {fr.get('std_dev_unit','')}")

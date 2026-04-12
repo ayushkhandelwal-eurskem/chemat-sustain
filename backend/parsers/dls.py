@@ -767,6 +767,7 @@ class DLSParser:
                     'sample_preparation': sample_preparation_data,
                     'instrumentation': instrumentation_data
                 },
+                'replication_metadata': self.extract_replications(),
                 'replications': [],
                 'processed_data': [],
                 'final_results': {}
@@ -846,19 +847,29 @@ class DLSParser:
             logger.error(f"Error parsing Excel file: {e}\n{traceback.format_exc()}")
             raise
 
+def _fix_degree_symbols(obj):
+    """Recursively replace oC with °C in all string values."""
+    if isinstance(obj, str):
+        return obj.replace("oC", "°C")
+    if isinstance(obj, dict):
+        return {(k.replace("oC", "°C") if isinstance(k, str) else k): _fix_degree_symbols(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_fix_degree_symbols(v) for v in obj]
+    return obj
+
 def parse_excel_dls(file_path: str, sheet_name: str = "Test Information") -> Dict[str, Union[Dict, List]]:
     """
     Parse DLS Excel file and return data in a format compatible with TestCreate schema.
     """
     try:
         parser = DLSParser(file_path, sheet_name)
-        return parser.parse_all_data()
+        return _fix_degree_symbols(parser.parse_all_data())
     except Exception as e:
         logger.error(f"Error in parse_excel_dls: {e}\n{traceback.format_exc()}")
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2/CMS_4a_AuNP/DLS/WP2_DLS_4aR1_R5.DB.xlsx"
+    file_path = "backend/data/WP2_DLS_7bR1_R5.xlsx"
     try:
         parsed_data = parse_excel_dls(file_path)
         print("Parsed Data:")

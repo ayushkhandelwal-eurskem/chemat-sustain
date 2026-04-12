@@ -470,7 +470,7 @@ class DLSParser:
     def extract_replications(self):
         replications = []
         raw_sheets = [name for name in self.wb.sheetnames
-          if re.match(_ID_PATTERN, name, re.IGNORECASE)]
+          if name.lower().startswith("raw data") and re.search(_ID_PATTERN, name, re.IGNORECASE)]
         if not raw_sheets:
             logger.warning("No raw data sheets found matching expected patterns.")
             return replications
@@ -611,30 +611,24 @@ class DLSParser:
         else:
             logger.warning(f"No size distribution header found in {processed_sheet_name}")
 
-        metric_names = [
-            "z_ave_hydrodynamic_diameter", "pdi", "peak_1_diameter", "standard_deviation_peak_1",
-            "peak_1_relative", "peak_2_diameter", "standard_deviation_peak_2", "peak_2_relative",
-            "peak_3_diameter", "standard_deviation_peak_3", "peak_3_relative", "derived_count_rate"
-        ]
-        for row_idx in range(1, processed_ws.max_row + 1):
-            row = processed_ws[row_idx]
-            for cell in row:
-                if not cell.value:
-                    continue
-                cell_value = str(cell.value).lower().replace(" ", "_").replace("-", "_")
-                for metric_name in metric_names:
-                    if metric_name in cell_value:
-                        for offset in [(0, 1), (0, 2), (1, 0), (1, 1)]:
-                            try:
-                                value_cell = processed_ws.cell(row=row_idx + offset[0], column=cell.column + offset[1])
-                                if value_cell.value is not None:
-                                    try:
-                                        setattr(metrics, metric_name.replace("standard_deviation_", "std_dev_").replace("_relative", "_intensity"), float(value_cell.value))
-                                    except (ValueError, TypeError):
-                                        setattr(metrics, metric_name.replace("standard_deviation_", "std_dev_").replace("_relative", "_intensity"), None)
-                                    break
-                            except:
-                                continue
+        # Direct column reads from row 4 — fixed positions per DLS processed sheet layout
+        # Col 4=Z-ave, 5=PDI, 6=Peak1 diam, 7=SD peak1, 8=Peak1 intensity,
+        # 9=Peak2 diam, 10=SD peak2, 11=Peak2 intensity,
+        # 12=Peak3 diam, 13=SD peak3, 14=Peak3 intensity, 15=Derived count rate
+        _sf = lambda r, c: (lambda v: float(v) if v is not None else None)(processed_ws.cell(row=r, column=c).value)
+        data_row = 4
+        metrics.z_ave_hydrodynamic_diameter = _sf(data_row, 4)
+        metrics.pdi = _sf(data_row, 5)
+        metrics.peak_1_diameter = _sf(data_row, 6)
+        metrics.std_dev_peak_1 = _sf(data_row, 7)
+        metrics.peak_1_intensity = _sf(data_row, 8)
+        metrics.peak_2_diameter = _sf(data_row, 9)
+        metrics.std_dev_peak_2 = _sf(data_row, 10)
+        metrics.peak_2_intensity = _sf(data_row, 11)
+        metrics.peak_3_diameter = _sf(data_row, 12)
+        metrics.std_dev_peak_3 = _sf(data_row, 13)
+        metrics.peak_3_intensity = _sf(data_row, 14)
+        metrics.derived_count_rate = _sf(data_row, 15)
 
         raw_data = RawData(
             run_number=run_number,
@@ -646,9 +640,9 @@ class DLSParser:
 
     def extract_final_results(self):
         logger.debug("Extracting final results")
-        final_sheet_name = "Final Results"
-        if final_sheet_name not in self.wb.sheetnames:
-            logger.error(f"Final Results sheet '{final_sheet_name}' not found")
+        final_sheet_name = next((n for n in self.wb.sheetnames if "final results" in n.lower()), None)
+        if not final_sheet_name:
+            logger.error("Final Results sheet not found")
             return asdict(ResultsData())
 
         ws = self.wb[final_sheet_name]
@@ -701,54 +695,28 @@ class DLSParser:
         else:
             logger.warning(f"No statistic table header found in {final_sheet_name}")
 
-        metric_names = [
-            "z_ave_hydrodynamic_diameter", "uncertainity_hydrodynamic_diameter", "pdi",
-            "uncertainity_pdi","mean_peak_1_diameter_by_intensity", "pooled_standard_deviation_peak_1",
-            "standard_deviation_beetwen_measurements_peak_1", "mean_peak_1_relative_intensity",
-            "mean_peak_2_diameter_by_intensity", "pooled_standard_deviation_peak_2",
-            "standard_deviation_beetwen_measurements_peak_2", "mean_peak_2_relative_intensity",
-            "mean_peak_3_diameter_by_intensity", "pooled_standard_deviation_peak_3",
-            "standard_deviation_beetwen_measurements_peak_3", "mean_peak_3_relative_intensity",
-            "derived_count_rate"
-        ]
-        for row_idx in range(1, ws.max_row + 1):
-            row = ws[row_idx]
-            for cell in row:
-                if not cell.value:
-                    continue
-                cell_value = str(cell.value).lower().replace(" ", "_").replace("-", "_")
-                for metric_name in metric_names:
-                    if metric_name in cell_value:
-                        for offset in [(0, 1), (0, 2), (1, 0), (1, 1), (-1, 0), (-1, 1)]:
-                            try:
-                                value_cell = ws.cell(row=row_idx + offset[0], column=cell.column + offset[1])
-                                if value_cell.value is not None:
-                                    try:
-                                        metrics[metric_name] = float(value_cell.value)
-                                    except (ValueError, TypeError):
-                                        metrics[metric_name] = None
-                                    break
-                            except:
-                                continue
-
+        # Direct column reads from row 4 — fixed positions per Final Results layout
+        # Row 2=headers, Row 3=units, Row 4=values
+        _sf = lambda r, c: (lambda v: float(v) if v is not None else None)(ws.cell(row=r, column=c).value)
+        dr = 4  # data row
         results_data = ResultsData(
-            z_ave_hydrodynamic_diameter=metrics.get("z_ave_hydrodynamic_diameter"),
-            uncertainty_hydrodynamic_diameter=metrics.get("uncertainity_hydrodynamic_diameter"),
-            pdi=metrics.get("pdi"),
-            uncertainty_pdi=metrics.get("uncertainity_pdi"),
-            mean_peak_1_diameter=metrics.get("mean_peak_1_diameter_by_intensity"),
-            pooled_std_dev_peak_1=metrics.get("pooled_standard_deviation_peak_1"),
-            std_dev_between_measurements_peak_1=metrics.get("standard_deviation_beetwen_measurements_peak_1"),
-            mean_peak_1_intensity=metrics.get("mean_peak_1_relative_intensity"),
-            mean_peak_2_diameter=metrics.get("mean_peak_2_diameter_by_intensity"),
-            pooled_std_dev_peak_2=metrics.get("pooled_standard_deviation_peak_2"),
-            std_dev_between_measurements_peak_2=metrics.get("standard_deviation_beetwen_measurements_peak_2"),
-            mean_peak_2_intensity=metrics.get("mean_peak_2_relative_intensity"),
-            mean_peak_3_diameter=metrics.get("mean_peak_3_diameter_by_intensity"),
-            pooled_std_dev_peak_3=metrics.get("pooled_standard_deviation_peak_3"),
-            std_dev_between_measurements_peak_3=metrics.get("standard_deviation_beetwen_measurements_peak_3"),
-            mean_peak_3_intensity=metrics.get("mean_peak_3_relative_intensity"),
-            derived_count_rate=metrics.get("derived_count_rate"),
+            z_ave_hydrodynamic_diameter=_sf(dr, 1),
+            uncertainty_hydrodynamic_diameter=_sf(dr, 2),
+            pdi=_sf(dr, 3),
+            uncertainty_pdi=_sf(dr, 4),
+            mean_peak_1_diameter=_sf(dr, 5),
+            pooled_std_dev_peak_1=_sf(dr, 6),
+            std_dev_between_measurements_peak_1=_sf(dr, 7),
+            mean_peak_1_intensity=_sf(dr, 8),
+            mean_peak_2_diameter=_sf(dr, 9),
+            pooled_std_dev_peak_2=_sf(dr, 10),
+            std_dev_between_measurements_peak_2=_sf(dr, 11),
+            mean_peak_2_intensity=_sf(dr, 12),
+            mean_peak_3_diameter=_sf(dr, 13),
+            pooled_std_dev_peak_3=_sf(dr, 14),
+            std_dev_between_measurements_peak_3=_sf(dr, 15),
+            mean_peak_3_intensity=_sf(dr, 16),
+            derived_count_rate=_sf(dr, 17),
             statistic_table=statistic_table
         )
         return asdict(results_data)
@@ -840,6 +808,7 @@ class DLSParser:
                     continue
 
             parsed_data['final_results'] = self.extract_final_results()
+            parsed_data['statistical_analysis'] = {'available': False, 'notes': 'No statistical analysis in this DLS workbook.'}
 
             logger.info(f"Parsed data: {len(parsed_data['replications'])} raw data entries, {len(parsed_data['processed_data'])} processed data entries")
             return parsed_data
@@ -869,7 +838,7 @@ def parse_excel_dls(file_path: str, sheet_name: str = "Test Information") -> Dic
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2_DLS_7bR1_R5.xlsx"
+    file_path = "backend/data/WP2/CMS_4a_AuNP/DLS/WP2_DLS_4aR1_R5.DB.xlsx"
     try:
         parsed_data = parse_excel_dls(file_path)
         print("Parsed Data:")

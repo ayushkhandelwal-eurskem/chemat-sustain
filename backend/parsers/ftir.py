@@ -434,7 +434,7 @@ class FTIRParser:
         for row_idx, row in enumerate(raw_ws.iter_rows(min_row=1, max_col=2), start=1):
             wav_header = str(row[0].value).lower() if row[0].value else ""
             trans_header = str(row[1].value).lower() if row[1].value else ""
-            if "wavelength" in wav_header and "transmitance" in trans_header:
+            if "wavelength" in wav_header and ("transmitance" in trans_header or "transmittance" in trans_header):
                 header_row = row_idx
                 logger.debug(f"Found raw data header at row {row_idx}: {wav_header}, {trans_header}")
                 break
@@ -477,7 +477,7 @@ class FTIRParser:
         for row_idx, row in enumerate(processed_ws.iter_rows(min_row=2, max_col=3), start=2):
             peak_header = str(row[1].value).lower() if len(row) > 1 and row[1].value else ""
             trans_header = str(row[2].value).lower() if len(row) > 2 and row[2].value else ""
-            if "peak position [cm-1]" in peak_header and "transmitance [%]" in trans_header:
+            if "peak position" in peak_header and "cm-1" in peak_header and ("transmitance" in trans_header or "transmittance" in trans_header):
                 header_row = row_idx
                 logger.debug(f"Found processed data header at row {row_idx}")
                 break
@@ -503,7 +503,7 @@ class FTIRParser:
         return asdict(ProcessedData(run_number=run_number, peak_transmittance=peak_transmittance))
 
     def extract_final_results(self):
-        final_sheet_names = [name for name in self.wb.sheetnames if "Final results" in name]
+        final_sheet_names = [name for name in self.wb.sheetnames if "final results" in name.lower()]
         logger.debug(f"Found final results sheets: {final_sheet_names}")
         if not final_sheet_names:
             logger.warning("No final results sheet found")
@@ -602,6 +602,7 @@ class FTIRParser:
                     logger.warning(f"No matching processed data sheet found for raw sheet {raw_sheet}")
 
             parsed_data['final_results'] = self.extract_final_results()
+            parsed_data['statistical_analysis'] = {'available': False, 'notes': 'No statistical analysis in this FTIR workbook.'}
             logger.debug(f"Final parsed data: {parsed_data}")
             return parsed_data
         except Exception as e:

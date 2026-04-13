@@ -30,11 +30,16 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
   const workPackages = ['WP2', 'WP3', 'WP4'];
   const elements = [
     "CMS_1a_AuNP",
+    "CMS_1c_AuNP",
     "CMS_2a_AuNP",
+    "CMS_2c_AuNP",
     "CMS_3a_AuNP",
     "CMS_4a_AuNP",
+    "CMS_4b_AuNP",
     "CMS_5a_AuNP",
+    "CMS_5b_AuNP",
     "CMS_6a_AuNP",
+    "CMS_6b_AuNP",
     "CMS_7b_AgNP",
     "CMS_8b_AgNP",
     "CMS_9b_AgNP",
@@ -55,8 +60,11 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
     "CMS_24a_PS1",
     "CMS_25a_PS2",
     "CMS_26a_CH_CIT",
+    "CMS_26b_CH_CIT",
     "CMS_27a_CH_PEG",
+    "CMS_27d_CH_PEG",
     "CMS_28a_CH_PVP",
+    "CMS_28b_CH_PVP",
     "CMS_29a_CH_TOR",
     "CMS_30a_CH_TER"
   ]

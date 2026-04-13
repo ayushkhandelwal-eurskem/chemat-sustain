@@ -729,7 +729,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 </div>
 
                 <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-3">{currentRawPlateHeading} - % Cell Death by Chamber</h3>
+                  <h3 className="text-lg font-semibold mb-3">{currentRawPlateHeading} - % Cell Death by Well</h3>
                   <ResponsiveContainer width="100%" height={380}>
                     <BarChart data={rawBarChartData} margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -758,7 +758,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <table id="tbRawTable" className="min-w-full bg-white border border-gray-200">
                     <thead>
                       <tr className="bg-gray-100">
-                        <th className="py-2 px-4 border text-left">Chamber</th>
+                        <th className="py-2 px-4 border text-left">Well</th>
                         <th className="py-2 px-4 border text-left">% Cell Death</th>
                       </tr>
                     </thead>
@@ -857,8 +857,8 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <table id="tbProcessedTable" className="min-w-full bg-white border border-gray-200">
                     <thead>
                       <tr className="bg-gray-100">
-                        <th className="py-2 px-4 border text-left">Condition</th>
-                        <th className="py-2 px-4 border text-left">Value</th>
+                        <th className="py-2 px-4 border text-left">{currentProcessedPlateHeading}</th>
+                        <th className="py-2 px-4 border text-left">% Cell death</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1058,12 +1058,8 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               </button>
             </div>
 
-            <div className="mb-4 bg-blue-50 p-4 rounded-md">
-              <p className="font-medium">The graph below shows mean % cell death, SD error bars, and individual replicate points to make spread and possible outliers visible.</p>
-            </div>
-
             <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-3">Mean % Cell Death by Condition</h3>
+              <h3 className="text-lg font-semibold mb-3">% Cell Death</h3>
               <div className="space-y-8">
                 {finalMeanChartChunks.length > 0 ? (
                   finalMeanChartChunks.map((chartChunk, chartIndex) => {
@@ -1092,14 +1088,6 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                                 <Cell key={index} fill={COLORS[index % COLORS.length]} />
                               ))}
                             </Bar>
-                            {finalReplicateSeries.map((series) => (
-                              <Scatter
-                                key={`${series.replicate}-${chartIndex}`}
-                                name={series.replicate}
-                                dataKey={series.key}
-                                fill={series.color}
-                              />
-                            ))}
                           </ComposedChart>
                         </ResponsiveContainer>
                       </div>

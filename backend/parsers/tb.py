@@ -242,6 +242,13 @@ class TBParser:
     def _safe_str(self, value) -> Optional[str]:
         return str(value).strip() if value not in (None, "") else None
 
+    def _safe_excel_value(self, value):
+        if value in (None, ""):
+            return None
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
     def _sheet_key_values(self) -> List[Dict[str, Any]]:
         data = []
         for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=6), start=1):
@@ -310,6 +317,25 @@ class TBParser:
                     cleaned = value.lower().replace(prefix.lower(), "").strip(" .:")
                     return cleaned or None
         return None
+
+    def _extract_key_value_rows(self, ws, start_row: int, end_row: int) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        for row_idx in range(start_row, end_row + 1):
+            label = self._safe_str(ws.cell(row_idx, 1).value)
+            value = self._safe_excel_value(ws.cell(row_idx, 2).value)
+            if label is None and value is None:
+                continue
+            rows.append({"label": label, "value": value})
+        return rows
+
+    def _extract_table(self, ws, header_row: int, data_start_row: int, data_end_row: int, start_col: int, end_col: int) -> Dict[str, Any]:
+        headers = [self._safe_excel_value(ws.cell(header_row, col).value) for col in range(start_col, end_col + 1)]
+        rows = []
+        for row_idx in range(data_start_row, data_end_row + 1):
+            values = [self._safe_excel_value(ws.cell(row_idx, col).value) for col in range(start_col, end_col + 1)]
+            if any(v is not None for v in values):
+                rows.append(values)
+        return {"headers": headers, "rows": rows}
 
     # -----------------------------------------------------
     # Test details
@@ -491,14 +517,14 @@ class TBParser:
     def _extract_raw_block(self, raw_sheet_name: str, processed_sheet_name: Optional[str]) -> Dict[str, Any]:
         ws = self.wb[raw_sheet_name]
 
-        test_identifier = ws.cell(1, 1).value
-        plate_label = ws.cell(1, 3).value
-        metric_name = ws.cell(2, 3).value
+        test_identifier = self._safe_str(ws.cell(1, 1).value)
+        plate_label = self._safe_str(ws.cell(1, 3).value)
+        metric_name = self._safe_str(ws.cell(3, 3).value)
 
         measurements = []
         for col in range(4, 8):
-            chamber_label = ws.cell(1, col).value
-            value = self._safe_float(ws.cell(2, col).value)
+            chamber_label = self._safe_str(ws.cell(2, col).value)
+            value = self._safe_float(ws.cell(3, col).value)
             if chamber_label is not None or value is not None:
                 measurements.append(TBMeasurement(
                     chamber_label=chamber_label,
@@ -542,9 +568,9 @@ class TBParser:
 
         for sheet_name in processed_sheets:
             ws = self.wb[sheet_name]
-            identifier = ws.cell(1, 1).value
-            run_label = ws.cell(4, 1).value
-            condition_labels = [ws.cell(4, c).value for c in range(2, 6)]
+            identifier = self._safe_str(ws.cell(1, 1).value)
+            run_label = self._safe_str(ws.cell(4, 1).value)
+            condition_labels = [self._safe_str(ws.cell(4, c).value) for c in range(2, 6)]
             values = [self._safe_float(ws.cell(5, c).value) for c in range(2, 6)]
             has_data = any(v is not None for v in values)
 
@@ -552,8 +578,8 @@ class TBParser:
                 run_label=run_label,
                 processed_sheet_name=sheet_name,
                 identifier=identifier,
-                metric_name=ws.cell(5, 1).value,
-                condition_labels=condition_labels,
+                metric_name=self._safe_str(ws.cell(5, 1).value),
+                condition_labels=[label for label in condition_labels if label is not None],
                 values=values,
                 has_data=has_data,
             )))
@@ -574,41 +600,36 @@ class TBParser:
 
         ws = self.wb["Final results"]
 
-        sample_identifier = ws.cell(1, 1).value
-        endpoint = ws.cell(1, 2).value
-        condition_labels = [ws.cell(3, c).value for c in range(3, 7)]
+        sample_identifier = self._safe_str(ws.cell(1, 1).value)
+        endpoint = self._safe_str(ws.cell(1, 2).value)
+        condition_labels = [self._safe_str(ws.cell(3, c).value) for c in range(3, 7)]
+        condition_labels = [label for label in condition_labels if label is not None]
 
         replicate_rows = []
         for row_idx in [4, 5, 6]:
-            replicate_name = ws.cell(row_idx, 2).value
+            replicate_name = self._safe_str(ws.cell(row_idx, 2).value)
             if replicate_name:
                 replicate_rows.append({
                     "replicate": replicate_name,
                     "values": {
-                        condition_labels[0]: ws.cell(row_idx, 3).value,
-                        condition_labels[1]: ws.cell(row_idx, 4).value,
-                        condition_labels[2]: ws.cell(row_idx, 5).value,
-                        condition_labels[3]: ws.cell(row_idx, 6).value,
+                        label: self._safe_float(ws.cell(row_idx, 3 + idx).value)
+                        for idx, label in enumerate(condition_labels)
                     }
                 })
 
         mean_row = {
-            "label": ws.cell(7, 2).value,
+            "label": self._safe_str(ws.cell(7, 2).value),
             "values": {
-                condition_labels[0]: ws.cell(7, 3).value,
-                condition_labels[1]: ws.cell(7, 4).value,
-                condition_labels[2]: ws.cell(7, 5).value,
-                condition_labels[3]: ws.cell(7, 6).value,
+                label: self._safe_float(ws.cell(7, 3 + idx).value)
+                for idx, label in enumerate(condition_labels)
             }
         }
 
         sd_row = {
-            "label": ws.cell(8, 2).value,
+            "label": self._safe_str(ws.cell(8, 2).value),
             "values": {
-                condition_labels[0]: ws.cell(8, 3).value,
-                condition_labels[1]: ws.cell(8, 4).value,
-                condition_labels[2]: ws.cell(8, 5).value,
-                condition_labels[3]: ws.cell(8, 6).value,
+                label: self._safe_float(ws.cell(8, 3 + idx).value)
+                for idx, label in enumerate(condition_labels)
             }
         }
 
@@ -628,72 +649,84 @@ class TBParser:
         if "Statistics" not in self.wb.sheetnames:
             return {
                 "available": False,
-                "notes": "No statistics sheet found."
+                "notes": "No statistics sheet found.",
             }
 
         ws = self.wb["Statistics"]
 
-        result = {
-            "available": True,
-            "software": self._safe_str(ws.cell(10, 1).value),
-            "test": self._safe_str(ws.cell(12, 1).value),
-            "anova_summary": {
-                "F": self._safe_float(ws.cell(15, 2).value),
-                "p_value": self._safe_float(ws.cell(16, 2).value),
-                "p_value_summary": self._safe_str(ws.cell(17, 2).value),
-                "significant_difference": self._safe_str(ws.cell(18, 2).value),
-                "r_squared": self._safe_float(ws.cell(19, 2).value),
-            },
-            "brown_forsythe_test": {
-                "f_dfn_dfd": self._safe_str(ws.cell(22, 2).value),
-                "p_value": self._safe_float(ws.cell(23, 2).value),
-                "p_value_summary": self._safe_str(ws.cell(24, 2).value),
-                "sd_significantly_different": self._safe_str(ws.cell(25, 2).value),
-            },
-            "tukey_comparisons": [],
-            "tukey_details": [],
-        }
-
-        # Tukey comparisons table: A45:F51
+        tukey_rows = []
         for row_idx in range(46, 52):
             comparison = self._safe_str(ws.cell(row_idx, 1).value)
             if not comparison:
                 continue
-
-            result["tukey_comparisons"].append({
+            tukey_rows.append({
                 "comparison": comparison,
-                "mean_diff": self._safe_float(ws.cell(row_idx, 2).value),
-                "ci_95": self._safe_str(ws.cell(row_idx, 3).value),
-                "significant": self._safe_str(ws.cell(row_idx, 4).value),
-                "summary": self._safe_str(ws.cell(row_idx, 5).value),
-                "adjusted_p_value": self._safe_float(ws.cell(row_idx, 6).value),
+                "mean_diff": self._safe_excel_value(ws.cell(row_idx, 2).value),
+                "ci_95_of_diff": self._safe_excel_value(ws.cell(row_idx, 3).value),
+                "significant": self._safe_excel_value(ws.cell(row_idx, 4).value),
+                "summary": self._safe_excel_value(ws.cell(row_idx, 5).value),
+                "adjusted_p_value": self._safe_excel_value(ws.cell(row_idx, 6).value),
+                "comparison_code": self._safe_excel_value(ws.cell(row_idx, 7).value),
             })
 
-        # Tukey details table: A54:I59
-        for row_idx in range(54, 60):
-            comparison = self._safe_str(ws.cell(row_idx, 1).value)
-            if not comparison:
-                continue
+        anova_summary_rows = self._extract_key_value_rows(ws, 15, 19)
+        brown_forsythe_rows = self._extract_key_value_rows(ws, 22, 25)
 
-            result["tukey_details"].append({
-                "comparison": comparison,
-                "mean_1": self._safe_float(ws.cell(row_idx, 2).value),
-                "mean_2": self._safe_float(ws.cell(row_idx, 3).value),
-                "mean_diff": self._safe_float(ws.cell(row_idx, 4).value),
-                "se_of_diff": self._safe_float(ws.cell(row_idx, 5).value),
-                "n1": self._safe_int(ws.cell(row_idx, 6).value),
-                "n2": self._safe_int(ws.cell(row_idx, 7).value),
-                "q": self._safe_float(ws.cell(row_idx, 8).value),
-                "df": self._safe_int(ws.cell(row_idx, 9).value),
-            })
+        # Backward-compatible maps while also preserving exact Excel labels.
+        anova_summary_map = {
+            "F": self._safe_excel_value(ws.cell(15, 2).value),
+            "P value": self._safe_excel_value(ws.cell(16, 2).value),
+            "P value summary": self._safe_excel_value(ws.cell(17, 2).value),
+            "Significant diff. among means (P < 0.05)?": self._safe_excel_value(ws.cell(18, 2).value),
+            "R squared": self._safe_excel_value(ws.cell(19, 2).value),
+        }
 
-        return result
+        brown_forsythe_map = {
+            "F (DFn, DFd)": self._safe_excel_value(ws.cell(22, 2).value),
+            "P value": self._safe_excel_value(ws.cell(23, 2).value),
+            "P value summary": self._safe_excel_value(ws.cell(24, 2).value),
+            "Are SDs significantly different (P < 0.05)?": self._safe_excel_value(ws.cell(25, 2).value),
+        }
+
+        return {
+            "available": True,
+            "software": self._safe_str(ws.cell(10, 1).value),
+            "test": self._safe_str(ws.cell(12, 1).value),
+            "anova_summary_title": self._safe_str(ws.cell(14, 1).value),
+            "anova_summary": anova_summary_rows,
+            "anova_summary_map": anova_summary_map,
+            "brown_forsythe_title": self._safe_str(ws.cell(21, 1).value),
+            "brown_forsythe_summary": brown_forsythe_rows,
+            "brown_forsythe_summary_map": brown_forsythe_map,
+            "anova_table": {
+                "title": self._safe_str(ws.cell(33, 1).value),
+                **self._extract_table(ws, header_row=33, data_start_row=34, data_end_row=36, start_col=1, end_col=6),
+            },
+            "data_summary": {
+                "title": self._safe_str(ws.cell(38, 1).value),
+                "rows": self._extract_key_value_rows(ws, 39, 40),
+            },
+            "post_hoc_title": self._safe_str(ws.cell(43, 1).value),
+            "tukey_table": {
+                "title": self._safe_str(ws.cell(45, 1).value),
+                "headers": [
+                    "Comparison",
+                    self._safe_excel_value(ws.cell(45, 2).value),
+                    self._safe_excel_value(ws.cell(45, 3).value),
+                    self._safe_excel_value(ws.cell(45, 4).value),
+                    self._safe_excel_value(ws.cell(45, 5).value),
+                    self._safe_excel_value(ws.cell(45, 6).value),
+                ],
+                "rows": tukey_rows,
+            },
+        }
 
     # -----------------------------------------------------
     # Parse all
     # -----------------------------------------------------
     def parse_all_data(self) -> Dict[str, Union[Dict, List]]:
         try:
+            raw_data = self.extract_raw_data()
             parsed_data = {
                 "test_details": {
                     "work_package": self.extract_work_package_data(),
@@ -703,7 +736,8 @@ class TBParser:
                     "treatment": self.extract_treatment_data(),
                 },
                 "replication_metadata": self.extract_replication_metadata(),
-                "replications": self.extract_raw_data(),
+                "raw_data": raw_data,
+                "replications": raw_data,
                 "processed_data": self.extract_processed_data(),
                 "final_results": self.extract_final_results(),
                 "statistical_analysis": self.extract_statistical_analysis(),
@@ -732,4 +766,4 @@ def parse_excel_tb(file_path: str, sheet_name: str = "Test_conditions") -> Dict[
 if __name__ == "__main__":
     file_path = "/mnt/data/CMS_WP3_TB_1a_AuNP.xlsx"
     parsed_data = parse_excel_tb(file_path)
-    print(json.dumps(parsed_data, indent=2, default=str)[:8000])
+    print(json.dumps(parsed_data, indent=2, default=str)[:12000])

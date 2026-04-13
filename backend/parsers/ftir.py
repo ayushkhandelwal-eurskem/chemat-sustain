@@ -16,18 +16,19 @@ logger = logging.getLogger(__name__)
 # Universal FTIR identifier pattern — accepts any letter
 # (a, b, c, …) between the number and R.
 #
-#   Group 1 = WP number        (e.g. "2")
-#   Group 2 = FTIR number      (e.g. "16")
-#   Group 3 = variant letter   (e.g. "a" or "b")
-#   Group 4 = run number       (e.g. "1")
+#   Group 1 = WP number
+#   Group 2 = FTIR number
+#   Group 3 = variant letter
+#   Group 4 = run number
 # =========================================================
 _FTIR_ID = r'WP(\d+)_FTIR_(\d+)([a-zA-Z])R(\d+)'
 
-# Dataclasses (adapted for FTIR)
+
 @dataclass
 class Scientist:
     name: Optional[str] = None
     email: Optional[str] = None
+
 
 @dataclass
 class WorkPackageData:
@@ -43,6 +44,7 @@ class WorkPackageData:
     lead_scientists: List[Scientist] = field(default_factory=list)
     assay_scientists: List[Scientist] = field(default_factory=list)
 
+
 @dataclass
 class MaterialData:
     material_identifier: Optional[str] = None
@@ -57,11 +59,13 @@ class MaterialData:
     particles_stock: Optional[str] = None
     molar_concentration: Optional[str] = None
 
+
 @dataclass
 class ReplicationData:
     test_identifier_number: Optional[str] = None
     test_start_date: Optional[str] = None
     test_end_date: Optional[str] = None
+
 
 @dataclass
 class SamplePreparationData:
@@ -78,6 +82,7 @@ class SamplePreparationData:
     final_concentration: Optional[str] = None
     additional_info: Optional[str] = None
 
+
 @dataclass
 class InstrumentationData:
     ftir_model: Optional[str] = None
@@ -91,34 +96,41 @@ class InstrumentationData:
     replication: Optional[int] = None
     spectral_range: Optional[str] = None
 
+
 @dataclass
 class WavelengthTransmittanceData:
     wavelengths: List[float] = field(default_factory=list)
     transmittances: List[float] = field(default_factory=list)
+
 
 @dataclass
 class PeakTransmittanceData:
     peaks: List[float] = field(default_factory=list)
     transmittances: List[float] = field(default_factory=list)
 
+
 @dataclass
 class RawData:
     run_number: int
     wavelength_transmittance: WavelengthTransmittanceData
+
 
 @dataclass
 class ProcessedData:
     run_number: int
     peak_transmittance: PeakTransmittanceData
 
+
 @dataclass
 class FunctionalGroup:
-    group_name: str  # Maximum length: 100 characters
+    group_name: str
     peaks: List[float]
+
 
 @dataclass
 class ResultsData:
     functional_groups: List[FunctionalGroup] = field(default_factory=list)
+
 
 class FTIRParser:
     def __init__(self, file_path: str, sheet_name: str = "Test Information"):
@@ -169,6 +181,17 @@ class FTIRParser:
             logger.warning(f"Failed to convert date {value}: {e}")
             return None
 
+    def parse_peak_list(self, value) -> List[float]:
+        if value is None or value == "":
+            return []
+
+        if isinstance(value, (int, float)):
+            return [float(value)]
+
+        text = str(value).strip()
+        matches = re.findall(r'\d+(?:\.\d+)?', text)
+        return [float(m) for m in matches]
+
     def extract_work_package_data(self):
         data = []
         lead_scientists = []
@@ -187,9 +210,9 @@ class FTIRParser:
             if email_cell and re.match(self.email_regex, str(email_cell)):
                 entry["Email"] = email_cell
 
-            if key and "lead_scientist" in key:
+            if "lead_scientist" in key:
                 lead_scientists.append(asdict(Scientist(name=value_cell, email=email_cell)))
-            if key and "assay_test_work_conducted_by" in key:
+            if "assay_test_work_conducted_by" in key:
                 assay_scientists.append(asdict(Scientist(name=value_cell, email=email_cell)))
 
             data.append(entry)
@@ -256,7 +279,9 @@ class FTIRParser:
             cas=next((d["Value"] for d in data if d["Key"] == "cas_no_"), None),
             casforcore=next((d["Value"] for d in data if d["Key"] == "cas_for_core_"), None),
             batch=next((d["Value"] for d in data if d["Key"] == "batch"), None),
-            preparation_date=self.excel_date_to_string(next((d["Value"] for d in data if d["Key"] == "date_of_sample_preparation_for_tests"), None)),
+            preparation_date=self.excel_date_to_string(
+                next((d["Value"] for d in data if d["Key"] == "date_of_sample_preparation_for_tests"), None)
+            ),
             particles_stock=next((d["Value"] for d in data if d["Key"] == "number_of_particles_in_stock_"), None),
             molar_concentration=next((d["Value"] for d in data if d["Key"] == "molar_concentration"), None)
         ))
@@ -381,22 +406,25 @@ class FTIRParser:
 
     def extract_replications(self):
         replications = []
-        # FIX: accept any letter (a, b, c, …) before R
-        raw_sheets = [name for name in self.wb.sheetnames if re.match(r'Raw data_' + _FTIR_ID, name, re.IGNORECASE)]
+        raw_sheets = [
+            name for name in self.wb.sheetnames
+            if re.match(r'Raw data_' + _FTIR_ID, name, re.IGNORECASE)
+        ]
         logger.debug(f"Found raw data sheets: {raw_sheets}")
-        
+
         for raw_sheet in raw_sheets:
             match = re.search(_FTIR_ID, raw_sheet, re.IGNORECASE)
             if not match:
                 logger.warning(f"Raw sheet name {raw_sheet} does not match expected pattern")
                 continue
+
             wp_number = match.group(1)
             ftir_number = match.group(2)
-            letter = match.group(3)        # ← captured letter
-            run_number = match.group(4)    # ← shifted from group(3)
+            letter = match.group(3)
+            run_number = match.group(4)
             test_identifier = f"WP{wp_number}_FTIR_{ftir_number}{letter}R{run_number}"
             logger.debug(f"Processing replication for sheet {raw_sheet}: test_identifier={test_identifier}")
-            
+
             start_date = None
             end_date = None
             for row in self.ws.iter_rows(min_row=1, max_col=5):
@@ -416,10 +444,10 @@ class FTIRParser:
         return replications
 
     def extract_raw_data(self, raw_sheet_name: str):
-        run_number = 1  # Default
+        run_number = 1
         match = re.search(_FTIR_ID, raw_sheet_name, re.IGNORECASE)
         if match:
-            run_number = int(match.group(4))   # ← group(4) now
+            run_number = int(match.group(4))
         logger.debug(f"Extracting raw data for sheet {raw_sheet_name}, run_number={run_number}")
 
         wavelength_transmittance = WavelengthTransmittanceData()
@@ -458,10 +486,10 @@ class FTIRParser:
         return asdict(RawData(run_number=run_number, wavelength_transmittance=wavelength_transmittance))
 
     def extract_processed_data(self, processed_sheet_name: str):
-        run_number = 1  # Default
+        run_number = 1
         match = re.search(_FTIR_ID, processed_sheet_name, re.IGNORECASE)
         if match:
-            run_number = int(match.group(4))   # ← group(4) now
+            run_number = int(match.group(4))
         logger.debug(f"Extracting processed data for sheet {processed_sheet_name}, run_number={run_number}")
 
         peak_transmittance = PeakTransmittanceData()
@@ -505,6 +533,7 @@ class FTIRParser:
     def extract_final_results(self):
         final_sheet_names = [name for name in self.wb.sheetnames if "final results" in name.lower()]
         logger.debug(f"Found final results sheets: {final_sheet_names}")
+
         if not final_sheet_names:
             logger.warning("No final results sheet found")
             return asdict(ResultsData())
@@ -515,7 +544,9 @@ class FTIRParser:
         header_row = 2
         first_cell = ws.cell(row=header_row, column=1).value
         if not first_cell or "functional group" not in str(first_cell).lower().strip():
-            logger.warning(f"Header row {header_row} does not contain 'functional group': found '{first_cell}'")
+            logger.warning(
+                f"Header row {header_row} does not contain 'functional group': found '{first_cell}'"
+            )
             return asdict(ResultsData())
 
         data_row = 4
@@ -525,24 +556,28 @@ class FTIRParser:
 
         max_col = 30
         row = ws[data_row]
+
         for i in range(0, min(len(row), max_col), 2):
             group_name = row[i].value
             peaks_str = row[i + 1].value if i + 1 < min(len(row), max_col) else None
-            if group_name and peaks_str:
-                peaks = []
-                try:
-                    for p in str(peaks_str).split(','):
-                        p = p.strip()
-                        if p:
-                            peaks.append(float(p))
-                    if len(group_name) > 100:
-                        logger.warning(f"Group name '{group_name}' exceeds 100 characters, truncating")
-                        group_name = group_name[:100]
-                    functional_groups.append(FunctionalGroup(group_name=group_name, peaks=peaks))
-                    logger.debug(f"Extracted functional group: {group_name}, peaks={peaks}")
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Error parsing peaks for group '{group_name}': {peaks_str}, error: {e}")
-                    continue
+
+            if not group_name or peaks_str in (None, ""):
+                continue
+
+            peaks = self.parse_peak_list(peaks_str)
+
+            if not peaks:
+                logger.warning(f"No numeric peaks found for group '{group_name}': {peaks_str}")
+                continue
+
+            if len(str(group_name)) > 100:
+                logger.warning(f"Group name '{group_name}' exceeds 100 characters, truncating")
+                group_name = str(group_name)[:100]
+
+            functional_groups.append(
+                FunctionalGroup(group_name=str(group_name).strip(), peaks=peaks)
+            )
+            logger.debug(f"Extracted functional group: {group_name}, peaks={peaks}")
 
         if not functional_groups:
             logger.warning("No valid functional groups extracted from data row")
@@ -570,9 +605,14 @@ class FTIRParser:
                 'final_results': {}
             }
 
-            # FIX: accept any letter (a, b, c, …) before R
-            raw_sheets = [name for name in self.wb.sheetnames if re.match(r'Raw data_' + _FTIR_ID, name, re.IGNORECASE)]
-            processed_sheets = [name for name in self.wb.sheetnames if re.match(r'Processed data_' + _FTIR_ID, name, re.IGNORECASE)]
+            raw_sheets = [
+                name for name in self.wb.sheetnames
+                if re.match(r'Raw data_' + _FTIR_ID, name, re.IGNORECASE)
+            ]
+            processed_sheets = [
+                name for name in self.wb.sheetnames
+                if re.match(r'Processed data_' + _FTIR_ID, name, re.IGNORECASE)
+            ]
             logger.debug(f"Found raw data sheets: {raw_sheets}")
             logger.debug(f"Found processed data sheets: {processed_sheets}")
 
@@ -581,15 +621,27 @@ class FTIRParser:
                 if not match:
                     logger.warning(f"Raw sheet name {raw_sheet} does not match expected pattern")
                     continue
+
                 wp_number = match.group(1)
                 ftir_number = match.group(2)
-                letter = match.group(3)        # ← captured letter
-                run_number = match.group(4)    # ← shifted from group(3)
-                logger.debug(f"Processing raw sheet {raw_sheet}: wp={wp_number}, ftir={ftir_number}, letter={letter}, run={run_number}")
+                letter = match.group(3)
+                run_number = match.group(4)
+                logger.debug(
+                    f"Processing raw sheet {raw_sheet}: wp={wp_number}, ftir={ftir_number}, "
+                    f"letter={letter}, run={run_number}"
+                )
 
-                # Match processed sheet using the SAME letter
-                processed_sheet = next((name for name in processed_sheets 
-                                    if re.search(rf'WP{wp_number}_FTIR_{ftir_number}{letter}R{run_number}', name, re.IGNORECASE)), None)
+                processed_sheet = next(
+                    (
+                        name for name in processed_sheets
+                        if re.search(
+                            rf'WP{wp_number}_FTIR_{ftir_number}{letter}R{run_number}',
+                            name,
+                            re.IGNORECASE
+                        )
+                    ),
+                    None
+                )
                 logger.debug(f"Matched processed sheet for run {run_number}: {processed_sheet}")
 
                 raw_data = self.extract_raw_data(raw_sheet)
@@ -602,27 +654,33 @@ class FTIRParser:
                     logger.warning(f"No matching processed data sheet found for raw sheet {raw_sheet}")
 
             parsed_data['final_results'] = self.extract_final_results()
-            parsed_data['statistical_analysis'] = {'available': False, 'notes': 'No statistical analysis in this FTIR workbook.'}
+            parsed_data['statistical_analysis'] = {
+                'available': False,
+                'notes': 'No statistical analysis in this FTIR workbook.'
+            }
             logger.debug(f"Final parsed data: {parsed_data}")
             return parsed_data
+
         except Exception as e:
             logger.error(f"Error parsing Excel file: {e}\n{traceback.format_exc()}")
             raise
+
 
 def _fix_degree_symbols(obj):
     """Recursively replace oC with °C in all string values."""
     if isinstance(obj, str):
         return obj.replace("oC", "°C")
     if isinstance(obj, dict):
-        return {(k.replace("oC", "°C") if isinstance(k, str) else k): _fix_degree_symbols(v) for k, v in obj.items()}
+        return {
+            (k.replace("oC", "°C") if isinstance(k, str) else k): _fix_degree_symbols(v)
+            for k, v in obj.items()
+        }
     if isinstance(obj, list):
         return [_fix_degree_symbols(v) for v in obj]
     return obj
 
+
 def parse_excel_ftir(file_path: str) -> Dict[str, Union[Dict, List]]:
-    """
-    Parse FTIR Excel file and return data in a format compatible with TestCreate schema.
-    """
     try:
         logger.debug(f"Starting parse_excel_ftir with file: {file_path}")
         parser = FTIRParser(file_path)
@@ -633,10 +691,11 @@ def parse_excel_ftir(file_path: str) -> Dict[str, Union[Dict, List]]:
         logger.error(f"Error in parse_excel_ftir: {e}\n{traceback.format_exc()}")
         raise
 
+
 if __name__ == "__main__":
-    file_path = "backend/data/WP2/CMS_16a_TMR/FT-IR/WP2_FTIR_16aR1.xlsx"
+    file_path = "backend/data/WP2_FTIR_26aR1.xlsx"
     try:
         parsed_data = parse_excel_ftir(file_path)
-        print("Final Results:", parsed_data['final_results'])
+        print(parsed_data["final_results"])
     except Exception as e:
         print(f"Error: {e}")

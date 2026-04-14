@@ -262,6 +262,6 @@ def parse_excel_ros(file_path, sheet_name="Test_conditions"):
 
 if __name__ == "__main__":
     import sys
-    fp = sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/uploads/CMS_WP3_ROS_1a_n1_FINAL_R1Template.xlsx"
+    fp = sys.argv[1] if len(sys.argv) > 1 else "backend/data/CMS_WP3_ROS_2a_n1_FINAL_DB.xlsx"
     d = parse_excel_ros(fp)
     print(json.dumps(d, indent=2, default=str)[:12000])

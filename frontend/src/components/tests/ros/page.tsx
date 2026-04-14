@@ -50,7 +50,7 @@ const SectionTable: FC<{ id: string; section: any; title: string; isCv?: boolean
   const headers = section.headers ?? [];
   const fmtVal = (val: any, label: string) => {
     if (val == null) return "";
-    if (isCv && label === "CV") return fmt(val * 100, 2) + "%";
+    if (isCv && label === "CV") return fmt(val.toFixed(2));
     if (isPct && typeof val === "number") return fmt(val * 100, 2) + "%";
     return fmt(val, 2);
   };

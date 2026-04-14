@@ -1,11 +1,10 @@
 import openpyxl
 import re
 import json
-from dataclasses import dataclass, asdict, field
 from typing import List, Dict, Optional, Union, Any
 import logging
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dt_time
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
@@ -13,12 +12,12 @@ logger = logging.getLogger(__name__)
 
 _ROS_ID = r'WP(\d+)_ROS_(\d+)([a-zA-Z])R(\d+)'
 
+
 class ROSParser:
     def __init__(self, file_path, sheet_name="Test_conditions"):
         self.file_path = file_path
         try:
             self.wb = openpyxl.load_workbook(file_path, data_only=True)
-            # Handle both "Test_conditions" and "Test Information" sheet names
             if sheet_name in self.wb.sheetnames:
                 self.ws = self.wb[sheet_name]
             elif "Test Information" in self.wb.sheetnames:
@@ -34,7 +33,7 @@ class ROSParser:
         return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", str(key).strip().lower())).strip("_")
 
     def _sf(self, v):
-        if v in (None, ""): return None
+        if v in (None, "", " "): return None
         try:
             if isinstance(v, str): v = v.replace(",", ".").strip()
             return float(v)
@@ -50,6 +49,17 @@ class ROSParser:
                     except: pass
             return str(v).strip() if v else None
         except: return str(v).strip() if v else None
+
+    def _time_str(self, v):
+        if v is None: return None
+        if isinstance(v, dt_time):
+            parts = []
+            if v.hour > 0: parts.append(f"{v.hour}h")
+            if v.minute > 0: parts.append(f"{v.minute}m")
+            ms = v.microsecond // 1000
+            parts.append(f"{v.second}.{ms:03d}s")
+            return " ".join(parts) if parts else "0s"
+        return str(v)
 
     def _kv(self, max_col=6):
         data = []
@@ -69,9 +79,7 @@ class ROSParser:
         return next((r["value"] for r in rows if any(k in r["key"] for k in keys) and r["value"] is not None), None)
 
     def _find_sheets(self, prefix):
-        p = prefix.lower()
-        seen = set()
-        result = []
+        p = prefix.lower(); seen = set(); result = []
         for s in sorted(self.wb.sheetnames):
             sl = s.lower()
             if sl in seen: continue
@@ -79,185 +87,169 @@ class ROSParser:
                 seen.add(sl); result.append(s)
         return result
 
-    # ---- Test Details ----
+    # ====== TEST DETAILS ======
     def extract_work_package(self):
         rows = self._kv()
         lead, assay = [], []
         for r in rows:
             if "lead_scientist" in r["key"]:
-                lead.append({"name": r["value"], "email": r["email"] if r["email"] and re.match(self.email_regex, str(r["email"])) else None})
+                em = r["email"]; lead.append({"name": r["value"], "email": em if em and re.match(self.email_regex, str(em)) else None})
             if "assay_test_work_conducted_by" in r["key"]:
-                assay.append({"name": r["value"], "email": r["email"] if r["email"] and re.match(self.email_regex, str(r["email"])) else None})
+                em = r["email"]; assay.append({"name": r["value"], "email": em if em and re.match(self.email_regex, str(em)) else None})
         g = lambda *k: self._g(rows, *k)
         return {"wp_name": g("project_work_package"), "partner": g("partner_conducting_test_assay"), "laboratory_name": g("test_facility_laboratory_name"), "full_test_name": g("full_name_of_test_assay"), "test_acronym": g("short_name_or_acronym"), "test_type": g("type_or_class_of_experimental"), "endpoint": g("end_point_being_investigated"), "endpoint_outcome": g("metric_s_used_to_assess"), "sop": g("sop_s_for_test"), "path": g("path_link_to_sop"), "lead_scientists": lead, "assay_scientists": assay}
 
     def extract_material(self):
-        rows = self._kv()
-        g = lambda *k: self._g(rows, *k)
-        return {"material_identifier": next((r["value"] for r in rows if r["key"] == "sample_cms_internal_identifier"), None), "erm_id": g("erm_identifier"), "material_name": next((r["value"] for r in rows if r["key"] == "material_name"), None), "core_chemistry": g("core_chemistry"), "cas_no": next((r["value"] for r in rows if r["key"] == "cas_no"), None), "cas_for_core": g("cas_for_core"), "material_supplier": g("material_supplier"), "material_state": g("material_state"), "batch": g("batch"), "vial": g("vial"), "preparation_date": self._date(g("date_of_preparation")), "size": g("size")}
+        rows = self._kv(); g = lambda *k: self._g(rows, *k)
+        return {"material_identifier": g("sample_cms_internal_identifier"), "erm_id": g("erm_identifier"), "material_name": g("material_name"), "core_chemistry": g("core_chemistry"), "cas_no": g("cas_no"), "cas_for_core": g("cas_for_core"), "material_supplier": g("material_supplier"), "material_state": g("material_state"), "batch": g("batch"), "vial": g("vial"), "preparation_date": self._date(g("date_of_preparation")), "size": g("size"), "endotoxin": g("endotoxin"), "stock_concentration": g("stock_oncentration", "stock_concentration"), "molecular_weight": g("molecular_weight"), "particles_in_stock": g("no_of_particles_in_stock")}
 
     def extract_cell_line(self):
-        rows = self._kv()
-        ws = self.ws
-        g = lambda *k: self._g(rows, *k)
-        # Passage numbers from row 63
-        passages = []
-        for c in range(2, 8):
-            v = ws.cell(row=63, column=c).value
-            if v is not None: passages.append(v)
-        return {"cell_type": g("detailed_cell_type"), "cell_line_short": g("cell_line_short_name"), "supplier": next((r["value"] for r in rows if r["key"] == "supplier"), None), "passage_numbers": passages, "plate_details": g("plate_details"), "cells_per_well": g("number_of_cells_per_well"), "volume_per_well": g("total_volume_per_well"), "medium": g("medium"), "serum": g("serum"), "serum_concentration_culture": g("serum_concentration_in_culture"), "serum_concentration_treatment": g("serum_concentration_in_treatment"), "serum_heat_inactivated": g("serum_heat_inactivated"), "antibiotics": g("antibiotics"), "complete_growth_medium": g("complete_growth_medium"), "culture_conditions": g("cell_culture_conditions")}
+        rows = self._kv(); ws = self.ws; g = lambda *k: self._g(rows, *k)
+        passages = [ws.cell(row=63, column=c).value for c in range(2, 8) if ws.cell(row=63, column=c).value is not None]
+        return {"cell_type": g("detailed_cell_type"), "cell_line_short": g("cell_line_short_name"), "supplier": g("supplier"), "passage_numbers": passages, "plate_details": g("plate_details"), "cells_per_well": g("number_of_cells_per_well"), "volume_per_well": g("total_volume_per_well"), "medium": g("medium"), "serum": g("serum_inc"), "serum_concentration_culture": g("serum_concentration_in_culture"), "serum_concentration_treatment": g("serum_concentration_in_treatment"), "serum_heat_inactivated": g("serum_heat_inactivated"), "antibiotics": g("antibiotics"), "complete_growth_medium": g("complete_growth_medium"), "culture_conditions": g("cell_culture_conditions"), "solvent_for_dcf": g("solvent_for_da_dfc"), "incubation_time_dcf": g("incubation_time_with_da_dfc"), "volume_of_solvent": g("volume_of_solvent")}
 
     def extract_dispersion(self):
-        rows = self._kv()
-        g = lambda *k: self._g(rows, *k)
-        return {"dispersion_protocol": g("standard_dispersion_protocol", "specify_standard_dispersion"), "dispersion_technique": g("dispersion_technique", "otherwise_specify_dispersion"), "dispersion_agent": g("dispersion_agent"), "dispersed_in_medium": g("dispersed_in_cell_culture"), "aids_used": g("aids_used"), "time_duration": g("specify_time_duration"), "energy": g("energy")}
+        rows = self._kv(max_col=10); g = lambda *k: self._g(rows, *k); ws = self.ws
+        aids = {}
+        for cl, cv in [(3, 4), (5, 6), (7, 8), (9, 10)]:
+            lbl = ws.cell(row=55, column=cl).value; val = ws.cell(row=55, column=cv).value
+            if lbl: aids[str(lbl).strip().rstrip(":")] = str(val) if val else None
+        return {"dispersion_protocol": g("standard_dispersion_protocol", "specify_standard_dispersion"), "dispersion_technique": g("dispersion_technique", "otherwise_specify_dispersion"), "dispersion_agent": g("dispersion_agent"), "agent_concentration": ws.cell(row=52, column=4).value, "additives": g("additives_used"), "dispersed_in_medium": g("dispersed_in_cell_culture"), "aids": aids, "time_duration": g("specify_time_duration"), "energy": g("energy")}
 
     def extract_treatment(self):
         ws = self.ws
-        g = lambda *k: self._g(self._kv(), *k)
-        # Concentration labels from row 84
-        conc_labels = [ws.cell(row=84, column=c).value for c in range(2, 12) if ws.cell(row=84, column=c).value]
-        conc_values = [self._sf(ws.cell(row=85, column=c).value) for c in range(2, 12) if ws.cell(row=85, column=c).value is not None]
-        conc_particles = [self._sf(ws.cell(row=86, column=c).value) for c in range(2, 12) if ws.cell(row=86, column=c).value is not None]
+        concentrations = []
+        for c in range(2, 12):
+            lbl = ws.cell(row=84, column=c).value
+            if lbl is None: break
+            concentrations.append({"label": str(lbl), "ug_ml": self._sf(ws.cell(row=85, column=c).value), "particles_x10_12_ml": self._sf(ws.cell(row=86, column=c).value)})
         plate_series = [ws.cell(row=87, column=c).value for c in range(2, 12) if ws.cell(row=87, column=c).value]
-        return {"time_unit": g("time_point_unit"), "time_labels": [ws.cell(row=80, column=c).value for c in range(2, 8) if ws.cell(row=80, column=c).value], "time_points": [ws.cell(row=81, column=c).value for c in range(2, 8) if ws.cell(row=81, column=c).value], "concentration_unit": g("treatment_concentration_series_unit"), "concentration_labels": conc_labels, "concentration_values_ug_ml": conc_values, "concentration_values_particles": conc_particles, "plate_series": plate_series, "positive_control": g("positive_controls_description"), "negative_control": g("negative_controls_description"), "num_experiments": g("number_of_experiments")}
+        g = lambda *k: self._g(self._kv(), *k)
+        return {"time_unit": g("time_point_unit"), "time_labels": [ws.cell(row=80, column=c).value for c in range(2, 8) if ws.cell(row=80, column=c).value], "time_points": [ws.cell(row=81, column=c).value for c in range(2, 8) if ws.cell(row=81, column=c).value], "concentration_unit": g("treatment_concentration_series_unit"), "concentrations": concentrations, "plate_series": plate_series, "positive_control_abbr": g("positive_controls_abbreviation"), "positive_control_desc": g("positive_controls_description"), "negative_control_abbr": g("negative_controls_abbreviation"), "negative_control_desc": g("negative_controls_description"), "num_experiments": g("number_of_experiments")}
 
-    def extract_instrumentation(self):
-        rows = self._kv()
-        g = lambda *k: self._g(rows, *k)
-        return {"solvent_for_dcf": g("solvent_for_da_dfc", "solvent_for_dcf"), "incubation_time": g("incubation_time_with_da_dfc", "incubation_time"), "volume_of_solvent": g("volume_of_solvent")}
-
-    # ---- Replication Metadata ----
-    def extract_replication_metadata(self):
-        ws = self.ws; meta = []
-        raw_sheets = self._find_sheets("raw_data_") + self._find_sheets("raw data_")
-        proc_sheets = self._find_sheets("processed_data_") + self._find_sheets("processed data_")
-        for ri in range(38, 50):
-            tid = ws.cell(row=ri, column=2).value
-            if tid is None: continue
-            ts = str(tid).strip()
-            if not re.search(r'R\d+', ts, re.IGNORECASE): continue
-            raw = next((s for s in raw_sheets if ts.lower() in s.lower()), None)
-            proc = next((s for s in proc_sheets if ts.lower() in s.lower()), None)
-            replicate_label = ws.cell(row=ri, column=5).value
-            meta.append({"test_identifier_number": ts, "test_start_date": self._date(ws.cell(row=ri, column=3).value), "test_end_date": self._date(ws.cell(row=ri, column=4).value), "replicate_label": str(replicate_label) if replicate_label else None, "raw_sheet_name": raw, "processed_sheet_name": proc})
-        return meta
-
-    # ---- Raw Data ----
+    # ====== RAW DATA ======
     def extract_raw_data(self):
-        blocks = []
-        raw_sheets = [s for s in self._find_sheets("raw_data_") + self._find_sheets("raw data_") if re.search(_ROS_ID, s, re.IGNORECASE)]
-        # Deduplicate
-        seen = set()
-        for sn in raw_sheets:
+        blocks = []; seen = set()
+        # Pre-extract processed data group headers for mapping
+        proc_headers_by_run = {}
+        proc_sheets = [s for s in self._find_sheets("processed_data_") + self._find_sheets("processed data_") if re.search(_ROS_ID, s, re.IGNORECASE)]
+        proc_seen = set()
+        for sn in proc_sheets:
+            if sn in proc_seen: continue
+            proc_seen.add(sn)
+            ws_p = self.wb[sn]
+            m_p = re.search(_ROS_ID, sn, re.IGNORECASE)
+            rl = f"R{m_p.group(4)}" if m_p else sn
+            ghs = [str(ws_p.cell(row=5, column=c).value) for c in range(3, 20) if ws_p.cell(row=5, column=c).value is not None and "μg" not in str(ws_p.cell(row=5, column=c).value) and "ug" not in str(ws_p.cell(row=5, column=c).value).lower()]
+            proc_headers_by_run[rl] = ghs
+
+        for sn in [s for s in self._find_sheets("raw_data_") + self._find_sheets("raw data_") if re.search(_ROS_ID, s, re.IGNORECASE)]:
             if sn in seen: continue
-            seen.add(sn)
-            ws = self.wb[sn]
+            seen.add(sn); ws = self.wb[sn]
             m = re.search(_ROS_ID, sn, re.IGNORECASE)
             run_label = f"R{m.group(4)}" if m else sn
-            # Extract plate reader readings
             readings = []
-            for r in range(3, min(ws.max_row+1, 20)):
+            for r in range(4, min(ws.max_row + 1, 20)):
                 well = ws.cell(row=r, column=5).value
                 if well is None: continue
-                reading1 = self._sf(ws.cell(row=r, column=8).value)
-                reading2 = self._sf(ws.cell(row=r, column=18).value)
-                well_type = ws.cell(row=r, column=6).value
-                readings.append({"well": str(well), "type": str(well_type) if well_type else None, "reading_1": reading1, "reading_2": reading2, "mean": round((reading1 + reading2) / 2, 2) if reading1 and reading2 else reading1})
-            blocks.append({"metric_name": f"ROS Fluorescence {run_label}", "raw_sheet_name": sn, "run_label": run_label, "unit": "Counts", "reading_count": len(readings), "readings": readings})
+                # Only accept actual well names (A01, B02, etc.)
+                if not re.match(r'^[A-H]\d{1,2}$', str(well)): continue
+                readings.append({"well": str(well), "type": str(ws.cell(row=r, column=6).value) if ws.cell(row=r, column=6).value else None, "time_r1": self._time_str(ws.cell(row=r, column=7).value), "fluorescein_r1": self._sf(ws.cell(row=r, column=8).value), "time_r2": self._time_str(ws.cell(row=r, column=17).value), "fluorescein_r2": self._sf(ws.cell(row=r, column=18).value), "time_r3": self._time_str(ws.cell(row=r, column=25).value), "fluorescein_r3": self._sf(ws.cell(row=r, column=26).value)})
+            # Map concentration labels from processed data group headers
+            group_labels = proc_headers_by_run.get(run_label, [])
+            for i, rd in enumerate(readings):
+                rd["concentration_group"] = group_labels[i] if i < len(group_labels) else None
+            plate_meta = []
+            for off, lbl in [(3, "reading 1"), (13, "reading 2"), (21, "reading 3")]:
+                plate_meta.append({"reading": lbl, "plate": self._sf(ws.cell(row=12, column=off).value), "repeat": self._sf(ws.cell(row=12, column=off+1).value), "end_time": self._time_str(ws.cell(row=12, column=off+2).value), "start_temp": self._sf(ws.cell(row=12, column=off+3).value), "end_temp": self._sf(ws.cell(row=12, column=off+4).value), "barcode": str(ws.cell(row=12, column=off+5).value) if ws.cell(row=12, column=off+5).value else None})
+            protocol = [str(ws.cell(row=r, column=3).value).strip() for r in range(19, min(ws.max_row+1, 66)) if ws.cell(row=r, column=3).value and str(ws.cell(row=r, column=3).value).strip()]
+            blocks.append({"run_label": run_label, "raw_sheet_name": sn, "reading_count": len(readings), "readings": readings, "plate_metadata": plate_meta, "fluorescein_label": str(ws.cell(row=14, column=3).value) if ws.cell(row=14, column=3).value else None, "fluorescein_count": self._sf(ws.cell(row=15, column=3).value), "protocol_description": protocol})
         return blocks
 
-    # ---- Processed Data ----
+    # ====== PROCESSED DATA ======
     def extract_processed_data(self):
-        blocks = []
-        proc_sheets = [s for s in self._find_sheets("processed_data_") + self._find_sheets("processed data_") if re.search(_ROS_ID, s, re.IGNORECASE)]
-        seen = set()
-        for sn in proc_sheets:
+        blocks = []; seen = set()
+        for sn in [s for s in self._find_sheets("processed_data_") + self._find_sheets("processed data_") if re.search(_ROS_ID, s, re.IGNORECASE)]:
             if sn in seen: continue
-            seen.add(sn)
-            ws = self.wb[sn]
+            seen.add(sn); ws = self.wb[sn]
             m = re.search(_ROS_ID, sn, re.IGNORECASE)
             run_label = f"R{m.group(4)}" if m else sn
-            # Row 5: group headers (NC, conc values, PC)
-            group_headers = []
-            for c in range(3, min(ws.max_column+1, 20)):
-                v = ws.cell(row=5, column=c).value
-                if v is not None and "μg" not in str(v) and "ug" not in str(v).lower():
-                    group_headers.append({"col": c, "label": str(v)})
-            # Row 6-8: experiment data (3 rows of measurements)
-            experiment_label = ws.cell(row=6, column=1).value or ws.cell(row=29, column=2).value
-            raw_values = []
-            for r in range(6, 9):
-                row_vals = {}
-                for gh in group_headers:
-                    v = self._sf(ws.cell(row=r, column=gh["col"]).value)
-                    row_vals[gh["label"]] = v
-                raw_values.append(row_vals)
-            # Row 32-34: Mean, SD, CV
-            mean_row, sd_row, cv_row = {}, {}, {}
-            for gh in group_headers:
-                mean_row[gh["label"]] = self._sf(ws.cell(row=32, column=gh["col"]).value)
-                sd_row[gh["label"]] = self._sf(ws.cell(row=33, column=gh["col"]).value)
-                cv_row[gh["label"]] = self._sf(ws.cell(row=34, column=gh["col"]).value)
-            # Acceptance
-            acceptance = ws.cell(row=43, column=8).value
-            blocks.append({"run_label": run_label, "processed_sheet_name": sn, "experiment_label": str(experiment_label) if experiment_label else None, "group_headers": [gh["label"] for gh in group_headers], "raw_values": raw_values, "mean": mean_row, "sd": sd_row, "cv": cv_row, "acceptance": str(acceptance) if acceptance else None})
+            title = ws.cell(row=4, column=3).value
+            ghs = [{"col": c, "label": str(ws.cell(row=5, column=c).value)} for c in range(3, min(ws.max_column+1, 20)) if ws.cell(row=5, column=c).value is not None and "μg" not in str(ws.cell(row=5, column=c).value) and "ug" not in str(ws.cell(row=5, column=c).value).lower()]
+            raw_values = [{gh["label"]: self._sf(ws.cell(row=r, column=gh["col"]).value) for gh in ghs} for r in range(6, 9)]
+            mean_row = {gh["label"]: self._sf(ws.cell(row=32, column=gh["col"]).value) for gh in ghs}
+            sd_row = {gh["label"]: self._sf(ws.cell(row=33, column=gh["col"]).value) for gh in ghs}
+            cv_row = {gh["label"]: self._sf(ws.cell(row=34, column=gh["col"]).value) for gh in ghs}
+            blocks.append({"run_label": run_label, "processed_sheet_name": sn, "title": str(title) if title else None, "experiment_label": str(ws.cell(row=6, column=1).value or ws.cell(row=29, column=2).value), "group_headers": [gh["label"] for gh in ghs], "raw_values": raw_values, "mean": mean_row, "sd": sd_row, "cv": cv_row, "acceptance_text": str(ws.cell(row=43, column=2).value) if ws.cell(row=43, column=2).value else None, "acceptance_result": str(ws.cell(row=43, column=8).value) if ws.cell(row=43, column=8).value else None})
         return blocks
 
-    # ---- Final Results ----
+    # ====== FINAL RESULTS ======
     def extract_final_results(self):
         sheets = self._find_sheets("final_results") + self._find_sheets("final results")
         if not sheets: return {"available": False}
         ws = self.wb[sheets[0]]
-        # Row 6: group headers
-        group_headers = []
-        for c in range(3, min(ws.max_column+1, 12)):
-            v = ws.cell(row=6, column=c).value
-            if v is not None and "μg" not in str(v) and "ug" not in str(v).lower():
-                group_headers.append({"col": c, "label": str(v)})
-        # Experiments + Mean + SD + CV
-        experiments = []
-        for r in range(7, 20):
-            label = ws.cell(row=r, column=2).value
-            if label is None: continue
-            ls = str(label).strip()
-            if "acceptance" in ls.lower() or "criteria" in ls.lower(): break
-            vals = {gh["label"]: self._sf(ws.cell(row=r, column=gh["col"]).value) for gh in group_headers}
-            experiments.append({"label": ls, "values": vals})
-        # Acceptance
-        acceptance = None
-        for r in range(15, 25):
-            v = ws.cell(row=r, column=8).value
-            if v and "pass" in str(v).lower():
-                acceptance = str(v); break
-        return {"available": True, "material_id": ws.cell(row=3, column=1).value, "group_headers": [gh["label"] for gh in group_headers], "experiments": experiments, "acceptance": acceptance}
 
-    # ---- Statistical Analysis ----
+        def _sect(hdr_row, d_start, d_end, lbl_col, cols, alt_lbl_col=None):
+            hdrs = {}
+            for c in cols:
+                v = ws.cell(row=hdr_row, column=c).value
+                if v is not None: hdrs[c] = str(v)
+            rows = []
+            for r in range(d_start, d_end + 1):
+                l = ws.cell(row=r, column=lbl_col).value
+                if l is None and alt_lbl_col:
+                    l = ws.cell(row=r, column=alt_lbl_col).value
+                if l is None: continue
+                ls = str(l).strip()
+                if "acceptance" in ls.lower() or "criteria" in ls.lower(): break
+                rows.append({"label": ls, "values": {hdrs[c]: self._sf(ws.cell(row=r, column=c).value) for c in hdrs}})
+            return {"headers": list(hdrs.values()), "rows": rows}
+
+        def _accept(text_row, result_col=8):
+            return {"text": str(ws.cell(row=text_row, column=2).value) if ws.cell(row=text_row, column=2).value else None, "result": str(ws.cell(row=text_row, column=result_col).value) if ws.cell(row=text_row, column=result_col).value else None}
+
+        return {
+            "available": True,
+            "material_id": str(ws.cell(row=3, column=1).value) if ws.cell(row=3, column=1).value else None,
+            "fluorescence_ugml": _sect(6, 7, 15, 2, range(3, 7)),
+            "fluorescence_ugml_acceptance": _accept(18),
+            "reverse_ugml": _sect(23, 24, 32, 2, range(3, 7)),
+            "reverse_ugml_acceptance": _accept(35),
+            "fluorescence_ugml_chart": {**_sect(77, 78, 86, 2, range(4, 8), alt_lbl_col=3), "unit_label": str(ws.cell(row=77, column=8).value or "μg/mL")},
+            "fluorescence_particles_chart": {**_sect(77, 78, 86, 19, range(21, 25), alt_lbl_col=20), "unit_label": str(ws.cell(row=77, column=25).value or "particles x10^12/mL")},
+            "percentage_ugml": {**_sect(116, 117, 125, 2, range(4, 8), alt_lbl_col=3), "unit_label": str(ws.cell(row=116, column=8).value or "μg/mL")},
+            "percentage_particles": {**_sect(116, 117, 125, 19, range(21, 25), alt_lbl_col=20), "unit_label": str(ws.cell(row=116, column=25).value or "particles x10^12/mL")},
+            "data_summary": {"headers": [str(ws.cell(row=153, column=c).value) for c in range(2, 8) if ws.cell(row=153, column=c).value], "rows": [{str(ws.cell(row=153, column=c).value): (self._sf(ws.cell(row=r, column=c).value) if self._sf(ws.cell(row=r, column=c).value) is not None else str(ws.cell(row=r, column=c).value) if ws.cell(row=r, column=c).value else None) for c in range(2, 8) if ws.cell(row=153, column=c).value} for r in range(154, 165) if ws.cell(row=r, column=2).value is not None]},
+        }
+
+    # ====== STATISTICAL ANALYSIS ======
     def extract_statistical_analysis(self):
         sheets = self._find_sheets("statistical_analysis") + self._find_sheets("statistical analysis")
         if not sheets: return {"available": False}
         ws = self.wb[sheets[0]]
-        # ANOVA summary from rows 24-29
-        groups = []
+        group_labels = [str(ws.cell(row=5, column=c).value) for c in range(3, 7) if ws.cell(row=5, column=c).value is not None]
+        exp_data = []
+        for r in [6, 8, 10]:
+            l = ws.cell(row=r, column=2).value
+            if l: exp_data.append({"label": str(l), "values": {f"Group {c-2}": self._sf(ws.cell(row=r, column=c).value) for c in range(3, 7)}})
+        grp_summary = []
         for r in range(26, 35):
-            gname = ws.cell(row=r, column=2).value
-            if gname is None: break
-            groups.append({"group": str(gname), "count": self._sf(ws.cell(row=r, column=3).value), "sum": self._sf(ws.cell(row=r, column=4).value), "mean": self._sf(ws.cell(row=r, column=5).value), "variance": self._sf(ws.cell(row=r, column=6).value)})
-        # ANOVA table from row 33-37
-        anova = {}
-        for r in range(33, 38):
-            src = ws.cell(row=r, column=2).value
-            if src is None: continue
-            anova[str(src)] = {"ss": self._sf(ws.cell(row=r, column=3).value), "df": self._sf(ws.cell(row=r, column=4).value), "ms": self._sf(ws.cell(row=r, column=5).value), "f_stat": self._sf(ws.cell(row=r, column=6).value), "p_value": self._sf(ws.cell(row=r, column=7).value), "f_crit": self._sf(ws.cell(row=r, column=8).value)}
-        # p-value significance
-        alpha = self._sf(ws.cell(row=44, column=4).value)
-        return {"available": True, "groups_summary": groups, "anova_table": anova, "alpha": alpha}
+            g = ws.cell(row=r, column=2).value
+            if g is None: break
+            grp_summary.append({"group": str(g), "count": self._sf(ws.cell(row=r, column=3).value), "sum": self._sf(ws.cell(row=r, column=4).value), "mean": self._sf(ws.cell(row=r, column=5).value), "variance": self._sf(ws.cell(row=r, column=6).value)})
+        anova = []
+        for r in range(34, 38):
+            s = ws.cell(row=r, column=2).value
+            if s is None: continue
+            anova.append({"source": str(s), "ss": self._sf(ws.cell(row=r, column=3).value), "df": self._sf(ws.cell(row=r, column=4).value), "ms": self._sf(ws.cell(row=r, column=5).value), "f_stat": self._sf(ws.cell(row=r, column=6).value), "p_value": self._sf(ws.cell(row=r, column=7).value), "f_crit": self._sf(ws.cell(row=r, column=8).value)})
+        return {"available": True, "group_labels": group_labels, "experiment_data": exp_data, "groups_summary": grp_summary, "anova_table": anova, "total_ss": self._sf(ws.cell(row=37, column=3).value), "total_df": self._sf(ws.cell(row=37, column=4).value), "alpha": self._sf(ws.cell(row=44, column=4).value), "is_significant": str(ws.cell(row=45, column=2).value) if ws.cell(row=45, column=2).value else None}
 
     def parse_all_data(self):
         try:
-            return {"test_details": {"work_package": self.extract_work_package(), "material": self.extract_material(), "cell_line": self.extract_cell_line(), "dispersion": self.extract_dispersion(), "treatment": self.extract_treatment(), "instrumentation": self.extract_instrumentation()}, "replication_metadata": self.extract_replication_metadata(), "replications": self.extract_raw_data(), "processed_data": self.extract_processed_data(), "final_results": self.extract_final_results(), "statistical_analysis": self.extract_statistical_analysis()}
+            return {"test_details": {"work_package": self.extract_work_package(), "material": self.extract_material(), "cell_line": self.extract_cell_line(), "dispersion": self.extract_dispersion(), "treatment": self.extract_treatment()}, "replications": self.extract_raw_data(), "processed_data": self.extract_processed_data(), "final_results": self.extract_final_results(), "statistical_analysis": self.extract_statistical_analysis()}
         except Exception as e:
             logger.error(f"Error: {e}\n{traceback.format_exc()}"); raise
+
 
 def _fix_degree_symbols(obj):
     if isinstance(obj, str): return obj.replace("oC", "\u00b0C")
@@ -270,22 +262,6 @@ def parse_excel_ros(file_path, sheet_name="Test_conditions"):
 
 if __name__ == "__main__":
     import sys
-    fp = sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/uploads/CMS_WP3_ROS_1a_n1_FINAL.xlsx"
+    fp = sys.argv[1] if len(sys.argv) > 1 else "/mnt/user-data/uploads/CMS_WP3_ROS_1a_n1_FINAL_R1Template.xlsx"
     d = parse_excel_ros(fp)
-    print("=" * 70); print("ROS PARSER OUTPUT SUMMARY"); print("=" * 70)
-    wp = d["test_details"]["work_package"]; mat = d["test_details"]["material"]
-    print(f"WP: {wp['wp_name']}, Test: {wp['test_acronym']}, Material: {mat['material_identifier']}")
-    print(f"Replication metadata: {len(d['replication_metadata'])}")
-    for rm in d["replication_metadata"]: print(f"  {rm['test_identifier_number']}: {rm['test_start_date']}")
-    print(f"Raw blocks: {len(d['replications'])}")
-    for b in d["replications"]: print(f"  {b['run_label']}: {b['reading_count']} readings")
-    print(f"Processed blocks: {len(d['processed_data'])}")
-    for b in d["processed_data"]: print(f"  {b['run_label']}: groups={b['group_headers']}, acceptance={b['acceptance']}")
-    fr = d["final_results"]
-    print(f"Final results: available={fr['available']}, acceptance={fr.get('acceptance')}")
-    if fr.get("experiments"):
-        for e in fr["experiments"]: print(f"  {e['label']}: {e['values']}")
-    sa = d["statistical_analysis"]
-    print(f"Statistical analysis: available={sa['available']}")
-    if sa.get("groups_summary"):
-        for g in sa["groups_summary"]: print(f"  {g['group']}: mean={g['mean']}")
+    print(json.dumps(d, indent=2, default=str)[:12000])

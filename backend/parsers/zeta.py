@@ -635,10 +635,9 @@ def parse_excel_zeta(file_path: str, sheet_name: str = "Test Information") -> Di
         raise
 
 if __name__ == "__main__":
-    file_path = "backend/data/WP2_Zeta_1aR1_R5.xlsx"
+    file_path = "backend/data/WP2_Zeta_6aR1_R5.xlsx"
     try:
         parsed_data = parse_excel_zeta(file_path)
-        print(parsed_data['test_details']['work_package'])
-        print(parsed_data['test_details']['material'])
+        print(parsed_data)
     except Exception as e:
         print(f"Error: {e}")

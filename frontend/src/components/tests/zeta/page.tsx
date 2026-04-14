@@ -553,7 +553,7 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                     <tr>
                       <td className="py-2 px-4 border font-medium">Henry Factor</td>
                       <td className="py-2 px-4 border">
-                        {data.test_details.instrumentation.henry_factor?.toFixed(2) ?? "N/A"}
+                        {data.test_details.instrumentation.henry_factor?.toFixed(4) ?? "N/A"}
                       </td>
                     </tr>
                     <tr>
@@ -583,7 +583,7 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                     <tr>
                       <td className="py-2 px-4 border font-medium">Refractive Index of the Medium</td>
                       <td className="py-2 px-4 border">
-                        {data.test_details.instrumentation.refractive_index_medium?.toFixed(2) ?? "N/A"}
+                        {data.test_details.instrumentation.refractive_index_medium?.toFixed(4) ?? "N/A"}
                       </td>
                     </tr>
                     <tr>
@@ -595,7 +595,7 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                     <tr>
                       <td className="py-2 px-4 border font-medium">Relative Permittivity of the Medium</td>
                       <td className="py-2 px-4 border">
-                        {data.test_details.instrumentation.relative_permittivity_medium?.toFixed(2) ?? "N/A"}
+                        {data.test_details.instrumentation.relative_permittivity_medium?.toFixed(4) ?? "N/A"}
                       </td>
                     </tr>
                   </tbody>
@@ -749,7 +749,7 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                     tick={{ fontSize: 12 }}
                   />
                   <Tooltip
-                    formatter={(value: number) => value.toFixed(2)}
+                    formatter={(value: number) => value.toFixed(4)}
                   />
                   <Line
                     yAxisId="left"
@@ -849,11 +849,11 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-2 px-4 border">Filter Optical Density</td>
-                    <td className="py-2 px-4 border">{data.raw_data[selectedRun]?.parameters.filter_optical_density?.toFixed(2) ?? "N/A"}</td>
+                    <td className="py-2 px-4 border">{data.raw_data[selectedRun]?.parameters.filter_optical_density?.toFixed(4) ?? "N/A"}</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-4 border">Mean Intensity [kcounts/s]</td>
-                    <td className="py-2 px-4 border">{data.raw_data[selectedRun]?.parameters.mean_intensity?.toFixed(2) ?? "N/A"}</td>
+                    <td className="py-2 px-4 border">{data.raw_data[selectedRun]?.parameters.mean_intensity?.toFixed(4) ?? "N/A"}</td>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-2 px-4 border">Adjusted Voltage [V]</td>
@@ -861,7 +861,7 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                   </tr>
                   <tr>
                     <td className="py-2 px-4 border">Transmittance [%]</td>
-                    <td className="py-2 px-4 border">{data.raw_data[selectedRun]?.parameters.transmittance?.toFixed(2) ?? "N/A"}</td>
+                    <td className="py-2 px-4 border">{data.raw_data[selectedRun]?.parameters.transmittance?.toFixed(4) ?? "N/A"}</td>
                   </tr>
                 </tbody>
               </table>
@@ -883,10 +883,10 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                   {data.raw_data[selectedRun]?.phase_data?.length > 0 ? (
                     data.raw_data[selectedRun].phase_data.map((phase, index) => (
                       <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
-                        <td className="py-2 px-4 border">{phase.time?.toFixed(2) ?? "-"}</td>
-                        <td className="py-2 px-4 border">{phase.phase_measured?.toFixed(2) ?? "-"}</td>
-                        <td className="py-2 px-4 border">{phase.phase_fitted?.toFixed(2) ?? "-"}</td>
-                        <td className="py-2 px-4 border">{phase.voltage?.toFixed(2) ?? "-"}</td>
+                        <td className="py-2 px-4 border">{phase.time?.toFixed(4) ?? "-"}</td>
+                        <td className="py-2 px-4 border">{phase.phase_measured?.toFixed(4) ?? "-"}</td>
+                        <td className="py-2 px-4 border">{phase.phase_fitted?.toFixed(4) ?? "-"}</td>
+                        <td className="py-2 px-4 border">{phase.voltage?.toFixed(4) ?? "-"}</td>
                       </tr>
                     ))
                   ) : (
@@ -915,7 +915,7 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                   {data.raw_data[selectedRun]?.intensity_data?.length > 0 ? (
                     data.raw_data[selectedRun].intensity_data.map((intensity, index) => (
                       <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
-                        <td className="py-2 px-4 border">{intensity.time?.toFixed(2) ?? "-"}</td>
+                        <td className="py-2 px-4 border">{intensity.time?.toFixed(4) ?? "-"}</td>
                         <td className="py-2 px-4 border">{intensity.monitor ?? "-"}</td>
                         <td className="py-2 px-4 border">{intensity.detector ?? "-"}</td>
                       </tr>
@@ -989,8 +989,8 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                     tick={{ fontSize: 12 }}
                   />
                   <Tooltip
-                    formatter={(value: number) => value.toFixed(2)}
-                    labelFormatter={(label: number) => `Zeta: ${label.toFixed(2)} mV`}
+                    formatter={(value: number) => value.toFixed(4)}
+                    labelFormatter={(label: number) => `Zeta: ${label.toFixed(4)} mV`}
                   />
                   <Line
                     type="monotone"
@@ -1016,23 +1016,23 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                 <tbody>
                   <tr>
                     <td className="py-2 px-4 border">Mean Zeta Potential [mV]</td>
-                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.mean_zeta?.toFixed(2) ?? "N/A"}</td>
+                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.mean_zeta?.toFixed(4) ?? "N/A"}</td>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-2 px-4 border">Standard Deviation [mV]</td>
-                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.std_dev?.toFixed(2) ?? "N/A"}</td>
+                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.std_dev?.toFixed(4) ?? "N/A"}</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-4 border">Zeta Potential Peak Max [mV]</td>
-                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.peak_max?.toFixed(2) ?? "N/A"}</td>
+                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.peak_max?.toFixed(4) ?? "N/A"}</td>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-2 px-4 border">Electrophoretic Mobility [μm·cm/Vs]</td>
-                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.mobility?.toFixed(2) ?? "N/A"}</td>
+                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.mobility?.toFixed(4) ?? "N/A"}</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-4 border">Conductivity [mS/cm]</td>
-                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.conductivity?.toFixed(2) ?? "N/A"}</td>
+                    <td className="py-2 px-4 border">{data.processed_data[selectedRun]?.results.conductivity?.toFixed(4) ?? "N/A"}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1052,8 +1052,8 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                   {data.processed_data[selectedRun]?.distribution?.length > 0 ? (
                     data.processed_data[selectedRun].distribution.map((dist, index) => (
                       <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
-                        <td className="py-2 px-4 border">{dist.zeta_mv?.toFixed(2) ?? "-"}</td>
-                        <td className="py-2 px-4 border">{dist.frequency?.toFixed(2) ?? "-"}</td>
+                        <td className="py-2 px-4 border">{dist.zeta_mv?.toFixed(4) ?? "-"}</td>
+                        <td className="py-2 px-4 border">{dist.frequency?.toFixed(4) ?? "-"}</td>
                       </tr>
                     ))
                   ) : (
@@ -1097,31 +1097,31 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                   <tbody>
                     <tr>
                       <td className="py-2 px-4 border">Mean Zeta Potential [mV]</td>
-                      <td className="py-2 px-4 border">{data.final_results.mean_zeta?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{data.final_results.mean_zeta?.toFixed(4) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">Pooled Standard Deviation Mean Zeta Potential [mV]</td>
-                      <td className="py-2 px-4 border">{data.final_results.pooled_std_zeta?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{data.final_results.pooled_std_zeta?.toFixed(4) ?? "N/A"}</td>
                     </tr>
                     <tr>
                       <td className="py-2 px-4 border">Standard Deviation Between Measurements Mean Zeta Potential [mV]</td>
-                      <td className="py-2 px-4 border">{data.final_results.std_between_zeta?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{data.final_results.std_between_zeta?.toFixed(4) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">Electrophoretic Mobility [μm·cm/Vs]</td>
-                      <td className="py-2 px-4 border">{data.final_results.mobility?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{data.final_results.mobility?.toFixed(4) ?? "N/A"}</td>
                     </tr>
                     <tr>
                       <td className="py-2 px-4 border">Standard Deviation Between Measurements Electrophoretic Mobility [μm·cm/Vs]</td>
-                      <td className="py-2 px-4 border">{data.final_results.std_between_mobility?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{data.final_results.std_between_mobility?.toFixed(4) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">Conductivity [mS/cm]</td>
-                      <td className="py-2 px-4 border">{data.final_results.conductivity?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{data.final_results.conductivity?.toFixed(4) ?? "N/A"}</td>
                     </tr>
                     <tr>
                       <td className="py-2 px-4 border">Standard Deviation Between Measurements Conductivity [mS/cm]</td>
-                      <td className="py-2 px-4 border">{data.final_results.std_between_conductivity?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{data.final_results.std_between_conductivity?.toFixed(4) ?? "N/A"}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1148,11 +1148,11 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
                       data.processed_data.map((proc, index) => (
                         <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                           <td className="py-2 px-4 border">{proc.run_number}</td>
-                          <td className="py-2 px-4 border">{proc.results.mean_zeta?.toFixed(2) ?? "N/A"}</td>
-                          <td className="py-2 px-4 border">{proc.results.std_dev?.toFixed(2) ?? "N/A"}</td>
-                          <td className="py-2 px-4 border">{proc.results.peak_max?.toFixed(2) ?? "N/A"}</td>
-                          <td className="py-2 px-4 border">{proc.results.mobility?.toFixed(2) ?? "N/A"}</td>
-                          <td className="py-2 px-4 border">{proc.results.conductivity?.toFixed(2) ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{proc.results.mean_zeta?.toFixed(4) ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{proc.results.std_dev?.toFixed(4) ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{proc.results.peak_max?.toFixed(4) ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{proc.results.mobility?.toFixed(4) ?? "N/A"}</td>
+                          <td className="py-2 px-4 border">{proc.results.conductivity?.toFixed(4) ?? "N/A"}</td>
                         </tr>
                       ))
                     ) : (

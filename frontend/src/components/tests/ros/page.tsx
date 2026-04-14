@@ -314,7 +314,18 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="flex justify-end mb-2"><button onClick={() => dlCSV("frSummary", "FR_DataSummary")} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition text-sm"><Download size={14} /><span>CSV</span></button></div>
               <div className="overflow-x-auto"><table id="frSummary" className="min-w-full bg-white border border-gray-200 text-sm">
                 <thead><tr className="bg-gray-100">{fr.data_summary.headers.map((h: string, i: number) => <th key={i} className="py-2 px-3 border text-right">{h}</th>)}</tr></thead>
-                <tbody>{fr.data_summary.rows.map((row: any, ri: number) => <tr key={ri} className={ri % 2 === 0 ? "bg-gray-50" : ""}>{fr.data_summary.headers.map((h: string, hi: number) => <td key={hi} className="py-2 px-3 border text-right">{fmt(row[h], 4)}</td>)}</tr>)}</tbody>
+                <tbody>{fr.data_summary.rows.map((row: any, ri: number) => <tr key={ri} className={ri % 2 === 0 ? "bg-gray-50" : ""}>{fr.data_summary.headers.map((h: string, hi: number) => {
+                  const v = row[h];
+                  const isPctCol = h.toLowerCase().includes("% nc") || h.toLowerCase().includes("relative to nc");
+                  const isConcCol = h.toLowerCase().includes("ug/ml") || h.toLowerCase().includes("particles");
+                  let display: string;
+                  if (v == null || v === "") { display = ""; }
+                  else if (typeof v === "string") { display = v; }
+                  else if (isPctCol) { display = fmt(v * 100, 2) + "%"; }
+                  else if (isConcCol) { display = fmt(v, 2); }
+                  else { display = fmt(v, 2); }
+                  return <td key={hi} className="py-2 px-3 border text-right">{display}</td>;
+                })}</tr>)}</tbody>
               </table></div>
             </Collapse>
           )}

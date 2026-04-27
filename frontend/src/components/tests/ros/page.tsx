@@ -254,7 +254,7 @@ const ROSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 {blk.raw_values?.map((rv: any, ri: number) => <tr key={`rv${ri}`} className={ri % 2 === 0 ? "bg-gray-50" : ""}><td className="py-2 px-3 border">Measurement {ri + 1}</td>{blk.group_headers?.map((h: string, hi: number) => <td key={hi} className="py-2 px-3 border text-right">{fmt(rv[h], 0)}</td>)}</tr>)}
                 <tr className="bg-blue-50 font-semibold"><td className="py-2 px-3 border">Mean</td>{blk.group_headers?.map((h: string, i: number) => <td key={i} className="py-2 px-3 border text-right">{fmt(blk.mean?.[h], 2)}</td>)}</tr>
                 <tr><td className="py-2 px-3 border">SD</td>{blk.group_headers?.map((h: string, i: number) => <td key={i} className="py-2 px-3 border text-right">{fmt(blk.sd?.[h], 2)}</td>)}</tr>
-                <tr><td className="py-2 px-3 border">CV</td>{blk.group_headers?.map((h: string, i: number) => <td key={i} className="py-2 px-3 border text-right">{blk.cv?.[h] != null ? fmt(blk.cv[h] * 100, 2) + "%" : ""}</td>)}</tr>
+                <tr><td className="py-2 px-3 border">CV</td>{blk.group_headers?.map((h: string, i: number) => <td key={i} className="py-2 px-3 border text-right">{blk.cv?.[h] != null ? fmt(blk.cv[h] * 100, 2) : ""}</td>)}</tr>
               </tbody>
             </table></div>
 

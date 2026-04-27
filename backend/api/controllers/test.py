@@ -27,6 +27,7 @@ from parsers.xps import parse_excel_xps
 from parsers.xrd import parse_excel_xrd
 from parsers.dsc import parse_excel_dsc
 from parsers.tga import parse_excel_tga
+from parsers.mnt import parse_excel_mnt
 import tempfile
 import math
 import shutil
@@ -97,7 +98,9 @@ async def create_test(
             elif request.test_name == "DSC":
                 file_data = parse_excel_dsc(path)
             elif request.test_name == "TGA":
-                file_data = parse_excel_tga(path)     
+                file_data = parse_excel_tga(path)
+            elif request.test_name == "MNT":
+                file_data = parse_excel_mnt(path)
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

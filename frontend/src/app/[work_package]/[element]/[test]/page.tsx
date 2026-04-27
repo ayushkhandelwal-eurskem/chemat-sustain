@@ -15,6 +15,7 @@ import XPSDataViewer from '@/components/tests/xps/page';
 import XRDDataViewer from '@/components/tests/xrd/page';
 import DSCDataViewer from '@/components/tests/dsc/page';
 import TGADataViewer from '@/components/tests/tga/page';
+import MNTDataViewer from '@/components/tests/mnt/page';
 // Define the props type for the page component
 interface PageProps {
   params: Promise<{
@@ -76,6 +77,9 @@ const DynamicRoutePage: FC<PageProps> = async ({ params }) => {
   }
   if (test.toLocaleLowerCase() === "tga"){
     return (<TGADataViewer work_package={work_package} element={element} test={test} file={""}></TGADataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "mnt"){
+    return (<MNTDataViewer work_package={work_package} element={element} test={test} file={""}></MNTDataViewer>)
   }
 };
 

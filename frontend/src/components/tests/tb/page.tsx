@@ -232,6 +232,31 @@ interface TBData {
 
 /* ============================ Helpers ============================ */
 
+/**
+ * Normalize CMS ID: "CMS_1a_AuNP" -> "1a"
+ */
+const normalizeCmsId = (cmsId: string): string => {
+  const match = cmsId.match(/^(?:cms_?)?(\d+a)/i);
+  if (match) {
+    return match[1].toLowerCase();
+  }
+  return cmsId.toLowerCase().replace(/^cms_?/i, '').split('_')[0];
+};
+
+/**
+ * Generate TB image URLs
+ * Path: /images/WP3/1a/TB/Picture 1a.png
+ */
+const getTBImageUrls = (workPackage: string, element: string) => {
+  const wp = workPackage.toUpperCase();
+  const cms = normalizeCmsId(element);
+  const basePath = `/images/${wp}/${cms}/TB`;
+  
+  return [
+    { url: `${basePath}/Picture ${cms}.png`, label: `Picture ${cms}` },
+  ];
+};
+
 type TabKey =
   | "test-conditions"
   | "raw-data"
@@ -427,6 +452,9 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   const currentRawPlateHeading = getPlateHeading(currentRawRun?.plate_label ?? currentRawRun?.run_label, selectedRun);
   const currentProcessedPlateHeading = getPlateHeading(currentProcessedRun?.run_label, selectedRun);
 
+  // Get TB image URLs
+  const tbImages = getTBImageUrls(work_package, element);
+
   if (loading) {
     return (
       <div className="bg-white flex items-center justify-center min-h-screen">
@@ -500,7 +528,7 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
         <div className="w-full mb-8">
           <ul className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100" role="tablist">
             {TABS.map((tab) => (
-              <li key={tab.key} className="z-30 flex-auto text-center">
+              <li key={tab.key} className="z-30 flex-auto text-center" role="presentation">
                 <button
                   className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${
                     activeTab === tab.key ? "bg-blue-600 text-white shadow-md" : "text-slate-600 bg-inherit"
@@ -1138,6 +1166,41 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            {/* TB Images Section */}
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {tbImages.map((image, idx) => (
+                <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden bg-white flex flex-col">
+                  <div className="relative flex-1 min-h-[200px] bg-white">
+                    <img
+                      src={image.url}
+                      alt={image.label}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const errorDiv = target.parentElement?.querySelector('.error-placeholder');
+                        if (errorDiv) errorDiv.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="error-placeholder hidden absolute inset-0 flex items-center justify-center text-gray-400">
+                      <span className="text-sm">Image not available</span>
+                    </div>
+                  </div>
+                  <div className="p-2 bg-gray-50 flex items-center justify-between border-t border-gray-200">
+                    <span className="text-sm text-gray-600">{image.label}</span>
+                    <a
+                      href={image.url}
+                      download={`tb_image_${idx + 1}.png`}
+                      className="p-1 text-gray-500 hover:text-blue-600 transition"
+                      title="Download image"
+                    >
+                      <Download size={16} />
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

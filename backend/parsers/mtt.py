@@ -199,7 +199,26 @@ class MTTParser:
             parts = value.split(" ", 1)
             return parts[0], parts[1]  # Return the numeric value and the unit
         return value, None
+    
+    def reverse_middle(self,values):
+        if not values:
+            return []
 
+        if len(values) <= 2:
+            return values.copy()
+
+        return [values[0]] + values[1:-1][::-1] + [values[-1]]
+
+
+    def reverse_middle_without_last(self,values):
+        if not values:
+            return []
+
+        if len(values) <= 2:
+            return values.copy()
+
+        return [values[0]] + values[1:-1][::-1]
+        
     def extract_work_package_data(self):
         data = []
         lead_scientists = []
@@ -628,7 +647,7 @@ class MTTParser:
             ))
             processed_data.append(experiment_data)
         return processed_data
-
+    
     def extract_final_results(self):
         processed_sheets = [
             sheet for sheet in self.wb.sheetnames if sheet.strip().lower().startswith("processed")
@@ -661,14 +680,16 @@ class MTTParser:
         
         
         percent_viability_vs_nc = asdict(PercentViabilityVsNC(
-            concentrations=concentrations,
-            mean=mean_values,
-            std_dev=std_dev_values,
-            reverse_mean=[mean_values[0]] + mean_values[-2:0:-1] + [mean_values[-1]],  # Reverse middle elements only
-            reverse_std_dev=[std_dev_values[0]] + std_dev_values[-2:0:-1] + [std_dev_values[-1]],  # Reverse middle elements only  
-            reverse_mean_without_pc=[mean_values[0]] + mean_values[-2:0:-1],  # Reverse middle elements only
-            reverse_std_dev_without_pc=[std_dev_values[0]] + std_dev_values[-2:0:-1]  # Reverse middle elements only
-        ))
+        concentrations=concentrations,
+        mean=mean_values,
+        std_dev=std_dev_values,
+
+        reverse_mean=self.reverse_middle(mean_values),
+        reverse_std_dev=self.reverse_middle(std_dev_values),
+
+        reverse_mean_without_pc=self.reverse_middle_without_last(mean_values),
+        reverse_std_dev_without_pc=self.reverse_middle_without_last(std_dev_values)
+    ))
 
         reverse_concentrations = []
         for cell in self.ws[80][3:12]:  # 0-based indexing, so column D is index 3
@@ -843,54 +864,60 @@ def parse_excel_mtt(file_path, sheet_name="Test_conditions"):
 
 # Example usage
 if __name__ == "__main__":
-    file_path = "uploads/CMS_WP3_MTT_1a_FINAL.xlsx"
+    file_path = "backend/data/CMS_WP3_MTT_21a_FINAL.xlsx"
     parsed_data = parse_excel_mtt(file_path)
-    
-    # Optional: Print out some parsed data for verification
-    print("Work Package Name:", parsed_data['work_package'].wp_name)
-    print("Material Identifier:", parsed_data['material'].material_identifier)
-    print("Number of Replications:", len(parsed_data['replications']))
-    # Print full work package details
-    print("\nFull Work Package Details:")
-    for attr, value in vars(parsed_data['work_package']).items():
-        print(f"{attr}: {value}")
+    print("Parsed Data Keys:", parsed_data.keys())
 
-    # Print full material details
-    print("\nFull Material Details:")
-    for attr, value in vars(parsed_data['material']).items():
-        print(f"{attr}: {value}")
+    print("\n--- Test Details ---")
+    test_details = parsed_data.get("test_details")
+    print(test_details)
 
-    print("\nTreatment Concentration Data:")
-    # cnt = 0
-    # for treatment in parsed_data['treatment_concentration_data']:
-    #     print(f"Available keys in treatment:{cnt}", treatment.keys())
-    #     cnt += 1
-        # for key, values in treatment.items():
-        #     print(f"{key}: {values}")
-        # print()
-    # for key, value in parsed_data["treatment_concentration_data"].items():
-    #     print(f"{key}: {value}")
-    print(len(parsed_data["treatment_concentration_data"]["treatment_concentration_series_labels"]))
-    print("\n--- Replication Data ---")
-    print(f"Total Replications: {len(parsed_data['replications'])}")
-
-    for i, replication_entry in enumerate(parsed_data['replications'], 1):
-        print(f"\n--- Replication {i} ---")
-        
-        # Print Replication Details
-        print("Replication Object Details:")
-        replication = replication_entry['replication']
-        for attr, value in vars(replication).items():
-            print(f"{attr}: {value}")
-        
-        # Print Raw Data
-        print("\nRaw Data:")
-        print(replication_entry['raw_data'])
-        
-        # Print Protocol Details
-        print("\nProtocol Details:")
-        if isinstance(replication_entry['protocol_details'], dict):
-            for key, value in replication_entry['protocol_details'].items():
+    if test_details is not None:
+        if isinstance(test_details, dict):
+            for key, value in test_details.items():
                 print(f"{key}: {value}")
         else:
-            print(replication_entry['protocol_details'])
+            for attr, value in vars(test_details).items():
+                print(f"{attr}: {value}")
+
+    print("\n--- Final Results ---")
+    final_results = parsed_data.get("final_results")
+    print(final_results)
+
+    if isinstance(final_results, dict):
+        for key, value in final_results.items():
+            print(f"{key}: {value}")
+
+    print("\n--- Processed Data ---")
+    processed_data = parsed_data.get("processed_data")
+    print(processed_data)
+
+    if isinstance(processed_data, dict):
+        print("Processed Data Keys:", processed_data.keys())
+
+    print("\n--- Replication Data ---")
+    replications = parsed_data.get("replications", [])
+    print(f"Total Replications: {len(replications)}")
+
+    for i, replication_entry in enumerate(replications, 1):
+        print(f"\n--- Replication {i} ---")
+        print(replication_entry)
+
+    if isinstance(replication_entry, dict):
+        print("Replication Entry Keys:", replication_entry.keys())
+
+        replication = replication_entry.get("replications")
+        if replication is not None:
+            print("\nReplication Object Details:")
+            for attr, value in vars(replication).items():
+                print(f"{attr}: {value}")
+
+        raw_data = replication_entry.get("raw_data")
+        if raw_data is not None:
+            print("\nRaw Data:")
+            print(raw_data)
+
+        protocol_details = replication_entry.get("protocol_details")
+        if protocol_details is not None:
+            print("\nProtocol Details:")
+            print(protocol_details)

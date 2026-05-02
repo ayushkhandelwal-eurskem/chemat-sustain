@@ -21,6 +21,7 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  Brush,
 } from "recharts";
 
 /* ============================ Types ============================ */
@@ -109,9 +110,7 @@ interface SIMSData {
     instrumentation: SIMSInstrumentationData;
   };
   replication?: ReplicationData;
-  /** New API shape */
   raw_data?: SIMSRawData[];
-  /** Old API shape (fallback) */
   replications?: SIMSRawData[];
   processed_data: SIMSProcessedData[];
   final_results: SIMSFinalResults;
@@ -119,57 +118,49 @@ interface SIMSData {
 
 /* ============================ Helpers ============================ */
 
-/**
- * Normalize CMS ID: "CMS_1a_AuNP" -> "1a"
- */
 const normalizeCmsId = (cmsId: string): string => {
   const match = cmsId.match(/^(?:cms_?)?(\d+a)/i);
-  if (match) {
-    return match[1].toLowerCase();
-  }
-  return cmsId.toLowerCase().replace(/^cms_?/i, '').split('_')[0];
+  if (match) return match[1].toLowerCase();
+  return cmsId.toLowerCase().replace(/^cms_?/i, "").split("_")[0];
 };
 
-/**
- * Generate SIMS image URLs
- */
 const getSIMSImageUrls = (workPackage: string, element: string) => {
-  const wp = workPackage.toUpperCase();  // Keep uppercase (WP2, not wp2)
+  const wp = workPackage.toUpperCase();
   const cms = normalizeCmsId(element);
   const basePath = `/images/${wp}/${cms}/sims`;
-  
   return {
-    negative: [
-      `${basePath}/${cms}_SIMS_negative1.png`,
-      `${basePath}/${cms}_SIMS_negative2.png`,
-    ],
-    positive: [
-      `${basePath}/${cms}_SIMS_positive1.png`,
-      `${basePath}/${cms}_SIMS_positive2.png`,
-    ],
+    negative: [`${basePath}/${cms}_SIMS_negative1.png`, `${basePath}/${cms}_SIMS_negative2.png`],
+    positive: [`${basePath}/${cms}_SIMS_positive1.png`, `${basePath}/${cms}_SIMS_positive2.png`],
   };
 };
 
-/** Resize-aware container width for adaptive binning/sampling */
 function useContainerWidth<T extends HTMLElement>(): [React.MutableRefObject<T | null>, number] {
   const ref = useRef<T | null>(null);
   const [w, setW] = useState(800);
-
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => setW(el.clientWidth || 800));
     ro.observe(el);
-    // initialize width
     setW(el.clientWidth || 800);
     return () => ro.disconnect();
   }, []);
-
   return [ref, w];
 }
 
-/** Integer/custom-width histogram binning */
-const makeBinner = (binWidth = 1) => (ions: SIMSRawIon[]) => {
+/**
+ * Bin ions by mass and SUM intensities per bin.
+ *
+ * Uses ALL ions provided. The bin width is chosen so the chart
+ * renders ~1 bar per ~2 pixels of width — finer binning would draw
+ * sub-pixel bars that overlap and wider binning would discard
+ * resolvable peaks.
+ *
+ * Sum is the correct aggregation for a mass spectrum: a peak at
+ * m/z ~16 with two channels of intensity 100 + 95 should display as
+ * a single bar of height 195, not 100 (max) or 97.5 (mean).
+ */
+const binBySum = (ions: SIMSRawIon[], binWidth: number) => {
   if (!ions?.length) return [] as { mass: number; intensity: number }[];
   const inv = 1 / binWidth;
   const bins = new Map<number, number>();
@@ -178,18 +169,14 @@ const makeBinner = (binWidth = 1) => (ions: SIMSRawIon[]) => {
     const m = Math.floor(ion.mass * inv) / inv;
     bins.set(m, (bins.get(m) || 0) + ion.intensity);
   }
-  const chartData = Array.from(bins.entries())
+  return Array.from(bins.entries())
     .filter(([, intensity]) => intensity > 0)
     .map(([mass, intensity]) => ({ mass, intensity }))
     .sort((a, b) => a.mass - b.mass);
-  return chartData;
 };
 
-/** LTTB downsampling (fast visual summary for large series) */
-function lttb(
-  data: { x: number; y: number }[],
-  threshold: number
-): { x: number; y: number }[] {
+/** LTTB downsampling — kept as an optional smoothing view. */
+function lttb(data: { x: number; y: number }[], threshold: number): { x: number; y: number }[] {
   const n = data.length;
   if (threshold >= n || threshold === 0) return data;
   const sampled: { x: number; y: number }[] = [];
@@ -199,12 +186,10 @@ function lttb(
   for (let i = 0; i < threshold - 2; i++) {
     const start = Math.floor((i + 1) * bucketSize) + 1;
     const end = Math.min(Math.floor((i + 2) * bucketSize) + 1, n);
-
     let avgX = 0, avgY = 0;
     const len = Math.max(1, end - start);
     for (let j = start; j < end; j++) { avgX += data[j].x; avgY += data[j].y; }
     avgX /= len; avgY /= len;
-
     let maxArea = -1; let nextA = start;
     for (let j = start; j < end; j++) {
       const area = Math.abs(
@@ -222,12 +207,7 @@ function lttb(
 
 /* ============================ Tab Configuration ============================ */
 type TabKey = "test-conditions" | "raw-data" | "processed-data" | "results";
-
-interface TabConfig {
-  key: TabKey;
-  label: string;
-}
-
+interface TabConfig { key: TabKey; label: string; }
 const TABS: TabConfig[] = [
   { key: "test-conditions", label: "Test Conditions" },
   { key: "raw-data", label: "Raw Data" },
@@ -238,19 +218,22 @@ const TABS: TabConfig[] = [
 /* ============================ Component ============================ */
 
 const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
-  // ---- state ----
   const [data, setData] = useState<SIMSData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("test-conditions");
-  const [vizMode, setVizMode] =
-    useState<"binned" | "downsampled" | "raw-capped">("binned");
+  const [vizMode, setVizMode] = useState<"binned" | "downsampled">("binned");
+  const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
 
-  // ---- container widths (always called) ----
+  // Zoom range per polarity. null = full range. Re-binning happens in the
+  // computed memos below so zooming actually increases resolution.
+  const [negZoom, setNegZoom] = useState<[number, number] | null>(null);
+  const [posZoom, setPosZoom] = useState<[number, number] | null>(null);
+
   const [chartRefNeg, chartWidthNeg] = useContainerWidth<HTMLDivElement>();
   const [chartRefPos, chartWidthPos] = useContainerWidth<HTMLDivElement>();
 
-  // ---- fetch (always called) ----
+  // ---- fetch ----
   useEffect(() => {
     const ac = new AbortController();
     (async () => {
@@ -258,11 +241,7 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
         setLoading(true);
         const response = await api.post(
           `/tests/listings`,
-          {
-            work_package_name: work_package,
-            element_cms_id: element,
-            test_name: test,
-          },
+          { work_package_name: work_package, element_cms_id: element, test_name: test },
           { signal: ac.signal }
         );
         if (response.status !== 200) throw new Error("Network response was not ok");
@@ -279,30 +258,93 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     return () => ac.abort();
   }, [work_package, element, test]);
 
-  // ---- utilities (always called) ----
+  /* ============================ Downloads ============================ */
+
+  /**
+   * Download small static tables (Material Info, Sample Prep, etc.) by
+   * reading the rendered DOM. Fine for these because they're <50 rows.
+   */
   const downloadTable = useCallback((tableId: string, filename: string) => {
     const table = document.getElementById(tableId);
     if (!table) return;
     const rows = table.querySelectorAll("tr");
-    let csvContent = "data:text/csv;charset=utf-8,";
+    const lines: string[] = [];
     rows.forEach((row) => {
       const cells = row.querySelectorAll("th, td");
-      const rowData = Array.from(cells)
-        .map((cell) => `"${(cell.textContent ?? "").replace(/"/g, '""')}"`)
-        .join(",");
-      csvContent += rowData + "\r\n";
+      lines.push(
+        Array.from(cells)
+          .map((cell) => `"${(cell.textContent ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      );
     });
+    const csv = lines.join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = encodeURI(csvContent);
+    a.href = url;
     a.download = `${filename}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }, []);
 
-  /* ====================== data shaping (hooks ALWAYS run) ====================== */
+  /**
+   * Download from a data array directly. Handles 400k+ rows because it
+   * bypasses the DOM and uses a Blob URL (data: URLs are capped at ~2MB
+   * in most browsers, which is why the old DOM-based download silently
+   * produced truncated files).
+   *
+   * Builds the CSV via array.join, which is roughly 10x faster than
+   * repeated string concatenation. ~2s for 400k rows; we set a
+   * downloading flag so the button can show progress.
+   */
+  const downloadCSV = useCallback(<T extends Record<string, any>>(
+    rows: T[],
+    columns: { key: keyof T; header: string; format?: (v: any) => string }[],
+    filename: string,
+    downloadKey: string
+  ) => {
+    setDownloadingKey(downloadKey);
+    // Defer to next tick so the spinner actually paints before we block.
+    setTimeout(() => {
+      try {
+        const headerLine = columns
+          .map((c) => `"${c.header.replace(/"/g, '""')}"`)
+          .join(",");
 
-  // The API in your screenshot provides `raw_data`, not `replications`.
+        const lines: string[] = new Array(rows.length + 1);
+        lines[0] = headerLine;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const parts = new Array(columns.length);
+          for (let j = 0; j < columns.length; j++) {
+            const c = columns[j];
+            const raw = row[c.key];
+            const formatted = c.format ? c.format(raw) : (raw ?? "");
+            parts[j] = `"${String(formatted).replace(/"/g, '""')}"`;
+          }
+          lines[i + 1] = parts.join(",");
+        }
+
+        const csv = lines.join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${filename}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } finally {
+        setDownloadingKey(null);
+      }
+    }, 50);
+  }, []);
+
+  /* ====================== Data shaping ====================== */
+
   const safeRuns: SIMSRawData[] = useMemo(() => {
     return (data?.raw_data ?? data?.replications ?? []) as SIMSRawData[];
   }, [data?.raw_data, data?.replications]);
@@ -316,93 +358,112 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     [safeRuns]
   );
 
-  // Defer large arrays to keep UI snappy
   const deferredNeg = useDeferredValue(allNegativeIons);
   const deferredPos = useDeferredValue(allPositiveIons);
 
-  // Mass ranges
+  // Filter to zoom range if active. This is what makes "all data accurate"
+  // — when you zoom in, we re-bin only the ions in the visible range, so
+  // resolution actually goes up.
+  const negInView = useMemo(() => {
+    if (!negZoom) return deferredNeg;
+    const [lo, hi] = negZoom;
+    return deferredNeg.filter((d) => d.mass != null && d.mass >= lo && d.mass <= hi);
+  }, [deferredNeg, negZoom]);
+
+  const posInView = useMemo(() => {
+    if (!posZoom) return deferredPos;
+    const [lo, hi] = posZoom;
+    return deferredPos.filter((d) => d.mass != null && d.mass >= lo && d.mass <= hi);
+  }, [deferredPos, posZoom]);
+
+  // Compute mass range of currently-visible ions
   const [negMin, negMax] = useMemo(() => {
     let min = Infinity, max = -Infinity;
-    for (const ion of deferredNeg) {
+    for (const ion of negInView) {
       if (ion.mass == null) continue;
       if (ion.mass < min) min = ion.mass;
       if (ion.mass > max) max = ion.mass;
     }
     return [min, max];
-  }, [deferredNeg]);
+  }, [negInView]);
 
   const [posMin, posMax] = useMemo(() => {
     let min = Infinity, max = -Infinity;
-    for (const ion of deferredPos) {
+    for (const ion of posInView) {
       if (ion.mass == null) continue;
       if (ion.mass < min) min = ion.mass;
       if (ion.mass > max) max = ion.mass;
     }
     return [min, max];
-  }, [deferredPos]);
+  }, [posInView]);
 
-  // Adaptive bin widths (~ one bar per ~2px; min 1 m/z)
+  // Adaptive bin widths: aim for ~1 bar per 2 pixels of chart width.
+  // When zoomed in, the same chart width covers a smaller mass range,
+  // so the bin width shrinks and we resolve finer peaks automatically.
   const targetBinsNeg = Math.max(200, Math.floor((chartWidthNeg || 800) / 2));
   const targetBinsPos = Math.max(200, Math.floor((chartWidthPos || 800) / 2));
 
   const negBinWidth = useMemo(() => {
     if (!isFinite(negMin) || !isFinite(negMax) || negMax <= negMin) return 1;
     const width = (negMax - negMin) / targetBinsNeg;
-    return Math.max(1, Number.isFinite(width) ? width : 1);
+    // Allow sub-unit bins when zoomed; cap at min 0.001 m/z
+    return Math.max(0.001, Number.isFinite(width) ? width : 1);
   }, [negMin, negMax, targetBinsNeg]);
 
   const posBinWidth = useMemo(() => {
     if (!isFinite(posMin) || !isFinite(posMax) || posMax <= posMin) return 1;
     const width = (posMax - posMin) / targetBinsPos;
-    return Math.max(1, Number.isFinite(width) ? width : 1);
+    return Math.max(0.001, Number.isFinite(width) ? width : 1);
   }, [posMin, posMax, targetBinsPos]);
 
-  const binNeg = useMemo(() => makeBinner(negBinWidth), [negBinWidth]);
-  const binPos = useMemo(() => makeBinner(posBinWidth), [posBinWidth]);
+  const negativeBinned = useMemo(
+    () => binBySum(negInView, negBinWidth),
+    [negInView, negBinWidth]
+  );
+  const positiveBinned = useMemo(
+    () => binBySum(posInView, posBinWidth),
+    [posInView, posBinWidth]
+  );
 
-  // Binned data (fast)
-  const negativeBinned = useMemo(() => binNeg(deferredNeg), [binNeg, deferredNeg]);
-  const positiveBinned = useMemo(() => binPos(deferredPos), [binPos, deferredPos]);
-
-  // Downsampled data (fast)
   const negativeLttb = useMemo(() => {
-    if (!deferredNeg.length) return [];
-    const raw = deferredNeg
+    if (!negInView.length) return [];
+    const points = negInView
       .filter((d) => d.mass != null && d.intensity != null)
       .map((d) => ({ x: d.mass as number, y: d.intensity as number }))
       .sort((a, b) => a.x - b.x);
     const target = Math.min(1200, Math.max(400, Math.floor((chartWidthNeg || 800) * 1.5)));
-    return lttb(raw, target).map((p) => ({ mass: p.x, intensity: p.y }));
-  }, [deferredNeg, chartWidthNeg]);
+    return lttb(points, target).map((p) => ({ mass: p.x, intensity: p.y }));
+  }, [negInView, chartWidthNeg]);
 
   const positiveLttb = useMemo(() => {
-    if (!deferredPos.length) return [];
-    const raw = deferredPos
+    if (!posInView.length) return [];
+    const points = posInView
       .filter((d) => d.mass != null && d.intensity != null)
       .map((d) => ({ x: d.mass as number, y: d.intensity as number }))
       .sort((a, b) => a.x - b.x);
     const target = Math.min(1200, Math.max(400, Math.floor((chartWidthPos || 800) * 1.5)));
-    return lttb(raw, target).map((p) => ({ mass: p.x, intensity: p.y }));
-  }, [deferredPos, chartWidthPos]);
-
-  // Raw (capped & sorted for consistent numeric X axis)
-  const RAW_CAP = 5000;
-  const negativeRawCapped = useMemo(() => {
-    return deferredNeg
-      .filter((d) => d.mass != null && d.intensity != null)
-      .slice(0, RAW_CAP)
-      .sort((a, b) => (a.mass! - b.mass!));
-  }, [deferredNeg]);
-
-  const positiveRawCapped = useMemo(() => {
-    return deferredPos
-      .filter((d) => d.mass != null && d.intensity != null)
-      .slice(0, RAW_CAP)
-      .sort((a, b) => (a.mass! - b.mass!));
-  }, [deferredPos]);
+    return lttb(points, target).map((p) => ({ mass: p.x, intensity: p.y }));
+  }, [posInView, chartWidthPos]);
 
   const limitedNegativeIons = useMemo(() => deferredNeg.slice(0, 100), [deferredNeg]);
   const limitedPositiveIons = useMemo(() => deferredPos.slice(0, 100), [deferredPos]);
+
+  // Column definitions for raw-ion CSV export
+  const rawIonColumns = useMemo(() => ([
+    { key: "channel" as const, header: "Channel" },
+    { key: "mass" as const, header: "Mass", format: (v: any) => v != null ? Number(v).toFixed(6) : "" },
+    { key: "intensity" as const, header: "Intensity" },
+  ]), []);
+
+  const procIonColumns = useMemo(() => ([
+    { key: "mass" as const, header: "Mass", format: (v: any) => v != null ? Number(v).toFixed(2) : "" },
+    { key: "counts" as const, header: "Counts" },
+  ]), []);
+
+  const finalIonColumns = useMemo(() => ([
+    { key: "mass" as const, header: "Mass", format: (v: any) => v != null ? Number(v).toFixed(2) : "" },
+    { key: "fragment" as const, header: "Fragment" },
+  ]), []);
 
   /* ============================ Render ============================ */
 
@@ -410,7 +471,6 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     <div className="bg-gray-50 min-h-screen py-8 text-black">
       <div className="container mx-auto px-4">
 
-        {/* Loading / Error banners (no early returns) */}
         {loading && (
           <div className="mb-4 flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
@@ -614,7 +674,7 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
         {/* Raw Data */}
         {activeTab === "raw-data" && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-blue-800">Raw Data</h2>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-600">View:</span>
@@ -623,11 +683,18 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   value={vizMode}
                   onChange={(e) => setVizMode(e.target.value as any)}
                 >
-                  <option value="binned">Binned (fast)</option>
-                  <option value="downsampled">Downsampled (fast)</option>
-                  <option value="raw-capped">Raw (first 5k)</option>
+                  <option value="binned">Binned (sum, all records)</option>
+                  <option value="downsampled">Downsampled (smoothed)</option>
                 </select>
               </div>
+            </div>
+
+            {/* Explainer banner so users understand what's plotted */}
+            <div className="mb-6 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded px-3 py-2">
+              All {(deferredNeg.length + deferredPos.length).toLocaleString()} ion records are used to build the spectrum.
+              In <strong>Binned</strong> mode, intensities within each pixel-width mass bin are summed (the standard
+              representation for a mass spectrum). Drag the brush below each chart to zoom in — the binning
+              recalculates at finer resolution as you zoom.
             </div>
 
             {!allNegativeIons.length && !allPositiveIons.length ? (
@@ -636,32 +703,71 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <>
                 {/* Negative */}
                 <div className="mb-10">
-                  <h3 className="text-lg font-semibold mb-3">Negative Ions Spectrum</h3>
-                  <div ref={chartRefNeg} className="w-full h-[420px]">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-semibold">Negative Ions Spectrum</h3>
+                    <div className="text-xs text-slate-500">
+                      {deferredNeg.length.toLocaleString()} ions
+                      {negZoom && (
+                        <>
+                          {" • zoomed: "}
+                          {negZoom[0].toFixed(2)}–{negZoom[1].toFixed(2)} m/z
+                          {" • "}
+                          <button
+                            className="text-blue-600 hover:underline"
+                            onClick={() => setNegZoom(null)}
+                          >
+                            reset
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div ref={chartRefNeg} className="w-full h-[460px]">
                     <ResponsiveContainer key={chartWidthNeg} width="100%" height="100%">
                       {vizMode === "downsampled" ? (
                         <AreaChart data={negativeLttb} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="mass" type="number" tickCount={10} label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
+                          <XAxis dataKey="mass" type="number" domain={["dataMin", "dataMax"]} tickCount={10}
+                            label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
                           <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
                           <Tooltip />
                           <Area dataKey="intensity" isAnimationActive={false} />
+                          <Brush
+                            dataKey="mass"
+                            height={24}
+                            tickFormatter={(v: number) => v?.toFixed(1) ?? ""}
+                            onChange={(range: any) => {
+                              if (range && range.startIndex != null && range.endIndex != null) {
+                                const lo = negativeLttb[range.startIndex]?.mass;
+                                const hi = negativeLttb[range.endIndex]?.mass;
+                                if (lo != null && hi != null && hi > lo) setNegZoom([lo, hi]);
+                              }
+                            }}
+                          />
                         </AreaChart>
-                      ) : vizMode === "binned" ? (
+                      ) : (
                         <BarChart data={negativeBinned} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="mass" type="number" tickCount={10} label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
+                          <XAxis dataKey="mass" type="number" domain={["dataMin", "dataMax"]} tickCount={10}
+                            label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
                           <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
-                          <Tooltip />
+                          <Tooltip
+                            formatter={(value: any) => [Number(value).toLocaleString(), "Counts"]}
+                            labelFormatter={(label: any) => `m/z ${Number(label).toFixed(3)}`}
+                          />
                           <Bar dataKey="intensity" isAnimationActive={false} />
-                        </BarChart>
-                      ) : (
-                        <BarChart data={negativeRawCapped} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="mass" type="number" tickCount={10} label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
-                          <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
-                          <Tooltip />
-                          <Bar dataKey="intensity" isAnimationActive={false} />
+                          <Brush
+                            dataKey="mass"
+                            height={24}
+                            tickFormatter={(v: number) => v?.toFixed(1) ?? ""}
+                            onChange={(range: any) => {
+                              if (range && range.startIndex != null && range.endIndex != null) {
+                                const lo = negativeBinned[range.startIndex]?.mass;
+                                const hi = negativeBinned[range.endIndex]?.mass;
+                                if (lo != null && hi != null && hi > lo) setNegZoom([lo, hi]);
+                              }
+                            }}
+                          />
                         </BarChart>
                       )}
                     </ResponsiveContainer>
@@ -670,32 +776,71 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
 
                 {/* Positive */}
                 <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-3">Positive Ions Spectrum</h3>
-                  <div ref={chartRefPos} className="w-full h-[420px]">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-semibold">Positive Ions Spectrum</h3>
+                    <div className="text-xs text-slate-500">
+                      {deferredPos.length.toLocaleString()} ions
+                      {posZoom && (
+                        <>
+                          {" • zoomed: "}
+                          {posZoom[0].toFixed(2)}–{posZoom[1].toFixed(2)} m/z
+                          {" • "}
+                          <button
+                            className="text-blue-600 hover:underline"
+                            onClick={() => setPosZoom(null)}
+                          >
+                            reset
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div ref={chartRefPos} className="w-full h-[460px]">
                     <ResponsiveContainer key={chartWidthPos} width="100%" height="100%">
                       {vizMode === "downsampled" ? (
                         <AreaChart data={positiveLttb} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="mass" type="number" tickCount={10} label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
+                          <XAxis dataKey="mass" type="number" domain={["dataMin", "dataMax"]} tickCount={10}
+                            label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
                           <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
                           <Tooltip />
                           <Area dataKey="intensity" isAnimationActive={false} />
+                          <Brush
+                            dataKey="mass"
+                            height={24}
+                            tickFormatter={(v: number) => v?.toFixed(1) ?? ""}
+                            onChange={(range: any) => {
+                              if (range && range.startIndex != null && range.endIndex != null) {
+                                const lo = positiveLttb[range.startIndex]?.mass;
+                                const hi = positiveLttb[range.endIndex]?.mass;
+                                if (lo != null && hi != null && hi > lo) setPosZoom([lo, hi]);
+                              }
+                            }}
+                          />
                         </AreaChart>
-                      ) : vizMode === "binned" ? (
+                      ) : (
                         <BarChart data={positiveBinned} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="mass" type="number" tickCount={10} label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
+                          <XAxis dataKey="mass" type="number" domain={["dataMin", "dataMax"]} tickCount={10}
+                            label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
                           <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
-                          <Tooltip />
+                          <Tooltip
+                            formatter={(value: any) => [Number(value).toLocaleString(), "Counts"]}
+                            labelFormatter={(label: any) => `m/z ${Number(label).toFixed(3)}`}
+                          />
                           <Bar dataKey="intensity" isAnimationActive={false} />
-                        </BarChart>
-                      ) : (
-                        <BarChart data={positiveRawCapped} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="mass" type="number" tickCount={10} label={{ value: "m/z", position: "insideBottom", offset: -5 }} />
-                          <YAxis label={{ value: "Counts", angle: -90, position: "insideLeft" }} />
-                          <Tooltip />
-                          <Bar dataKey="intensity" isAnimationActive={false} />
+                          <Brush
+                            dataKey="mass"
+                            height={24}
+                            tickFormatter={(v: number) => v?.toFixed(1) ?? ""}
+                            onChange={(range: any) => {
+                              if (range && range.startIndex != null && range.endIndex != null) {
+                                const lo = positiveBinned[range.startIndex]?.mass;
+                                const hi = positiveBinned[range.endIndex]?.mass;
+                                if (lo != null && hi != null && hi > lo) setPosZoom([lo, hi]);
+                              }
+                            }}
+                          />
                         </BarChart>
                       )}
                     </ResponsiveContainer>
@@ -705,12 +850,28 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 {/* Preview tables */}
                 <div className="mb-8">
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-md font-medium">Raw Negative Ions (First 100 rows)</h4>
+                    <h4 className="text-md font-medium">
+                      Raw Negative Ions{" "}
+                      <span className="text-sm text-slate-500 font-normal">
+                        (showing first 100 of {deferredNeg.length.toLocaleString()})
+                      </span>
+                    </h4>
                     <button
-                      onClick={() => downloadTable("rawNegativeTable", "Raw_Negative")}
-                      className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                      disabled={downloadingKey === "raw-neg" || !deferredNeg.length}
+                      onClick={() => downloadCSV(
+                        deferredNeg as any,
+                        rawIonColumns,
+                        "Raw_Negative_Full",
+                        "raw-neg"
+                      )}
+                      className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-wait"
                     >
-                      <Download size={14} /><span>Download Full</span>
+                      <Download size={14} />
+                      <span>
+                        {downloadingKey === "raw-neg"
+                          ? "Preparing…"
+                          : `Download Full (${deferredNeg.length.toLocaleString()})`}
+                      </span>
                     </button>
                   </div>
                   <div className="overflow-x-auto">
@@ -731,12 +892,28 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
 
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-md font-medium">Raw Positive Ions (First 100 rows)</h4>
+                    <h4 className="text-md font-medium">
+                      Raw Positive Ions{" "}
+                      <span className="text-sm text-slate-500 font-normal">
+                        (showing first 100 of {deferredPos.length.toLocaleString()})
+                      </span>
+                    </h4>
                     <button
-                      onClick={() => downloadTable("rawPositiveTable", "Raw_Positive")}
-                      className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                      disabled={downloadingKey === "raw-pos" || !deferredPos.length}
+                      onClick={() => downloadCSV(
+                        deferredPos as any,
+                        rawIonColumns,
+                        "Raw_Positive_Full",
+                        "raw-pos"
+                      )}
+                      className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-wait"
                     >
-                      <Download size={14} /><span>Download Full</span>
+                      <Download size={14} />
+                      <span>
+                        {downloadingKey === "raw-pos"
+                          ? "Preparing…"
+                          : `Download Full (${deferredPos.length.toLocaleString()})`}
+                      </span>
                     </button>
                   </div>
                   <div className="overflow-x-auto">
@@ -768,18 +945,22 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             ) : (
               data.processed_data.map((run, runIndex) => (
                 <div key={runIndex} className="mb-8">
-
                   {/* Processed Negative */}
                   <div className="mb-6">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="text-md font-semibold">Processed Negative Ions</h4>
                       <button
-                        onClick={() =>
-                          downloadTable(`processedNegativeTable${runIndex}`, `Processed_Negative_Run_${run.run_number}`)
-                        }
-                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                        disabled={downloadingKey === `proc-neg-${runIndex}`}
+                        onClick={() => downloadCSV(
+                          run.negative_ions as any,
+                          procIonColumns,
+                          `Processed_Negative_Run_${run.run_number}`,
+                          `proc-neg-${runIndex}`
+                        )}
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50"
                       >
-                        <Download size={14} /><span>Download</span>
+                        <Download size={14} />
+                        <span>{downloadingKey === `proc-neg-${runIndex}` ? "Preparing…" : "Download"}</span>
                       </button>
                     </div>
                     <div className="overflow-x-auto">
@@ -795,7 +976,6 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         </tbody>
                       </table>
                     </div>
-                    {/* Negative Ion Images */}
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                       {getSIMSImageUrls(work_package, element).negative.map((url, idx) => (
                         <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden bg-white flex flex-col">
@@ -817,12 +997,8 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           </div>
                           <div className="p-2 bg-gray-50 flex items-center justify-between border-t border-gray-200">
                             <span className="text-sm text-gray-600">Negative Spectrum {idx + 1}</span>
-                            <a
-                              href={url}
-                              download={`negative_spectrum_${idx + 1}.png`}
-                              className="p-1 text-gray-500 hover:text-blue-600 transition"
-                              title="Download image"
-                            >
+                            <a href={url} download={`negative_spectrum_${idx + 1}.png`}
+                              className="p-1 text-gray-500 hover:text-blue-600 transition" title="Download image">
                               <Download size={16} />
                             </a>
                           </div>
@@ -836,12 +1012,17 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="text-md font-semibold">Processed Positive Ions</h4>
                       <button
-                        onClick={() =>
-                          downloadTable(`processedPositiveTable${runIndex}`, `Processed_Positive_Run_${run.run_number}`)
-                        }
-                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                        disabled={downloadingKey === `proc-pos-${runIndex}`}
+                        onClick={() => downloadCSV(
+                          run.positive_ions as any,
+                          procIonColumns,
+                          `Processed_Positive_Run_${run.run_number}`,
+                          `proc-pos-${runIndex}`
+                        )}
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50"
                       >
-                        <Download size={14} /><span>Download</span>
+                        <Download size={14} />
+                        <span>{downloadingKey === `proc-pos-${runIndex}` ? "Preparing…" : "Download"}</span>
                       </button>
                     </div>
                     <div className="overflow-x-auto">
@@ -857,7 +1038,6 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         </tbody>
                       </table>
                     </div>
-                    {/* Positive Ion Images */}
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                       {getSIMSImageUrls(work_package, element).positive.map((url, idx) => (
                         <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden bg-white flex flex-col">
@@ -879,12 +1059,8 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           </div>
                           <div className="p-2 bg-gray-50 flex items-center justify-between border-t border-gray-200">
                             <span className="text-sm text-gray-600">Positive Spectrum {idx + 1}</span>
-                            <a
-                              href={url}
-                              download={`positive_spectrum_${idx + 1}.png`}
-                              className="p-1 text-gray-500 hover:text-blue-600 transition"
-                              title="Download image"
-                            >
+                            <a href={url} download={`positive_spectrum_${idx + 1}.png`}
+                              className="p-1 text-gray-500 hover:text-blue-600 transition" title="Download image">
                               <Download size={16} />
                             </a>
                           </div>
@@ -915,15 +1091,21 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-xl font-bold text-blue-800 mb-6">SIMS Results</h2>
 
-            {/* Final Negative */}
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Final Negative Ions</h3>
                 <button
-                  onClick={() => downloadTable("finalNegativeTable", "Final_Negative_Ions")}
-                  className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                  disabled={downloadingKey === "final-neg"}
+                  onClick={() => downloadCSV(
+                    (data?.final_results.negative_ions ?? []) as any,
+                    finalIonColumns,
+                    "Final_Negative_Ions",
+                    "final-neg"
+                  )}
+                  className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50"
                 >
-                  <Download size={14} /><span>Download</span>
+                  <Download size={14} />
+                  <span>{downloadingKey === "final-neg" ? "Preparing…" : "Download"}</span>
                 </button>
               </div>
               <div className="overflow-x-auto">
@@ -941,15 +1123,21 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               </div>
             </div>
 
-            {/* Final Positive */}
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Final Positive Ions</h3>
                 <button
-                  onClick={() => downloadTable("finalPositiveTable", "Final_Positive_Ions")}
-                  className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                  disabled={downloadingKey === "final-pos"}
+                  onClick={() => downloadCSV(
+                    (data?.final_results.positive_ions ?? []) as any,
+                    finalIonColumns,
+                    "Final_Positive_Ions",
+                    "final-pos"
+                  )}
+                  className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50"
                 >
-                  <Download size={14} /><span>Download</span>
+                  <Download size={14} />
+                  <span>{downloadingKey === "final-pos" ? "Preparing…" : "Download"}</span>
                 </button>
               </div>
               <div className="overflow-x-auto">
@@ -969,7 +1157,6 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </div>
         )}
 
-        {/* No data hint when not loading and no payload */}
         {!loading && !error && !data && (
           <p className="text-center text-gray-500">No data available.</p>
         )}

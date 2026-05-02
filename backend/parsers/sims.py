@@ -1,18 +1,18 @@
 import openpyxl
 import re
 from dataclasses import dataclass, asdict, field
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Any, Tuple
 import logging
 import traceback
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-# Dataclasses tailored for SIMS
+# ============================ Dataclasses ============================
 @dataclass
 class Scientist:
     name: Optional[str] = None
@@ -113,474 +113,443 @@ class SIMSFinalResults:
     negative_ions: List[SIMSFinalIon] = field(default_factory=list)
     positive_ions: List[SIMSFinalIon] = field(default_factory=list)
 
+
+# ============================ Parser ============================
 class SIMSParser:
+    """
+    SIMS Excel parser.
+
+    Uses openpyxl in read_only mode for memory-safe parsing of large
+    raw-ion sheets (300k+ rows). The small Test Information sheet is
+    cached in memory once because we scan it for several different
+    sets of keys.
+    """
+
+    EMAIL_REGEX = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+
     def __init__(self, file_path: str, sheet_name: str = "Test Information"):
         self.file_path = file_path
         self.sheet_name = sheet_name
         try:
-            self.wb = openpyxl.load_workbook(file_path, data_only=True)
-            self.ws = self.wb[sheet_name]
+            # read_only=True streams the workbook from disk instead of
+            # loading every cell as a Python object. This is the single
+            # most important change for large SIMS files.
+            self.wb = openpyxl.load_workbook(
+                file_path, data_only=True, read_only=True
+            )
             logger.info(f"Successfully loaded Excel file: {file_path}")
         except Exception as e:
-            logger.error(f"Failed to load workbook or sheet {sheet_name}: {e}")
+            logger.error(f"Failed to load workbook: {e}")
             raise
-        self.email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+
+        # Cache the Test Information sheet once. It's tiny (~70 rows)
+        # and is scanned by 5 different extract methods.
+        self._info_rows: List[Tuple[Any, ...]] = self._cache_info_sheet()
+
+    # ---------------------- helpers ----------------------
+    def _cache_info_sheet(self) -> List[Tuple[Any, ...]]:
+        if self.sheet_name not in self.wb.sheetnames:
+            logger.error(f"Sheet '{self.sheet_name}' not found")
+            return []
+        ws = self.wb[self.sheet_name]
+        # Pad short rows so column access is uniform
+        rows = []
+        for row in ws.iter_rows(min_row=1, max_col=5, values_only=True):
+            padded = tuple(row) + (None,) * (5 - len(row))
+            rows.append(padded[:5])
+        return rows
 
     def normalize_key(self, key: Optional[str]) -> Optional[str]:
-        if key:
-            normalized = str(key).strip().lower() if key is not None else ""
-            normalized = re.sub(r'[^a-z0-9]', '_', normalized)
-            normalized = re.sub(r'_+', '_', normalized).strip('_')
-            return normalized
-        return None
+        if not key:
+            return None
+        normalized = str(key).strip().lower()
+        normalized = re.sub(r'[^a-z0-9]', '_', normalized)
+        normalized = re.sub(r'_+', '_', normalized).strip('_')
+        return normalized or None
 
-    def split_value_unit(self, value: Optional[str]) -> tuple[Optional[Union[str, float]], Optional[str]]:
-        if isinstance(value, str) and " " in value:
-            parts = value.split(" ", 1)
-            try:
-                numeric = float(parts[0]) if '.' in parts[0] else int(parts[0])
-                return numeric, parts[1] if len(parts) > 1 else None
-            except (ValueError, IndexError):
-                return parts[0], parts[1] if len(parts) > 1 else None
-        return value, None
-
-    def excel_date_to_string(self, value: Optional[Union[float, str]]) -> Optional[str]:
+    def excel_date_to_string(self, value: Optional[Union[float, str, datetime]]) -> Optional[str]:
         try:
+            if value is None:
+                return None
+            if isinstance(value, datetime):
+                return value.strftime("%Y-%m-%d")
             if isinstance(value, (int, float)):
                 base_date = datetime(1899, 12, 30)
-                delta = timedelta(days=float(value))
-                return (base_date + delta).strftime("%Y-%m-%d")
-            elif isinstance(value, str):
+                return (base_date + timedelta(days=float(value))).strftime("%Y-%m-%d")
+            if isinstance(value, str):
                 for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d"]:
                     try:
                         return datetime.strptime(value, fmt).strftime("%Y-%m-%d")
                     except ValueError:
                         pass
-            return str(value) if value else None
+                return value
+            return str(value)
         except Exception as e:
-            logger.warning(f"Failed to convert date {value}: {e}")
+            logger.warning(f"Failed to convert date {value!r}: {e}")
             return None
 
+    def _scan_info_kv(self) -> List[Dict[str, Any]]:
+        """
+        Scan the cached Test Information sheet and return a list of
+        {Key, Value, Email, RawKey} entries. The first non-None value
+        in columns 2..5 (index 1..4) is taken as the value, matching
+        the original behavior.
+        """
+        out = []
+        for row in self._info_rows:
+            key_cell = row[0]
+            if not key_cell:
+                continue
+            raw_key = str(key_cell)
+            key = self.normalize_key(raw_key)
+            if not key:
+                continue
+
+            value = next((row[c] for c in range(1, 5) if row[c] is not None), None)
+            email_cell = row[3]
+
+            entry: Dict[str, Any] = {"Key": key, "Value": value, "RawKey": raw_key}
+            if email_cell and re.match(self.EMAIL_REGEX, str(email_cell)):
+                entry["Email"] = email_cell
+            out.append(entry)
+        return out
+
+    @staticmethod
+    def _find_value(scanned: List[Dict[str, Any]], key: str) -> Any:
+        return next((d["Value"] for d in scanned if d["Key"] == key), None)
+
+    @staticmethod
+    def _fuzzy_resolve(scanned: List[Dict[str, Any]], expected_keys: List[str]) -> Dict[str, Any]:
+        """
+        Build a {expected_key: value} dict, resolving each expected key
+        with exact match first, then a fuzzy (>0.85) fallback.
+        """
+        resolved: Dict[str, Any] = {k: None for k in expected_keys}
+        # Exact pass
+        for d in scanned:
+            if d["Key"] in resolved and resolved[d["Key"]] is None:
+                resolved[d["Key"]] = d["Value"]
+        # Fuzzy pass for any still-missing
+        unmatched = [k for k, v in resolved.items() if v is None]
+        for missing in unmatched:
+            best_ratio = 0.85
+            best_value = None
+            for d in scanned:
+                ratio = SequenceMatcher(None, d["Key"], missing).ratio()
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_value = d["Value"]
+            if best_value is not None:
+                resolved[missing] = best_value
+        return resolved
+
+    # ---------------------- Test Information extractors ----------------------
     def extract_work_package_data(self):
-        data = []
+        scanned = self._scan_info_kv()
         lead_scientists = []
         assay_scientists = []
+        for d in scanned:
+            raw_lower = d["RawKey"].lower()
+            if "lead scientist" in raw_lower:
+                lead_scientists.append(Scientist(name=d["Value"], email=d.get("Email")))
+            if "assay/test work" in raw_lower:
+                assay_scientists.append(Scientist(name=d["Value"], email=d.get("Email")))
 
-        for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
-            key_cell = row[0].value
-            if not key_cell:
-                continue
-            raw_key = str(key_cell)
-            key = self.normalize_key(raw_key)
-            if not key:
-                continue
-
-            value_cell = None
-            for col_idx in range(1, 5):
-                if col_idx < len(row) and row[col_idx].value is not None:
-                    value_cell = row[col_idx].value
-                    break
-
-            email_cell = row[3].value if len(row) > 3 else None
-
-            entry = {"Key": key, "Value": value_cell}
-
-            if email_cell and re.match(self.email_regex, str(email_cell)):
-                entry["Email"] = email_cell
-
-            data.append(entry)
-
-            if "lead scientist" in raw_key.lower():
-                lead_scientists.append(Scientist(name=value_cell, email=email_cell))
-            if "assay/test work" in raw_key.lower():
-                assay_scientists.append(Scientist(name=value_cell, email=email_cell))
-
-        wp_data = WorkPackageData(
-            wp_name=next((d["Value"] for d in data if d["Key"] == "project_work_package"), None),
-            partner=next((d["Value"] for d in data if d["Key"] == "partner_conducting_test_assay"), None),
-            laboratory_name=next((d["Value"] for d in data if d["Key"] == "test_facility_laboratory_name"), None),
-            full_test_name=next((d["Value"] for d in data if d["Key"] == "full_name_of_test_assay_add_oecd_test_ref_id_if_app"), None),
-            test_acronym=next((d["Value"] for d in data if d["Key"] == "short_name_or_acronym_for_test_assay"), None),
-            test_type=next((d["Value"] for d in data if d["Key"] == "type_or_class_of_experimental_test_as_used_here"), None),
-            endpoint=next((d["Value"] for d in data if d["Key"] == "end_point_being_investigated_assessed_by_the_test"), None),
-            endpoint_outcome=next((d["Value"] for d in data if d["Key"] == "metric_s_used_to_assess_end_point_outcome_response"), None),
-            sop=next((d["Value"] for d in data if d["Key"] == "sop_s_for_test_ref_project_or_other_doc_title_id"), None),
-            path=next((d["Value"] for d in data if d["Key"] == "path_link_to_sop_protocol_on_proj_server_web_where_applic"), None),
+        wp = WorkPackageData(
+            wp_name=self._find_value(scanned, "project_work_package"),
+            partner=self._find_value(scanned, "partner_conducting_test_assay"),
+            laboratory_name=self._find_value(scanned, "test_facility_laboratory_name"),
+            full_test_name=self._find_value(scanned, "full_name_of_test_assay_add_oecd_test_ref_id_if_app"),
+            test_acronym=self._find_value(scanned, "short_name_or_acronym_for_test_assay"),
+            test_type=self._find_value(scanned, "type_or_class_of_experimental_test_as_used_here"),
+            endpoint=self._find_value(scanned, "end_point_being_investigated_assessed_by_the_test"),
+            endpoint_outcome=self._find_value(scanned, "metric_s_used_to_assess_end_point_outcome_response"),
+            sop=self._find_value(scanned, "sop_s_for_test_ref_project_or_other_doc_title_id"),
+            path=self._find_value(scanned, "path_link_to_sop_protocol_on_proj_server_web_where_applic"),
             lead_scientists=lead_scientists,
-            assay_scientists=assay_scientists
+            assay_scientists=assay_scientists,
         )
-        return asdict(wp_data)
+        return asdict(wp)
 
     def extract_material_data(self):
-        data = []
-        expected_keys = [
-            "sample_cms_internal_identifier",
-            "erm_identifier_number",
-            "material_name",
-            "core_chemistry",
-            "cas_no",
-            "cas_for_core",
-            "material_supplier",
-            "material_state",
-            "batch",
-            "date_of_sample_preparation_for_tests",
-            "molar_concentration",
-            "number_of_particles_in_stock"
+        scanned = self._scan_info_kv()
+        expected = [
+            "sample_cms_internal_identifier", "erm_identifier_number", "material_name",
+            "core_chemistry", "cas_no", "cas_for_core", "material_supplier",
+            "material_state", "batch", "date_of_sample_preparation_for_tests",
+            "molar_concentration", "number_of_particles_in_stock",
         ]
-        unmatched_keys = set(expected_keys)
-        potential_matches = []
-
-        for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
-            key_cell = row[0].value
-            if not key_cell:
-                continue
-            raw_key = str(key_cell)
-            key = self.normalize_key(raw_key)
-            if not key:
-                continue
-
-            value = None
-            for col_idx in range(1, 5):
-                if col_idx < len(row) and row[col_idx].value is not None:
-                    value = row[col_idx].value
-                    break
-
-            if key in expected_keys:
-                unmatched_keys.discard(key)
-                data.append({"Key": key, "Value": value})
-            else:
-                for expected_key in expected_keys:
-                    similarity = SequenceMatcher(None, key, expected_key).ratio()
-                    if similarity > 0.85:
-                        unmatched_keys.discard(expected_key)
-                        data.append({"Key": expected_key, "Value": value})
-                    elif similarity > 0.5:
-                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' similarity={similarity:.2f}")
-
-        if unmatched_keys:
-            logger.warning(f"Unmatched material data keys: {unmatched_keys}")
-
-        material_data = MaterialData(
-            material_identifier=next((d["Value"] for d in data if d["Key"] == "sample_cms_internal_identifier"), None),
-            erm_id=next((d["Value"] for d in data if d["Key"] == "erm_identifier_number"), None),
-            material_name=next((d["Value"] for d in data if d["Key"] == "material_name"), None),
-            core_chemistry=next((d["Value"] for d in data if d["Key"] == "core_chemistry"), None),
-            cas=next((d["Value"] for d in data if d["Key"] == "cas_no"), None),
-            cas_for_core=next((d["Value"] for d in data if d["Key"] == "cas_for_core"), None),
-            supplier=next((d["Value"] for d in data if d["Key"] == "material_supplier"), None),
-            material_state=next((d["Value"] for d in data if d["Key"] == "material_state"), None),
-            batch=next((d["Value"] for d in data if d["Key"] == "batch"), None),
-            preparation_date=self.excel_date_to_string(next((d["Value"] for d in data if d["Key"] == "date_of_sample_preparation_for_tests"), None)),
-            molar_concentration=next((d["Value"] for d in data if d["Key"] == "molar_concentration"), None),
-            particles_stock=next((d["Value"] for d in data if d["Key"] == "number_of_particles_in_stock"), None)
+        r = self._fuzzy_resolve(scanned, expected)
+        material = MaterialData(
+            material_identifier=r["sample_cms_internal_identifier"],
+            erm_id=r["erm_identifier_number"],
+            material_name=r["material_name"],
+            core_chemistry=r["core_chemistry"],
+            cas=r["cas_no"],
+            cas_for_core=r["cas_for_core"],
+            supplier=r["material_supplier"],
+            material_state=r["material_state"],
+            batch=r["batch"],
+            preparation_date=self.excel_date_to_string(r["date_of_sample_preparation_for_tests"]),
+            molar_concentration=r["molar_concentration"],
+            particles_stock=r["number_of_particles_in_stock"],
         )
-        return asdict(material_data)
+        return asdict(material)
 
     def extract_sample_preparation_data(self):
-        data = []
-        expected_keys = [
+        scanned = self._scan_info_kv()
+        expected = [
             "specify_standard_dispersion_protocol_used",
             "or_otherwise_specify_dispersion_technique_used",
-            "dispersion_dilution_medium",
-            "sonicator_type",
-            "power_w",
-            "sonication_time_secs",
-            "tip_thickness_mm",
-            "tip_composition",
-            "size_of_ultrasonic_bath_water_volume_dm3",
-            "sample_volume",
-            "final_sample_concentration_mg_l_or_ppm",
-            "additional_information"
+            "dispersion_dilution_medium", "sonicator_type", "power_w",
+            "sonication_time_secs", "tip_thickness_mm", "tip_composition",
+            "size_of_ultrasonic_bath_water_volume_dm3", "sample_volume",
+            "final_sample_concentration_mg_l_or_ppm", "additional_information",
         ]
-        unmatched_keys = set(expected_keys)
-        potential_matches = []
-
-        for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
-            key_cell = row[0].value
-            if not key_cell:
-                continue
-            raw_key = str(key_cell)
-            key = self.normalize_key(raw_key)
-            if not key:
-                continue
-
-            value = None
-            for col_idx in range(1, 5):
-                if col_idx < len(row) and row[col_idx].value is not None:
-                    value = row[col_idx].value
-                    break
-
-            if key in expected_keys:
-                unmatched_keys.discard(key)
-                data.append({"Key": key, "Value": value})
-            else:
-                for expected_key in expected_keys:
-                    similarity = SequenceMatcher(None, key, expected_key).ratio()
-                    if similarity > 0.85:
-                        unmatched_keys.discard(expected_key)
-                        data.append({"Key": expected_key, "Value": value})
-                    elif similarity > 0.5:
-                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' similarity={similarity:.2f}")
-
-        if unmatched_keys:
-            logger.warning(f"Unmatched sample preparation data keys: {unmatched_keys}")
-
-        sample_preparation_data = SamplePreparationData(
-            dispersion_protocol=next((d["Value"] for d in data if d["Key"] == "specify_standard_dispersion_protocol_used"), None),
-            dispersion_technique=next((d["Value"] for d in data if d["Key"] == "or_otherwise_specify_dispersion_technique_used"), None),
-            dispersion_medium=next((d["Value"] for d in data if d["Key"] == "dispersion_dilution_medium"), None),
-            sonicator_type=next((d["Value"] for d in data if d["Key"] == "sonicator_type"), None),
-            power=next((d["Value"] for d in data if d["Key"] == "power_w"), None),
-            sonication_time=next((d["Value"] for d in data if d["Key"] == "sonication_time_secs"), None),
-            tip_thickness=next((d["Value"] for d in data if d["Key"] == "tip_thickness_mm"), None),
-            tip_composition=next((d["Value"] for d in data if d["Key"] == "tip_composition"), None),
-            ultrasonic_bath_size=next((d["Value"] for d in data if d["Key"] == "size_of_ultrasonic_bath_water_volume_dm3"), None),
-            sample_volume=next((d["Value"] for d in data if d["Key"] == "sample_volume"), None),
-            final_concentration=next((d["Value"] for d in data if d["Key"] == "final_sample_concentration_mg_l_or_ppm"), None),
-            additional_info=next((d["Value"] for d in data if d["Key"] == "additional_information"), None)
+        r = self._fuzzy_resolve(scanned, expected)
+        sp = SamplePreparationData(
+            dispersion_protocol=r["specify_standard_dispersion_protocol_used"],
+            dispersion_technique=r["or_otherwise_specify_dispersion_technique_used"],
+            dispersion_medium=r["dispersion_dilution_medium"],
+            sonicator_type=r["sonicator_type"],
+            power=r["power_w"],
+            sonication_time=r["sonication_time_secs"],
+            tip_thickness=r["tip_thickness_mm"],
+            tip_composition=r["tip_composition"],
+            ultrasonic_bath_size=r["size_of_ultrasonic_bath_water_volume_dm3"],
+            sample_volume=r["sample_volume"],
+            final_concentration=r["final_sample_concentration_mg_l_or_ppm"],
+            additional_info=r["additional_information"],
         )
-        return asdict(sample_preparation_data)
+        return asdict(sp)
 
     def extract_instrumentation_data(self):
-        data = []
-        expected_keys = [
-            "sims_instrumentation_model_and_company",
-            "primary_ions",
-            "detector",
-            "measurement_technique",
-            "mass_resolution",
-            "mass_range",
-            "scan_area"
+        scanned = self._scan_info_kv()
+        expected = [
+            "sims_instrumentation_model_and_company", "primary_ions", "detector",
+            "measurement_technique", "mass_resolution", "mass_range", "scan_area",
         ]
-        unmatched_keys = set(expected_keys)
-        potential_matches = []
-
-        for row_idx, row in enumerate(self.ws.iter_rows(min_row=1, max_col=5), start=1):
-            key_cell = row[0].value
-            if not key_cell:
-                continue
-            raw_key = str(key_cell)
-            key = self.normalize_key(raw_key)
-            if not key:
-                continue
-
-            value = None
-            for col_idx in range(1, 5):
-                if col_idx < len(row) and row[col_idx].value is not None:
-                    value = row[col_idx].value
-                    break
-
-            if key in expected_keys:
-                unmatched_keys.discard(key)
-                data.append({"Key": key, "Value": value})
-            else:
-                for expected_key in expected_keys:
-                    similarity = SequenceMatcher(None, key, expected_key).ratio()
-                    if similarity > 0.85:
-                        unmatched_keys.discard(expected_key)
-                        data.append({"Key": expected_key, "Value": value})
-                    elif similarity > 0.5:
-                        potential_matches.append(f"Potential match for '{expected_key}': '{raw_key}' similarity={similarity:.2f}")
-
-        if unmatched_keys:
-            logger.warning(f"Unmatched instrumentation data keys: {unmatched_keys}")
-
-        instrumentation_data = SIMSInstrumentationData(
-            instrument_specs=next((d["Value"] for d in data if d["Key"] == "sims_instrumentation_model_and_company"), None),
-            primary_ions=next((d["Value"] for d in data if d["Key"] == "primary_ions"), None),
-            detector=next((d["Value"] for d in data if d["Key"] == "detector"), None),
-            measurement_technique=next((d["Value"] for d in data if d["Key"] == "measurement_technique"), None),
-            mass_resolution=next((d["Value"] for d in data if d["Key"] == "mass_resolution"), None),
-            mass_range=next((d["Value"] for d in data if d["Key"] == "mass_range"), None),
-            scan_area=next((d["Value"] for d in data if d["Key"] == "scan_area"), None)
+        r = self._fuzzy_resolve(scanned, expected)
+        instr = SIMSInstrumentationData(
+            instrument_specs=r["sims_instrumentation_model_and_company"],
+            primary_ions=r["primary_ions"],
+            detector=r["detector"],
+            measurement_technique=r["measurement_technique"],
+            mass_resolution=r["mass_resolution"],
+            mass_range=r["mass_range"],
+            scan_area=r["scan_area"],
         )
-        return asdict(instrumentation_data)
+        return asdict(instr)
 
     def extract_replication(self):
+        test_identifier = None
         start_date = None
         end_date = None
-        test_identifier = None
         replication_count = None
-        for row in self.ws.iter_rows():
-            key_cell = row[0].value
-            if key_cell and 'test identifier number' in str(key_cell).lower():
-                test_identifier = row[1].value
-                start_date = self.excel_date_to_string(row[2].value)
-                end_date = self.excel_date_to_string(row[3].value)
-            if key_cell and 'replication' in str(key_cell).lower():
-                replication_count = int(row[1].value) if row[1].value is not None else None
+        for row in self._info_rows:
+            key_cell = row[0]
+            if not key_cell:
+                continue
+            key_lower = str(key_cell).lower()
+            if 'test identifier number' in key_lower:
+                test_identifier = row[1]
+                start_date = self.excel_date_to_string(row[2])
+                end_date = self.excel_date_to_string(row[3])
+            if 'replication' in key_lower:
+                try:
+                    replication_count = int(row[1]) if row[1] is not None else None
+                except (TypeError, ValueError):
+                    replication_count = None
         if test_identifier is None:
             logger.warning("Could not find test identifier number in Test Information sheet.")
         return ReplicationData(
             test_identifier_number=test_identifier,
             test_start_date=start_date,
             test_end_date=end_date,
-            replication_count=replication_count
+            replication_count=replication_count,
         )
 
-    def extract_raw_data(self, raw_sheet_name: str):
-        match = re.search(r'R(\d+)', raw_sheet_name)
-        run_number = int(match.group(1)) if match else 0
-
+    # ---------------------- Raw / Processed / Final ----------------------
+    def extract_raw_data(self, raw_sheet_name: str) -> SIMSRawData:
         if raw_sheet_name not in self.wb.sheetnames:
             logger.error(f"Raw data sheet {raw_sheet_name} not found")
+            return SIMSRawData()
 
         raw_ws = self.wb[raw_sheet_name]
-        negative_ions = []
-        positive_ions = []
+        negative_ions: List[SIMSRawIon] = []
+        positive_ions: List[SIMSRawIon] = []
 
-        # Extract negative ions from rows 3 to 35796, columns A (1), B (2), C (3)
-        for row_idx in range(3, 35797):
-            neg_channel = raw_ws.cell(row=row_idx, column=1).value
-            if neg_channel is None:
+        # Single streamed pass. Cols A,B,C = neg (idx 0,1,2); Q,R,S = pos (idx 16,17,18).
+        # values_only=True returns plain tuples, much faster than cell objects.
+        neg_done = False
+        pos_done = False
+        for row in raw_ws.iter_rows(min_row=3, max_col=19, values_only=True):
+            # Pad if the row is shorter than expected
+            if len(row) < 19:
+                row = tuple(row) + (None,) * (19 - len(row))
+
+            # Negative ion
+            if not neg_done:
+                neg_channel = row[0]
+                if neg_channel is None:
+                    neg_done = True
+                else:
+                    try:
+                        negative_ions.append(SIMSRawIon(
+                            channel=int(neg_channel),
+                            mass=round(float(row[1]), 6) if row[1] is not None else None,
+                            intensity=int(row[2]) if row[2] is not None else None,
+                        ))
+                    except (ValueError, TypeError):
+                        pass
+
+            # Positive ion
+            if not pos_done:
+                pos_channel = row[16]
+                if pos_channel is None:
+                    pos_done = True
+                else:
+                    try:
+                        positive_ions.append(SIMSRawIon(
+                            channel=int(pos_channel),
+                            mass=round(float(row[17]), 6) if row[17] is not None else None,
+                            intensity=int(row[18]) if row[18] is not None else None,
+                        ))
+                    except (ValueError, TypeError):
+                        pass
+
+            if neg_done and pos_done:
                 break
-            try:
-                negative_ions.append(SIMSRawIon(
-                    channel=int(neg_channel),
-                    mass=round(float(raw_ws.cell(row=row_idx, column=2).value), 6) if raw_ws.cell(row=row_idx, column=2).value else None,
-                    intensity=int(raw_ws.cell(row=row_idx, column=3).value) if raw_ws.cell(row=row_idx, column=3).value else None
-                ))
-            except (ValueError, TypeError):
-                pass
 
-        # Extract positive ions from rows 3 to 16036, columns Q (17), R (18), S (19)
-        for row_idx in range(3, 16037):
-            pos_channel = raw_ws.cell(row=row_idx, column=17).value
-            if pos_channel is None:
-                break
-            try:
-                positive_ions.append(SIMSRawIon(
-                    channel=int(pos_channel),
-                    mass=round(float(raw_ws.cell(row=row_idx, column=18).value), 6) if raw_ws.cell(row=row_idx, column=18).value else None,
-                    intensity=int(raw_ws.cell(row=row_idx, column=19).value) if raw_ws.cell(row=row_idx, column=19).value else None
-                ))
-            except (ValueError, TypeError):
-                pass
+        return SIMSRawData(negative_ions=negative_ions, positive_ions=positive_ions)
 
-        return SIMSRawData(
-            negative_ions=negative_ions,
-            positive_ions=positive_ions
-        )
-
-    def extract_processed_data(self, processed_sheet_name: str):
-        match = re.search(r'R(\d+)', processed_sheet_name)
-        run_number = int(match.group(1)) if match else 0
-
+    def extract_processed_data(self, processed_sheet_name: str) -> SIMSProcessedData:
         if processed_sheet_name not in self.wb.sheetnames:
             logger.error(f"Processed data sheet {processed_sheet_name} not found")
+            return SIMSProcessedData()
 
         proc_ws = self.wb[processed_sheet_name]
-        negative_ions = []
-        positive_ions = []
+        # Pull rows 1..26 once into memory (tiny). row[0] is row 1.
+        rows = list(proc_ws.iter_rows(min_row=1, max_row=26, max_col=3, values_only=True))
+        # Pad short rows
+        rows = [tuple(r) + (None,) * (3 - len(r)) if len(r) < 3 else r[:3] for r in rows]
+
+        negative_ions: List[SIMSProcessedIon] = []
+        positive_ions: List[SIMSProcessedIon] = []
         total_negative_counts = None
         total_positive_counts = None
 
-        # Extract negative ions from rows 2 to 11, columns B (2) mass, C (3) counts
-        for row_idx in range(2, 12):
-            neg_mass = proc_ws.cell(row=row_idx, column=2).value
-            neg_counts = proc_ws.cell(row=row_idx, column=3).value
-            if neg_mass is not None and neg_mass != '':
+        # Negative ions: rows 2..11 (Excel) -> rows[1..10] (0-indexed)
+        for r in rows[1:11]:
+            mass, counts = r[1], r[2]
+            if mass is not None and mass != '':
                 try:
                     negative_ions.append(SIMSProcessedIon(
-                        mass=round(float(neg_mass), 2),
-                        counts=int(neg_counts) if neg_counts else None
+                        mass=round(float(mass), 2),
+                        counts=int(counts) if counts is not None else None,
                     ))
                 except (ValueError, TypeError):
                     pass
 
-        # Total negative counts at row 13, column C (3)
-        total_negative_counts = int(proc_ws.cell(row=13, column=3).value) if proc_ws.cell(row=13, column=3).value else None
+        # Total negative counts at Excel row 13 -> rows[12]
+        if len(rows) > 12 and rows[12][2] is not None:
+            try:
+                total_negative_counts = int(rows[12][2])
+            except (ValueError, TypeError):
+                total_negative_counts = None
 
-        # Extract positive ions from rows 17 to 24, columns B (2) mass, C (3) counts
-        for row_idx in range(17, 25):
-            pos_mass = proc_ws.cell(row=row_idx, column=2).value
-            pos_counts = proc_ws.cell(row=row_idx, column=3).value
-            if pos_mass is not None and pos_mass != '':
+        # Positive ions: Excel rows 17..24 -> rows[16..23]
+        for r in rows[16:24]:
+            mass, counts = r[1], r[2]
+            if mass is not None and mass != '':
                 try:
                     positive_ions.append(SIMSProcessedIon(
-                        mass=round(float(pos_mass), 2),
-                        counts=int(pos_counts) if pos_counts else None
+                        mass=round(float(mass), 2),
+                        counts=int(counts) if counts is not None else None,
                     ))
                 except (ValueError, TypeError):
                     pass
 
-        # Total positive counts at row 26, column C (3)
-        total_positive_counts = int(proc_ws.cell(row=26, column=3).value) if proc_ws.cell(row=26, column=3).value else None
+        # Total positive counts at Excel row 26 -> rows[25]
+        if len(rows) > 25 and rows[25][2] is not None:
+            try:
+                total_positive_counts = int(rows[25][2])
+            except (ValueError, TypeError):
+                total_positive_counts = None
 
         return SIMSProcessedData(
             negative_ions=negative_ions,
             positive_ions=positive_ions,
             total_negative_counts=total_negative_counts,
-            total_positive_counts=total_positive_counts
+            total_positive_counts=total_positive_counts,
         )
 
-    def extract_final_results(self):
-        final_sheet_name = [name for name in self.wb.sheetnames if "Final results" in name][0] if any("Final results" in name for name in self.wb.sheetnames) else None
+    def extract_final_results(self) -> SIMSFinalResults:
+        final_sheet_name = next(
+            (n for n in self.wb.sheetnames if "Final results" in n), None
+        )
         if not final_sheet_name:
             logger.error("Final Results sheet not found")
             return SIMSFinalResults()
 
         final_ws = self.wb[final_sheet_name]
-        negative_ions = []
-        positive_ions = []
+        # Stream rows 4..8, columns B..J. iter_rows works in read_only;
+        # range syntax (final_ws['B4:J4']) does NOT.
+        rows = list(final_ws.iter_rows(
+            min_row=4, max_row=8, min_col=2, max_col=10, values_only=True
+        ))
+        # rows[0] = Excel row 4 (neg masses)
+        # rows[1] = Excel row 5 (neg fragments)
+        # rows[3] = Excel row 7 (pos masses)
+        # rows[4] = Excel row 8 (pos fragments)
+        if len(rows) < 5:
+            return SIMSFinalResults()
 
-        neg_masses = final_ws['B4:J4'][0] if final_ws['B4:J4'] else []
-        neg_fragments = final_ws['B5:J5'][0] if final_ws['B5:J5'] else []
-        pos_masses = final_ws['B7:J7'][0] if final_ws['B7:J7'] else []
-        pos_fragments = final_ws['B8:J8'][0] if final_ws['B8:J8'] else []
-
-        for mass, fragment in zip(neg_masses, neg_fragments):
-            if mass.value is not None and fragment.value is not None:
+        negative_ions: List[SIMSFinalIon] = []
+        for mass, fragment in zip(rows[0], rows[1]):
+            if mass is not None and fragment is not None:
                 try:
                     negative_ions.append(SIMSFinalIon(
-                        mass=round(float(mass.value), 2),
-                        fragment=str(fragment.value)
+                        mass=round(float(mass), 2),
+                        fragment=str(fragment),
                     ))
                 except (ValueError, TypeError):
                     pass
 
-        for mass, fragment in zip(pos_masses, pos_fragments):
-            if mass.value is not None and fragment.value is not None:
+        positive_ions: List[SIMSFinalIon] = []
+        for mass, fragment in zip(rows[3], rows[4]):
+            if mass is not None and fragment is not None:
                 try:
                     positive_ions.append(SIMSFinalIon(
-                        mass=round(float(mass.value), 2),
-                        fragment=str(fragment.value)
+                        mass=round(float(mass), 2),
+                        fragment=str(fragment),
                     ))
                 except (ValueError, TypeError):
                     pass
 
-        return SIMSFinalResults(
-            negative_ions=negative_ions,
-            positive_ions=positive_ions
-        )
+        return SIMSFinalResults(negative_ions=negative_ions, positive_ions=positive_ions)
 
+    # ---------------------- Orchestrator ----------------------
     def parse_all_data(self) -> Dict[str, Union[Dict, List]]:
         try:
-            work_package_data = self.extract_work_package_data()
-            material_data = self.extract_material_data()
-            sample_preparation_data = self.extract_sample_preparation_data()
-            instrumentation_data = self.extract_instrumentation_data()
-            replication = self.extract_replication()
-
             parsed_data = {
                 'test_details': {
-                    'work_package': work_package_data,
-                    'material': material_data,
-                    'sample_preparation': sample_preparation_data,
-                    'instrumentation': instrumentation_data
+                    'work_package': self.extract_work_package_data(),
+                    'material': self.extract_material_data(),
+                    'sample_preparation': self.extract_sample_preparation_data(),
+                    'instrumentation': self.extract_instrumentation_data(),
                 },
-                'replication': asdict(replication),
+                'replication': asdict(self.extract_replication()),
                 'replications': [],
                 'processed_data': [],
-                'final_results': asdict(self.extract_final_results())
+                'final_results': asdict(self.extract_final_results()),
             }
 
-            raw_sheets = [name for name in self.wb.sheetnames if name.startswith("Raw data_WP2_SIMS_")]
-            processed_sheets = [name for name in self.wb.sheetnames if name.startswith("Processed data_WP2_SIMS_")]
+            raw_sheets = [n for n in self.wb.sheetnames if n.startswith("Raw data_WP2_SIMS_")]
+            processed_sheets = [n for n in self.wb.sheetnames if n.startswith("Processed data_WP2_SIMS_")]
 
             for raw_name in raw_sheets:
                 parsed_data['replications'].append(asdict(self.extract_raw_data(raw_name)))
-
             for proc_name in processed_sheets:
                 parsed_data['processed_data'].append(asdict(self.extract_processed_data(proc_name)))
 
@@ -588,6 +557,12 @@ class SIMSParser:
         except Exception as e:
             logger.error(f"Error parsing Excel file: {e}\n{traceback.format_exc()}")
             raise
+        finally:
+            try:
+                self.wb.close()
+            except Exception:
+                pass
+
 
 def parse_excel_sims(file_path: str, sheet_name: str = "Test Information") -> Dict[str, Union[Dict, List]]:
     try:
@@ -597,12 +572,9 @@ def parse_excel_sims(file_path: str, sheet_name: str = "Test Information") -> Di
         logger.error(f"Error in parse_excel_sims: {e}\n{traceback.format_exc()}")
         raise
 
+
 if __name__ == "__main__":
-    file_path = "backend/data/WP2_SIMS_2aR1.xlsx"
-    try:
-        parsed_data = parse_excel_sims(file_path)
-        print(parsed_data['test_details'])
-        #print(parsed_data['replications'])
-        #print(parsed_data['processed_data'])
-    except Exception as e:
-        print(f"Error: {e}")
+    import sys
+    file_path = sys.argv[1] if len(sys.argv) > 1 else "/Users/ayushkhandelwal/Documents/chemat-sustain/backend/data/WP2_SIMS_21aR1.xlsx"
+    parsed = parse_excel_sims(file_path)
+    print(parsed['test_details'])

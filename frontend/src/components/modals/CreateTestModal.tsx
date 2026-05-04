@@ -69,7 +69,7 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
     "CMS_30a_CH_TER"
   ]
 
-  const testNames = ['MTT','DLS','FTIR','HR-STEM','UV-VIS','ZETA','SIMS','ROS','UPS','XPS','TB','XRD','DSC','TGA','MNT']; // Static test names
+  const testNames = ['MTT','DLS','FTIR','HR-STEM','UV-VIS','ZETA','SIMS','ROS','UPS','XPS','TB','TB Microfludic','XRD','DSC','TGA','MNT']; // Static test names
 
   const handleToggleChange = (key: ReleaseKey) => {
     setRelease(prev => ({

@@ -10,6 +10,7 @@ import ZetaDataViewer from '@/components/tests/zeta/page';
 import SIMSDataViewer from '@/components/tests/sims/page';
 import ROSDataViewer from '@/components/tests/ros/page';
 import TBDataViewer from '@/components/tests/tb/page';
+import TBMDataViewer from '@/components/tests/tbm/page';
 import UPSDataViewer from '@/components/tests/ups/page';
 import XPSDataViewer from '@/components/tests/xps/page';
 import XRDDataViewer from '@/components/tests/xrd/page';
@@ -62,6 +63,9 @@ const DynamicRoutePage: FC<PageProps> = async ({ params }) => {
   }
   if (test.toLocaleLowerCase() === "tb"){
     return (<TBDataViewer work_package={work_package} element={element} test={test} file={""}></TBDataViewer>)
+  }
+  if (test.toLocaleLowerCase() === "TB Microfludic"){
+    return (<TBMDataViewer work_package={work_package} element={element} test={test} file={""}></TBMDataViewer>)
   }
   if (test.toLocaleLowerCase() === "ups"){
     return (<UPSDataViewer work_package={work_package} element={element} test={test} file={""}></UPSDataViewer>)

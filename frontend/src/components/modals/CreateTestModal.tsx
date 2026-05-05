@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '@/lib/axios';
 
 interface CreateTestModalProps {
@@ -8,75 +8,113 @@ interface CreateTestModalProps {
   onClose: () => void;
   onTestCreated: () => void;
 }
-export type ReleaseKey = 'release_test_details' | 'release_raw_data' | 'release_processed_data' | 'release_final_results' | 'release_statistical_analysis';
 
-export default function CreateTestModal({ isOpen, onClose, onTestCreated }: CreateTestModalProps) {
+export type ReleaseKey =
+  | 'release_test_details'
+  | 'release_raw_data'
+  | 'release_processed_data'
+  | 'release_final_results'
+  | 'release_statistical_analysis';
+
+// ============================================================================
+// Test type configuration
+// ----------------------------------------------------------------------------
+// `value` is the canonical identifier sent to the backend and used in URLs.
+// It MUST match the keys in the backend PARSERS dict and the frontend route
+// dispatch (lowercased).
+//
+// `label` is the user-facing display string. Change this freely without
+// touching the backend or routing — only the dropdown will update.
+// ============================================================================
+export const testTypes: { value: string; label: string }[] = [
+  { value: 'MTT',            label: 'MTT' },
+  { value: 'DLS',            label: 'DLS' },
+  { value: 'FTIR',           label: 'FTIR' },
+  { value: 'HR-STEM',        label: 'HR-STEM' },
+  { value: 'UV-VIS',         label: 'UV-VIS' },
+  { value: 'ZETA',           label: 'Zeta Potential' },
+  { value: 'SIMS',           label: 'SIMS' },
+  { value: 'ROS',            label: 'ROS' },
+  { value: 'UPS',            label: 'UPS' },
+  { value: 'XPS',            label: 'XPS' },
+  { value: 'TB',             label: 'Trypan Blue' },
+  { value: 'TB-Microfludic', label: 'TB Microfluidic' },
+  { value: 'XRD',            label: 'XRD' },
+  { value: 'DSC',            label: 'DSC' },
+  { value: 'TGA',            label: 'TGA' },
+  { value: 'MNT',            label: 'MNT' },
+];
+
+export const workPackages = ['WP2', 'WP3', 'WP4'];
+
+export const elements = [
+  'CMS_1a_AuNP',
+  'CMS_1c_AuNP',
+  'CMS_2a_AuNP',
+  'CMS_2c_AuNP',
+  'CMS_3a_AuNP',
+  'CMS_4a_AuNP',
+  'CMS_4b_AuNP',
+  'CMS_5a_AuNP',
+  'CMS_5b_AuNP',
+  'CMS_6a_AuNP',
+  'CMS_6b_AuNP',
+  'CMS_7b_AgNP',
+  'CMS_8b_AgNP',
+  'CMS_9b_AgNP',
+  'CMS_10b_AgNP',
+  'CMS_11b_AgNP',
+  'CMS_12b_AgNP',
+  'CMS_13a_AgNR',
+  'CMS_14a_AgNR',
+  'CMS_15a_TNR',
+  'CMS_16a_TMR',
+  'CMS_17a_TNA',
+  'CMS_18a_TNA',
+  'CMS_19a_NC',
+  'CMS_20a_MC',
+  'CMS_21a_DG4',
+  'CMS_22a_DG5',
+  'CMS_23a_DG6',
+  'CMS_24a_PS1',
+  'CMS_25a_PS2',
+  'CMS_26a_CH_CIT',
+  'CMS_26b_CH_CIT',
+  'CMS_27a_CH_PEG',
+  'CMS_27d_CH_PEG',
+  'CMS_28a_CH_PVP',
+  'CMS_28b_CH_PVP',
+  'CMS_29a_CH_TOR',
+  'CMS_30a_CH_TER',
+];
+
+export default function CreateTestModal({
+  isOpen,
+  onClose,
+  onTestCreated,
+}: CreateTestModalProps) {
   const [workPackageName, setWorkPackageName] = useState('WP2');
   const [elementCmsId, setElementCmsId] = useState('CMS_1a_AuNP');
-  const [testName, setTestName] = useState('MTT');
+  const [testName, setTestName] = useState(testTypes[0].value);
   const [isPublic, setIsPublic] = useState(false);
   const [release, setRelease] = useState({
     release_test_details: false,
     release_raw_data: false,
     release_processed_data: false,
     release_final_results: false,
-    release_statistical_analysis: false
-  })
-  const [testResult, setTestResult] = useState("null")
+    release_statistical_analysis: false,
+  });
+  const [testResult, setTestResult] = useState('null');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const workPackages = ['WP2', 'WP3', 'WP4'];
-  const elements = [
-    "CMS_1a_AuNP",
-    "CMS_1c_AuNP",
-    "CMS_2a_AuNP",
-    "CMS_2c_AuNP",
-    "CMS_3a_AuNP",
-    "CMS_4a_AuNP",
-    "CMS_4b_AuNP",
-    "CMS_5a_AuNP",
-    "CMS_5b_AuNP",
-    "CMS_6a_AuNP",
-    "CMS_6b_AuNP",
-    "CMS_7b_AgNP",
-    "CMS_8b_AgNP",
-    "CMS_9b_AgNP",
-    "CMS_10b_AgNP",
-    "CMS_11b_AgNP",
-    "CMS_12b_AgNP",
-    "CMS_13a_AgNR",
-    "CMS_14a_AgNR",
-    "CMS_15a_TNR",
-    "CMS_16a_TMR",
-    "CMS_17a_TNA",
-    "CMS_18a_TNA",
-    "CMS_19a_NC",
-    "CMS_20a_MC",
-    "CMS_21a_DG4",
-    "CMS_22a_DG5",
-    "CMS_23a_DG6",
-    "CMS_24a_PS1",
-    "CMS_25a_PS2",
-    "CMS_26a_CH_CIT",
-    "CMS_26b_CH_CIT",
-    "CMS_27a_CH_PEG",
-    "CMS_27d_CH_PEG",
-    "CMS_28a_CH_PVP",
-    "CMS_28b_CH_PVP",
-    "CMS_29a_CH_TOR",
-    "CMS_30a_CH_TER"
-  ]
-
-  const testNames = ['MTT','DLS','FTIR','HR-STEM','UV-VIS','ZETA','SIMS','ROS','UPS','XPS','TB','TB Microfludic','XRD','DSC','TGA','MNT']; // Static test names
-
   const handleToggleChange = (key: ReleaseKey) => {
-    setRelease(prev => ({
+    setRelease((prev) => ({
       ...prev,
-      [key]: !prev[key]
-    }))
-  }
+      [key]: !prev[key],
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,20 +126,18 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
     formData.append('element_cms_id', elementCmsId);
     formData.append('test_name', testName);
     formData.append('is_public', String(isPublic));
-    formData.append("test_result", testResult)
-    Object.keys(release).map((key) => {
-      const releaseKey = key as ReleaseKey
-      formData.append(key, String(release[releaseKey]))
-    })
+    formData.append('test_result', testResult);
+    Object.keys(release).forEach((key) => {
+      const releaseKey = key as ReleaseKey;
+      formData.append(key, String(release[releaseKey]));
+    });
     if (file) {
       formData.append('file', file);
     }
 
     try {
       await api.post('/tests', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       onTestCreated();
       onClose();
@@ -135,6 +171,7 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
                 ))}
               </select>
             </div>
+
             <div>
               <label htmlFor="elementCmsId" className="block text-sm font-medium text-gray-700">
                 Element
@@ -150,6 +187,7 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
                 ))}
               </select>
             </div>
+
             <div>
               <label htmlFor="testName" className="block text-sm font-medium text-gray-700">
                 Test Name
@@ -160,13 +198,14 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
                 onChange={(e) => setTestName(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
-                {testNames.map((name) => (
-                  <option key={name} value={name}>{name}</option>
+                {testTypes.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
             </div>
+
             <div>
-              <label htmlFor="testName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="testResult" className="block text-sm font-medium text-gray-700">
                 Test Result
               </label>
               <select
@@ -175,11 +214,12 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
                 onChange={(e) => setTestResult(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
-                <option key="NA" value={"null"}>NA</option>
-                <option key="PASS" value={"true"}>Pass</option>
-                <option key="FAIL" value={"false"}>Fail</option>
+                <option value="null">NA</option>
+                <option value="true">Pass</option>
+                <option value="false">Fail</option>
               </select>
             </div>
+
             <div>
               <label htmlFor="file" className="block text-sm font-medium text-gray-700">
                 Test Data File (Optional)
@@ -191,6 +231,7 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
                 className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
             </div>
+
             <div className="flex items-center">
               <input
                 id="isPublic"
@@ -204,6 +245,7 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
               </label>
             </div>
           </div>
+
           <div className="mt-4">
             {Object.keys(release).map((key) => {
               const releaseKey = key as ReleaseKey;
@@ -220,7 +262,7 @@ export default function CreateTestModal({ isOpen, onClose, onTestCreated }: Crea
                     <span className="ms-3 text-sm font-medium">{key}</span>
                   </label>
                 </div>
-              )
+              );
             })}
           </div>
 

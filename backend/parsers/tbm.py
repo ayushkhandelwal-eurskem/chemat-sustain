@@ -764,6 +764,6 @@ def parse_excel_tbm(file_path: str, sheet_name: str = "Test_conditions") -> Dict
 
 
 if __name__ == "__main__":
-    file_path = "/mnt/data/CMS_WP3_TB_1a_AuNP.xlsx"
+    file_path = "backend/data/CMS_WP3_TB_10b_AgNP.xlsx"
     parsed_data = parse_excel_tbm(file_path)
     print(json.dumps(parsed_data, indent=2, default=str)[:12000])

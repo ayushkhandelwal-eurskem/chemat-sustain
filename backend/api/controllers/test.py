@@ -50,8 +50,7 @@ router = APIRouter(tags=["tests"])
 
 # ============================ Parser registry ============================
 # Single source of truth. Add a new test type here and both create + update
-# pick it up automatically. No more 15-arm if/elif chain duplicated across
-# endpoints.
+# pick it up automatically.
 PARSERS: Dict[str, Callable[[str], dict]] = {
     "MTT": parse_excel_mtt,
     "DLS": parse_excel_dls,
@@ -68,7 +67,7 @@ PARSERS: Dict[str, Callable[[str], dict]] = {
     "DSC": parse_excel_dsc,
     "TGA": parse_excel_tga,
     "MNT": parse_excel_mnt,
-    "TB Microfludic": parse_excel_tbm
+    "TB-Microfludic": parse_excel_tbm,
 }
 
 ALLOWED_EXTENSIONS = (".xlsx", ".xls")
@@ -78,9 +77,6 @@ ALLOWED_EXTENSIONS = (".xlsx", ".xls")
 def clean_for_json(obj: Any) -> Any:
     """
     Coerce a parsed-data structure into JSON-safe primitives.
-
-    Replaces the old `json.loads(json.dumps(obj, default=str))` round-trip,
-    which was costing real CPU on SIMS payloads (700k+ ion records).
     Walks the structure once and converts the few non-JSON-native types
     we actually have.
     """
@@ -125,10 +121,7 @@ def validate_excel_filename(filename: Optional[str]) -> None:
 def save_and_parse(upload_file, test_name: str) -> tuple[str, dict]:
     """
     Persist the uploaded file to disk and run the appropriate parser.
-
-    Returns (saved_path, parsed_data). On any parse/save failure, removes
-    the saved file before re-raising as a 400. This keeps the temp-file
-    cleanup logic in one place instead of duplicated across endpoints.
+    On any parse/save failure, removes the saved file before re-raising.
     """
     validate_excel_filename(upload_file.filename)
     parser = get_parser(test_name)
@@ -200,7 +193,6 @@ async def create_test(
     try:
         return await service.create_test(test_data)
     except Exception:
-        # If DB write fails after we already saved the file, don't orphan it.
         if saved_path:
             delete_file(saved_path)
         raise
@@ -216,15 +208,12 @@ async def update_test(
     """Update a test with optional Excel file upload."""
     logger.info(f"Updating test with ID: {test_id}")
 
-    # Always fetch the current test so we can clean up its old file later.
     current_test = await service.get_test_by_id(test_id)
 
     saved_path: Optional[str] = None
     file_payload: dict = {}
 
     if request.file:
-        # Use the explicit test_name from the request, or fall back to the
-        # current test's test_name if the caller didn't include it.
         effective_test_name = request.test_name or current_test.test_name
         saved_path, file_data = save_and_parse(request.file, effective_test_name)
         file_payload = build_payload_from_parse(file_data)
@@ -253,14 +242,10 @@ async def update_test(
     try:
         result = await service.update_test(test_id, update_data)
     except Exception:
-        # Roll back the new file on DB failure.
         if saved_path:
             delete_file(saved_path)
         raise
 
-    # Only delete the old file after the DB update succeeds AND a new file
-    # was uploaded. Otherwise we'd nuke the existing file on a metadata-only
-    # PUT.
     if saved_path and current_test.file_path:
         delete_file(current_test.file_path)
 
@@ -303,6 +288,7 @@ async def get_tests(
     per_page: int = Query(10, ge=1, le=100),
     work_package_name: Optional[str] = Query(None),
     element_cms_id: Optional[str] = Query(None),
+    test_name: Optional[str] = Query(None),
     is_public: Optional[bool] = Query(None),
     service: TestService = Depends(get_test_service),
     admin: Role = Depends(get_user_by_role(Role.admin)),
@@ -314,6 +300,7 @@ async def get_tests(
         limit=per_page,
         work_package_name=work_package_name,
         element_cms_id=element_cms_id,
+        test_name=test_name,
         is_public=is_public,
     )
     return TestListResponse(

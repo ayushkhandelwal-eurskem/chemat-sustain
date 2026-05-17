@@ -17,6 +17,7 @@ import XRDDataViewer from '@/components/tests/xrd/page';
 import DSCDataViewer from '@/components/tests/dsc/page';
 import TGADataViewer from '@/components/tests/tga/page';
 import MNTDataViewer from '@/components/tests/mnt/page';
+import RotifierDataViewer from '@/components/tests/rotifier/page';
 
 interface PageProps {
   params: Promise<{
@@ -54,6 +55,7 @@ const VIEWERS: Record<string, FC<ViewerProps>> = {
   "dsc": DSCDataViewer,
   "tga": TGADataViewer,
   "mnt": MNTDataViewer,
+  "rotifier": RotifierDataViewer,
 };
 
 const DynamicRoutePage: FC<PageProps> = async ({ params }) => {

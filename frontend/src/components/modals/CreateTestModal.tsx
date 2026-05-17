@@ -43,6 +43,7 @@ export const testTypes: { value: string; label: string }[] = [
   { value: 'DSC',            label: 'DSC' },
   { value: 'TGA',            label: 'TGA' },
   { value: 'MNT',            label: 'MNT' },
+  { value: 'Rotifier',       label: 'Rotifier' },
 ];
 
 export const workPackages = ['WP2', 'WP3', 'WP4'];

@@ -12,8 +12,6 @@ import {
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -1300,7 +1298,7 @@ const RotifierDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         Mortality (%) by Concentration
                       </h3>
                       <ResponsiveContainer width="100%" height={360}>
-                        <LineChart
+                        <BarChart
                           data={finalChartData}
                           margin={{
                             top: 15,
@@ -1308,6 +1306,7 @@ const RotifierDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             left: 20,
                             bottom: 40,
                           }}
+                          barCategoryGap="20%"
                         >
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis
@@ -1332,18 +1331,14 @@ const RotifierDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                           <Tooltip />
                           <Legend />
                           {finalTimeLabels.map((tl, i) => (
-                            <Line
+                            <Bar
                               key={tl}
-                              type="monotone"
                               dataKey={tl}
-                              stroke={COLORS[i % COLORS.length]}
-                              strokeWidth={2}
-                              dot={{ r: 4 }}
-                              connectNulls
+                              fill={COLORS[i % COLORS.length]}
                               name={tl}
                             />
                           ))}
-                        </LineChart>
+                        </BarChart>
                       </ResponsiveContainer>
                     </div>
                   )}

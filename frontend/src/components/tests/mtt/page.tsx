@@ -1655,7 +1655,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         <td></td>
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">Log(x)</td>
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center">x</td>
-                        <td className="px-2 py-1 border border-gray-300 font-bold text-center"></td>
+                        <td className="px-2 py-1 border border-gray-300 font-bold text-center">Unit (nanoparticles/mL)</td>
                       </tr>
                       <tr>
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC10</td>
@@ -1664,7 +1664,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
-                        <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
+                        <td className="px-2 py-1 border border-gray-300 text-center">no of particles x10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup>/mL</td>
                       </tr>
                       <tr>
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC25</td>
@@ -1673,7 +1673,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
-                        <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
+                        <td className="px-2 py-1 border border-gray-300 text-center">no of particles x10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup>/mL</td>
                       </tr>
                       <tr>
                         <td className="px-2 py-1 border border-gray-300 font-bold text-center bg-green-200">EC50</td>
@@ -1682,7 +1682,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                             {typeof conc === "number" ? conc.toFixed(2) : conc}
                           </td>
                         ))}
-                        <td className="px-2 py-1 border border-gray-300 text-center">μg/mL</td>
+                        <td className="px-2 py-1 border border-gray-300 text-center">no of particles x10<sup>{getExponent(data.test_details.material.treatment_concentration_unit)}</sup>/mL</td>
                       </tr>
 
                     </tbody>

@@ -22,13 +22,14 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       - db
     ports:
-      - "127.0.0.1:8000:8000"   # ONLY for local development. Remove in production.  
+      - "127.0.0.1:8000:8000"
     networks:
       - app-network
-    # NO host port mapping. nginx proxies to it internally.
     deploy:
       resources:
         limits:

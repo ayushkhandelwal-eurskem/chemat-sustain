@@ -42,6 +42,7 @@ from parsers.tga import parse_excel_tga
 from parsers.mnt import parse_excel_mnt
 from parsers.tbm import parse_excel_tbm
 from parsers.rotifier import parse_excel_rotifier
+from parsers.waterflea import parse_excel_waterflea
 
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -70,6 +71,7 @@ PARSERS: Dict[str, Callable[[str], dict]] = {
     "MNT": parse_excel_mnt,
     "TB-Microfludic": parse_excel_tbm,
     "Rotifier": parse_excel_rotifier,
+    "WaterFlea": parse_excel_waterflea,
 }
 
 ALLOWED_EXTENSIONS = (".xlsx", ".xls")

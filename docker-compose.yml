@@ -58,12 +58,13 @@ services:
       - backend
     ports:
       - "80:80"
-      - "443:443"     # ONLY nginx faces the internet
+      - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/ssl/certs/origin.pem:/etc/ssl/certs/origin.pem:ro
+      - /etc/ssl/private/origin.key:/etc/ssl/private/origin.key:ro
     networks:
       - app-network
-
 volumes:
   pgdata:
 

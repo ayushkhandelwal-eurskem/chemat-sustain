@@ -27,15 +27,9 @@ const WelcomeHeader: React.FC = () => {
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium tracking-wide uppercase text-blue-600 mb-1">
-            CheMatSustain Database
-          </p>
           <h1 className="text-3xl font-bold text-slate-900">
             Welcome{user?.email ? `, ${user.email.split('@')[0]}` : ''}
           </h1>
-          <p className="text-slate-500 mt-1">
-            Search nanomaterial toxicology and characterization data.
-          </p>
         </div>
         {user && (
           <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">

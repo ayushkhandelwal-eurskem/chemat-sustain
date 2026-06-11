@@ -16,13 +16,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const router = useRouter();
 
   useEffect(() => {
-    // Only check auth if it's required and we haven't checked yet
-    if (requireAuth && !user && !loading) {
-      checkAuth();
-    }
-  }, [requireAuth, user, loading, checkAuth]);
-
-  useEffect(() => {
     // Redirect to login if auth is required but user is not authenticated
     if (!loading && requireAuth && !user) {
       router.push('/login');

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '@/lib/axios';
 
 interface User {
@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const [loading, setLoading] = useState(!skipInitialCheck);
   const [hasCheckedAuth, setHasCheckedAuth] = useState(skipInitialCheck);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get('/users/me');
@@ -57,13 +57,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  // Force refresh auth state (useful after login)
-  const refreshAuth = async () => {
+  }, []);
+  
+  const refreshAuth = useCallback(async () => {
     setHasCheckedAuth(false);
     await checkAuth();
-  };
+  }, [checkAuth]);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {

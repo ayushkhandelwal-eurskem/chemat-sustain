@@ -1,5 +1,5 @@
-import TestNavigationTree from "@/components/protocols/TestNavigation";
+import ProtocolBrowser from "@/components/protocols/ProtocolBrowser";
 
-export default function TestNavigationPage() {
-  return <TestNavigationTree />;
+export default function ProtocolsPage() {
+  return <ProtocolBrowser />;
 }

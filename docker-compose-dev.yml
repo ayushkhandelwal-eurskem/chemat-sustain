@@ -34,11 +34,13 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       PYTHONPATH: /app
+      PROTOCOL_FILE_DIR: /app/protocol_files
     ports:
       - "8001:8000"
     volumes:
       - ./backend:/app  # Mount source code
       - /app/__pycache__  # Exclude cache
+      - ./backend/protocol_files:/app/protocol_files  # Uploaded SOP files (dev)
     develop:
       watch:
         - action: sync
@@ -48,6 +50,7 @@ services:
             - __pycache__/
             - "*.pyc"
             - .git/
+            - protocol_files/
         - action: rebuild
           path: ./backend/requirements.txt
     networks:

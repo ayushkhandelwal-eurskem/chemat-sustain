@@ -26,10 +26,14 @@ services:
       - .env
     depends_on:
       - db
+    environment:
+      - PROTOCOL_FILE_DIR=/app/protocol_files
     ports:
       - "127.0.0.1:8000:8000"
     networks:
       - app-network
+    volumes:
+      - /home/chematsustain/protocol_files:/app/protocol_files
     deploy:
       resources:
         limits:

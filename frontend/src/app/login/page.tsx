@@ -119,7 +119,7 @@ const LoginPage: React.FC = () => {
                     autoComplete="current-password"
                     required
                     className="w-full px-3 py-2.5 border border-blue-900/30 rounded-md text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />

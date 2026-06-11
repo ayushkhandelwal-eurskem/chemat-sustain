@@ -282,7 +282,7 @@ class MTTParser:
             batch=next((d["Value"] for d in data if d["Key"] == "batch"), None),
             preparation_date=next((d["Value"] for d in data if d["Key"] == "date_of_preparation_"), None),
             endotoxin_absent=next((d["Value"] for d in data if d["Key"] == "endotoxin_confirmed_as_absent_"), None),
-            particles_stock=next((d["Value"].split()[0] for d in data if d["Key"] == "no_of_particles_in_stock_"), None),
+            particles_stock = next((d["Value"].split()[0] for d in data if d.get("Key") == "no_of_particles_in_stock_" and d.get("Value")), None),
             aids_to_disperse=next((d["Value"] for d in data if d["Key"] == "aids_used_to_disperse_"), None),
             time_point_unit=next((d["Value"] for d in data if d["Key"] == "time_point_unit_"), None),
             treatment_concentration_unit=next((d["Value"] for d in data if d["Key"] == "treatment_concentration_series_unit_"), None),
@@ -864,7 +864,7 @@ def parse_excel_mtt(file_path, sheet_name="Test_conditions"):
 
 # Example usage
 if __name__ == "__main__":
-    file_path = "backend/data/CMS_WP3_MTT_21a_FINAL.xlsx"
+    file_path = "backend/data/CMS_WP3_MTT_19a_FINAL_DB.xlsx"
     parsed_data = parse_excel_mtt(file_path)
     print("Parsed Data Keys:", parsed_data.keys())
 

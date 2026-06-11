@@ -118,8 +118,9 @@ export default function Header() {
           <NavLink href="/">Home</NavLink>
 
           <DropdownMenu title="Selected chemicals & nanomaterials (CNM's) data">
-            <DropdownItem href="/analytics">Data about selected CNM’s</DropdownItem>
-            <DropdownItem href="/data">Experimental data</DropdownItem>
+            <DropdownItem href="/cnm">List of CNMs</DropdownItem>
+            <DropdownItem href="/data">Experimental Data</DropdownItem>
+            <DropdownItem href="/analytics">Protocols</DropdownItem>
           </DropdownMenu>
           <NavLink href="/prediction">Prediction model (QSAR)</NavLink>
 

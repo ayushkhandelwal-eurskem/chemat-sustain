@@ -147,7 +147,7 @@ const CNMPage: FC = () => {
           <section className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="mb-4">
               <div>
-                <h2 className="text-xl font-bold text-blue-900">Material identifiers</h2>
+                <h2 className="text-xl font-bold text-blue-900">Chemicals & Nanomaterials</h2>
                 <p className="text-sm text-blue-900/60">
                   {filteredIdentifiers.length} of {IDENTIFIERS.length} materials
                 </p>

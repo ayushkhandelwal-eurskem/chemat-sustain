@@ -215,8 +215,15 @@ const ExperimentalDataPage: FC = () => {
       const testTypes: TestTypeGroup[] = [];
       let total = 0;
       for (const [testName, { label, materials }] of typeMap.entries()) {
-        testTypes.push({ testName, label, materials });
-        total += materials.length;
+        const sortedMaterials = [...materials].sort((a, b) =>
+          a.element_cms_id.localeCompare(b.element_cms_id, undefined, {
+            numeric: true,
+            sensitivity: 'base',
+          })
+        );
+      
+        testTypes.push({ testName, label, materials: sortedMaterials });
+        total += sortedMaterials.length;
       }
       // sort by display label
       testTypes.sort((a, b) => a.label.localeCompare(b.label));

@@ -201,6 +201,17 @@ async def create_test(
             delete_file(saved_path)
         raise
 
+@router.get("/catalog")
+async def get_catalog(
+    service: TestService = Depends(get_test_service),
+    is_private_user: bool = Depends(check_if_private_user),
+):
+    """
+    Lightweight index of all test records for the Experimental Data catalog
+    page. Returns only work_package_name, element_cms_id, test_name and
+    material_name — never the heavy data columns.
+    """
+    return await service.get_catalog(is_private_user)
 
 @router.put("/{test_id}")
 async def update_test(

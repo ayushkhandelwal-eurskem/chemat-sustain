@@ -149,6 +149,7 @@ class TestService:
         await self.db.refresh(test)
         return test
 
+
     async def delete_test(self, test_id: int) -> bool:
         """Delete a test."""
         test = await self.get_test_by_id(test_id)
@@ -168,6 +169,51 @@ class TestService:
         """Get only public tests."""
         return await self.get_tests(skip=skip, limit=limit, is_public=True)
 
+    async def get_catalog(self, is_private_user: bool = True):
+        """
+        Lightweight index for the Experimental Data catalog page.
+        Returns work_package_name, element_cms_id, test_name, material_name,
+        and the three material identifiers (CMS / ERM / CAS) used by the
+        display rule. Heavy JSON columns are never selected.
+ 
+        Public/anonymous viewers (is_private_user False) see only public tests.
+        """
+        stmt = select(
+            Test.work_package_name,
+            Test.element_cms_id,
+            Test.test_name,
+            Test.test_details,   # small JSON; heavy columns excluded
+        )
+ 
+        if not is_private_user:
+            stmt = stmt.where(Test.is_public.is_(True))
+ 
+        result = await self.db.execute(stmt)
+ 
+        out = []
+        for wp, el, tn, details in result.all():
+            material_name = None
+            cms_id = None
+            erm_id = None
+            cas_no = None
+            if isinstance(details, dict):
+                material = details.get("material")
+                if isinstance(material, dict):
+                    material_name = material.get("material_name")
+                    cms_id = material.get("material_identifier")
+                    erm_id = material.get("erm_id")
+                    cas_no = material.get("cas_no")
+            out.append({
+                "work_package_name": wp,
+                "element_cms_id": el,
+                "test_name": tn,
+                "material_name": material_name,
+                "cms_id": cms_id,
+                "erm_id": erm_id,
+                "cas_no": cas_no,
+            })
+        return out
+    
     async def bulk_update_release_flags(
         self,
         test_ids: List[int],

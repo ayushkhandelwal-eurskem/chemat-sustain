@@ -88,7 +88,7 @@ export default function Header() {
 
           <DropdownMenu title="Selected chemicals & nanomaterials (CNM's) data">
             <DropdownItem href="/cnm">List of CNMs</DropdownItem>
-            <DropdownItem href="/edata">Experimental Data</DropdownItem>
+            <DropdownItem href="/data">Experimental Data</DropdownItem>
             <DropdownItem href="/protocols">Protocols</DropdownItem>
           </DropdownMenu>
           <NavLink href="/prediction">Prediction model (QSAR)</NavLink>
@@ -263,18 +263,39 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   );
 }
 
-// Component for dropdown menus
+// Component for dropdown menus — opens on click/tap (works on touch devices,
+// unlike hover which doesn't exist on phones/tablets).
 function DropdownMenu({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="relative group">
+    <div className="relative" ref={ref}>
       <button
         type="button"
         className="flex items-center px-3 py-2 text-sm font-medium text-blue-900 hover:bg-blue-50 rounded-md transition-colors"
-        aria-expanded="false"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((v) => !v)}
       >
         {title}
         <svg
-          className="ml-1 h-4 w-4 text-blue-600 group-hover:text-blue-800 transition-colors"
+          className="ml-1 h-4 w-4 text-blue-600 transition-transform"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
           viewBox="0 0 20 20"
           fill="currentColor"
         >
@@ -286,11 +307,16 @@ function DropdownMenu({ title, children }: { title: string; children: React.Reac
         </svg>
       </button>
 
-      <div className="absolute left-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-        <div className="py-1">
-          {children}
+      {open && (
+        <div
+          className="absolute left-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
+          onClick={() => setOpen(false)}
+        >
+          <div className="py-1">
+            {children}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

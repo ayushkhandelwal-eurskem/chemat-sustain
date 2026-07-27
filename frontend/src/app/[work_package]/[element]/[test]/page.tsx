@@ -19,6 +19,7 @@ import TGADataViewer from '@/components/tests/tga/page';
 import MNTDataViewer from '@/components/tests/mnt/page';
 import RotifierDataViewer from '@/components/tests/rotifier/page';
 import WaterFleaDataViewer from '@/components/tests/waterplea/page';
+import AlgaeDataViewer from '@/components/tests/algae/page';
 
 interface PageProps {
   params: Promise<{
@@ -58,6 +59,7 @@ const VIEWERS: Record<string, FC<ViewerProps>> = {
   "mnt": MNTDataViewer,
   "rotifier": RotifierDataViewer,
   "waterflea": WaterFleaDataViewer,
+  "algae": AlgaeDataViewer,
 };
 
 const DynamicRoutePage: FC<PageProps> = async ({ params }) => {

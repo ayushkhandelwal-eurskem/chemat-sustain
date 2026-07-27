@@ -45,6 +45,7 @@ export const testTypes: { value: string; label: string }[] = [
   { value: 'MNT',            label: 'MNT' },
   { value: 'Rotifier',       label: 'Rotifier' },
   { value: 'WaterFlea',      label: 'Water Flea' },
+  { value: 'Algae',          label: 'Algae' },
 ];
 
 export const workPackages = ['WP2', 'WP3', 'WP4'];

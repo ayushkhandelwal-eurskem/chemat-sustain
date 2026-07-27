@@ -674,6 +674,7 @@ class AlgaeParser:
             "validity": validity,
             "statistics": stats,
             "ec50": ec50,
+            "calibration_curve": self.extract_calibration_curve(),
         }
 
     # ---------- ALL ---------- #
@@ -693,7 +694,6 @@ class AlgaeParser:
                 "replications": self.extract_raw_data(),
                 "processed_data": self.extract_processed_data(),
                 "final_results": self.extract_final_results(),
-                "calibration_curve": self.extract_calibration_curve(),
             }
         except Exception as e:
             logger.error(f"Error parsing data: {e}\n{traceback.format_exc()}")
@@ -716,7 +716,7 @@ def parse_excel_algae(file_path: str, sheet_name: str = "Test Details") -> Dict:
 
 if __name__ == "__main__":
     import sys
-    fp = sys.argv[1] if len(sys.argv) > 1 else "backend/data/CMS_WP3_Algae toxicity_1a_DB.xlsx"
+    fp = sys.argv[1] if len(sys.argv) > 1 else "backend/data/CMS_WP3_Algae_toxicity_1a_DB.xlsx"
     d = parse_excel_algae(fp)
     td = d["test_details"]
     print("=== ALGAE PARSE SUMMARY ===")
@@ -725,7 +725,7 @@ if __name__ == "__main__":
     print(f"Raw data blocks (timepoints): {len(d['replications'])}")
     print(f"Processed blocks: {len(d['processed_data'].get('blocks', []))}")
     print(f"Final growth points: {len(d['final_results'].get('growth_curve', []))}")
-    print(f"Calibration points: {len(d['calibration_curve'].get('concentrations', []))}")
+    print(f"Calibration points: {len(d['final_results'].get('calibration_curve', {}).get('concentrations', []))}")
     print(f"Parser warnings: {td['parser_warnings']}")
     print("\n=== JSON PREVIEW ===")
     print(json.dumps(d, indent=2, default=str)[:12000])

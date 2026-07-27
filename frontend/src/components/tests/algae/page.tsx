@@ -4,18 +4,19 @@ import { api } from "@/lib/axios";
 import { Download, ChevronDown, ChevronUp, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ScatterChart, Scatter,
+  ResponsiveContainer, Scatter, ComposedChart, ErrorBar,
 } from "recharts";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 interface PageProps { work_package: string; element: string; test: string; file?: string; }
-type TabKey = "test-conditions" | "raw-data" | "processed-data" | "results";
+type TabKey = "test-conditions" | "raw-data" | "processed-data" | "calibration" | "results";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "test-conditions", label: "Test Conditions" },
   { key: "raw-data", label: "Raw Data" },
   { key: "processed-data", label: "Processed Data" },
+  { key: "calibration", label: "Calibration Curve" },
   { key: "results", label: "Final Results" },
 ];
 
@@ -86,6 +87,7 @@ interface FinalResults {
     equality_of_slopes_label?: string; equality_of_slopes?: string;
   };
   ec50?: { label?: string; description?: string; value?: string };
+  calibration_curve?: CalibrationCurve;
 }
 interface ParserWarning { toString?: () => string; }
 
@@ -270,7 +272,7 @@ const AlgaeDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   const warnings = td?.parser_warnings ?? [];
   const proc = data?.processed_data;
   const fr = data?.final_results;
-  const calib = data?.calibration_curve ?? proc?.calibration_curve;
+  const calib = fr?.calibration_curve ?? data?.calibration_curve ?? proc?.calibration_curve;
 
   const currentRaw = safeRawBlocks[rawIdx];
 
@@ -281,14 +283,33 @@ const AlgaeDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     }));
   }, [fr?.growth_curve]);
 
-  /* -------- calibration scatter data -------- */
+  /* -------- calibration data --------
+     The stored equation is the RFU→cells conversion used in Processed Data:
+       cells = slope * RFU + intercept   (slope≈10892, intercept≈-5967.5)
+     For a chart with x = cells/mL and y = RFU we invert it:
+       RFU_fit = (cells - intercept) / slope
+  */
   const calibChart = useMemo(() => {
     if (!calib?.concentrations?.length || !calib?.replicate_rfu?.length) return [];
+    const slope = typeof calib.slope === "number" ? calib.slope : null;
+    const intercept = typeof calib.intercept === "number" ? calib.intercept : null;
     return calib.concentrations.map((conc, ci) => {
       const rfus = calib.replicate_rfu!.map((row) => row[ci]).filter((v): v is number => typeof v === "number");
       const mean = rfus.length ? rfus.reduce((a, b) => a + b, 0) / rfus.length : null;
-      return { conc, rfu: mean };
+      const sd = rfus.length > 1 && mean != null
+        ? Math.sqrt(rfus.reduce((s, v) => s + (v - mean) ** 2, 0) / (rfus.length - 1))
+        : 0;
+      const fit = slope && slope !== 0 && intercept != null ? (conc - intercept) / slope : null;
+      return { conc, rfu: mean, sd, fit };
     });
+  }, [calib]);
+
+  const calibReplicateRows = useMemo(() => {
+    if (!calib?.replicate_rfu?.length || !calib?.concentrations?.length) return [];
+    return calib.replicate_rfu.map((row, ri) => ({
+      label: `Replicate ${ri + 1}`,
+      values: calib.concentrations!.map((_, ci) => row[ci] ?? null),
+    }));
   }, [calib]);
 
   /* -------- render -------- */
@@ -705,21 +726,137 @@ const AlgaeDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               )}
             </CollapsibleSection>
           ))}
+        </>
+      )}
 
-          {/* Calibration curve chart */}
-          {calibChart.length > 0 && (
-            <CollapsibleSection title="Calibration Curve" open={false}>
-              {calib?.equation && <p className="font-mono text-sm mb-3">{calib.equation}</p>}
-              <ResponsiveContainer width="100%" height={320}>
-                <ScatterChart margin={{ top: 15, right: 30, left: 40, bottom: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" dataKey="conc" name="cells/mL" label={{ value: "cells/mL", position: "insideBottom", offset: -15 }} />
-                  <YAxis type="number" dataKey="rfu" name="RFU" label={{ value: "RFU (mean)", angle: -90, position: "insideLeft" }} />
-                  <Tooltip formatter={(v: any) => fmt(v, 3)} />
-                  <Scatter data={calibChart} fill={COLORS[0]} />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </CollapsibleSection>
+      {/* ============ CALIBRATION CURVE ============ */}
+      {activeTab === "calibration" && (
+        <>
+          {!calib?.available && !calibChart.length ? (
+            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+              <p className="text-gray-500">No calibration curve data available.</p>
+            </div>
+          ) : (
+            <>
+              {/* Equation / fit summary */}
+              <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 className="text-xl font-bold text-blue-800 mb-4">Calibration Equation</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-md md:col-span-3">
+                    <p className="text-sm text-gray-600 mb-1">Fitted equation (RFU → cells/mL)</p>
+                    <p className="text-lg font-mono font-semibold text-blue-900">{calib?.equation ?? "—"}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <p className="text-sm text-gray-600">Slope</p>
+                    <p className="text-lg font-bold">{fmt(calib?.slope, 2)}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <p className="text-sm text-gray-600">Intercept</p>
+                    <p className="text-lg font-bold">{fmt(calib?.intercept, 2)}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <p className="text-sm text-gray-600">Calibration points</p>
+                    <p className="text-lg font-bold">{calib?.concentrations?.length ?? 0}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  The equation converts a measured RFU into a cell concentration (cells/mL). The chart below plots the mean measured RFU
+                  at each known standard concentration, with the fitted line overlaid.
+                </p>
+              </div>
+
+              {/* Chart: measured means (scatter + error bars) vs fitted line */}
+              {calibChart.length > 0 && (
+                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                  <h2 className="text-xl font-bold text-blue-800 mb-4">Calibration Curve</h2>
+                  <ResponsiveContainer width="100%" height={420}>
+                    <ComposedChart data={calibChart} margin={{ top: 10, right: 30, left: 50, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        type="number"
+                        dataKey="conc"
+                        name="cells/mL"
+                        tickFormatter={(v: number) => v.toLocaleString()}
+                        label={{ value: "Concentration (cells/mL)", position: "insideBottom", offset: -10 }}
+                      />
+                      <YAxis
+                        type="number"
+                        name="RFU"
+                        label={{ value: "RFU (mean)", angle: -90, position: "insideLeft", offset: -10 }}
+                      />
+                      <Tooltip
+                        formatter={(v: any, name: string) => [typeof v === "number" ? fmt(v, 3) : v, name]}
+                        labelFormatter={(l: any) => `${Number(l).toLocaleString()} cells/mL`}
+                      />
+                      <Legend verticalAlign="top" align="center" height={32} wrapperStyle={{ paddingBottom: 8 }} />
+                      <Line
+                        type="linear"
+                        dataKey="fit"
+                        name="Fitted line"
+                        stroke="#000000"
+                        strokeWidth={2}
+                        strokeDasharray="6 4"
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                      <Scatter dataKey="rfu" name="Measured RFU (mean)" fill={COLORS[0]}>
+                        <ErrorBar dataKey="sd" width={4} strokeWidth={1.5} stroke="#dc2626" direction="y" />
+                      </Scatter>
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Data table: per-replicate RFU + mean/SD per concentration */}
+              <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-blue-800">Calibration Data</h2>
+                  <button onClick={() => downloadTableCSV("tbl-calibration", "Calibration_Curve")} className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+                    <Download size={16} /><span>Download</span>
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table id="tbl-calibration" className="min-w-full bg-white border border-gray-200 text-sm">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="py-2 px-3 border text-left">RFU</th>
+                        {(calib?.concentrations ?? []).map((c, i) => (
+                          <th key={i} className="py-2 px-3 border text-right">{c.toLocaleString()}</th>
+                        ))}
+                      </tr>
+                      <tr className="bg-gray-50">
+                        <th className="py-2 px-3 border text-left text-xs text-gray-500">cells/mL →</th>
+                        {(calib?.concentrations ?? []).map((_, i) => (
+                          <th key={i} className="py-2 px-3 border" />
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {calibReplicateRows.map((row, ri) => (
+                        <tr key={ri} className={ri % 2 === 1 ? "bg-gray-50" : ""}>
+                          <td className="py-2 px-3 border font-medium">{row.label}</td>
+                          {row.values.map((v, ci) => (
+                            <td key={ci} className="py-2 px-3 border text-right">{fmt(v, 3)}</td>
+                          ))}
+                        </tr>
+                      ))}
+                      <tr className="bg-blue-50 font-semibold">
+                        <td className="py-2 px-3 border">Mean</td>
+                        {calibChart.map((p, ci) => (
+                          <td key={ci} className="py-2 px-3 border text-right">{fmt(p.rfu, 3)}</td>
+                        ))}
+                      </tr>
+                      <tr className="bg-blue-50 font-semibold">
+                        <td className="py-2 px-3 border">SD</td>
+                        {calibChart.map((p, ci) => (
+                          <td key={ci} className="py-2 px-3 border text-right">{fmt(p.sd, 3)}</td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}

@@ -1,0 +1,6 @@
+# Container-image scan exceptions. Mirrors the pip-audit exceptions in
+# .github/workflows/security.yml and is fully justified in
+# docs/security/dependency-exceptions.md - do not add an entry here without
+# a corresponding entry there.
+CVE-2026-48818
+CVE-2026-54283

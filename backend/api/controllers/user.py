@@ -1,3 +1,5 @@
+import os
+
 from fastapi import Depends, HTTPException, status, Request, Response
 from utils.custom_router import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +14,10 @@ from api.services.user import (
 from utils.auth import get_current_user, get_user_by_role, create_session, invalidate_session
 from utils.db import get_db
 from api.models.user import User
+from utils.logging_config import get_logger
 from typing import List
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -50,28 +55,28 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
 @router.post("/verify-otp", response_model=MessageResponse)
 async def verify_otp_endpoint(otp_data: VerifyOTPRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     """Verify OTP code and create session"""
-    print(f"OTP verification attempt for email: {otp_data.email} with code: {otp_data.otp_code}")
-    
+    logger.info("OTP verification attempt received")
+
     # First check if user exists
     user = await get_user_by_email(db, otp_data.email)
     if not user:
-        print(f"User not found during OTP verification: {otp_data.email}")
+        logger.warning("OTP verification attempted for unknown user")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     # Verify OTP
     is_valid = await verify_otp(db, otp_data.email, otp_data.otp_code)
     if not is_valid:
-        print(f"OTP verification failed for user: {otp_data.email}")
+        logger.warning("OTP verification failed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired OTP"
         )
 
-    print(f"OTP verification successful for user: {otp_data.email}")
-    
+    logger.info("OTP verification succeeded")
+
     # Update last activity
     await update_last_activity(db=db, email=otp_data.email)
 
@@ -79,18 +84,18 @@ async def verify_otp_endpoint(otp_data: VerifyOTPRequest, request: Request, resp
     user_agent = request.headers.get("user-agent")
     ip_address = request.client.host if request.client else None
     session = await create_session(db, user.id, user_agent, ip_address)
-    
-    # Set session cookie
+
+    # Set session cookie. The session identifier itself is never logged.
     response.set_cookie(
         key="session_id",
         value=session.session_id,
         max_age=7*24*60*60,  # 7 days in seconds
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
+        secure=os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true",
         samesite="lax"
     )
-    
-    print(f"Session created successfully for user: {otp_data.email}")
+
+    logger.info("Session created for user")
     return MessageResponse(msg="Login successful")
 
 @router.post("/logout", response_model=MessageResponse)

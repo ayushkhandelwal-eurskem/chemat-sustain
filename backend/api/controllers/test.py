@@ -142,12 +142,12 @@ def save_and_parse(upload_file, test_name: str) -> tuple[str, dict]:
     except HTTPException:
         delete_file(path)
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception(f"Error parsing {test_name} file at {path}")
         delete_file(path)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error processing Excel file: {exc}",
+            detail="Error processing Excel file",
         )
 
 

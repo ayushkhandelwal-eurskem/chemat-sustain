@@ -2,4 +2,6 @@
 certs/
 .env
 data
-cms_backup_2026-06-06.sql*.sql
+backend/protocol_files/
+*backup*.sql
+*dump*.sql

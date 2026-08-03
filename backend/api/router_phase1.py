@@ -19,7 +19,7 @@ from security.files import resolve_beneath, safe_filename
 from security.tenant import get_tenant_db
 
 
-router = APIRouter(prefix="/api/v1", tags=["Phase 1 Research APIs"])
+router = APIRouter(prefix="/v1", tags=["Phase 1 Research APIs"])
 
 
 @router.get("/tests")

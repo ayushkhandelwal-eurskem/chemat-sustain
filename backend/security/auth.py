@@ -8,13 +8,39 @@ from typing import Any, Callable
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBasic,
+    HTTPBasicCredentials,
+    HTTPBearer,
+)
 from jwt import PyJWKClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import get_settings
 
 
+async def _db_session():
+    """Database dependency, imported lazily to avoid a circular import.
+
+    utils.db imports security.config, and security/__init__ imports this module,
+    so a top-level `from utils.db import get_db` here closes the loop and fails
+    at startup with "cannot import name 'get_db' from partially initialized
+    module". Deferring the import to call time breaks the cycle.
+    """
+    from utils.db import get_db
+
+    async for session in get_db():
+        yield session
+
+
 bearer = HTTPBearer(auto_error=False)
+
+# auto_error=False so a request with no Authorization header falls through to
+# the explicit 401 in get_principal rather than FastAPI raising first. That also
+# keeps the WWW-Authenticate header on unauthenticated responses as "Bearer",
+# which stops browsers popping up a Basic-auth login box on ordinary 401s.
+basic_auth = HTTPBasic(auto_error=False)
 
 
 @dataclass(frozen=True)
@@ -116,14 +142,36 @@ def decode_access_token(token: str) -> Principal:
 
 async def get_principal(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+    basic: HTTPBasicCredentials | None = Depends(basic_auth),
+    db: AsyncSession = Depends(_db_session),
 ) -> Principal:
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Bearer token required",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return decode_access_token(credentials.credentials)
+    """Resolve a caller to a Principal from either credential type.
+
+    Bearer (Keycloak OIDC) is the target mechanism. HTTP Basic accepts an
+    administrator-issued client_id/client_secret from the api_clients table and
+    produces an equivalent Principal, so partners can be given working access
+    before the OIDC cutover. Both paths converge here, which means scope checks,
+    tenant scoping and row-level security downstream cannot tell them apart and
+    cannot be bypassed by choosing one over the other.
+
+    Bearer is tried first: if a caller sends both, the stronger, expiring
+    credential wins.
+    """
+    if credentials is not None and credentials.scheme.lower() == "bearer":
+        return decode_access_token(credentials.credentials)
+
+    if basic is not None and basic.username and basic.password:
+        # Imported here rather than at module scope: security.api_key imports
+        # Principal from this module, so a top-level import would be circular.
+        from .api_key import authenticate_api_client
+
+        return await authenticate_api_client(db, basic.username, basic.password)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Bearer token or API client credentials required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def require_scopes(*required: str) -> Callable[..., Principal]:

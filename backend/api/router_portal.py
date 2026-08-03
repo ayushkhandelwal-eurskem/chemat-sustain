@@ -24,7 +24,7 @@ from security.keycloak_admin import KeycloakProvisioner
 from security.tenant import get_tenant_db
 
 
-router = APIRouter(prefix="/api/v1/portal", tags=["Developer Portal"])
+router = APIRouter(prefix="/v1/portal", tags=["Developer Portal"])
 APPROVAL_ROLES = {
     "api_owner": ApprovalRole.api_owner,
     "data_owner": ApprovalRole.data_owner,

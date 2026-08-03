@@ -93,6 +93,13 @@ from api.router_portal import router as portal_router
 app.include_router(phase1_router)
 app.include_router(portal_router)
 
+# Interim partner API credentials, managed from the existing admin session.
+# Mounted unconditionally: it is how partners get access before the Keycloak
+# cutover, and it is admin-only regardless of AUTH_MODE.
+from api.router_api_clients import router as api_clients_router
+
+app.include_router(api_clients_router)
+
 # Compatibility mode is explicitly unavailable in production. It exists only
 # to support a controlled migration of the current UI and old integrations.
 if settings.enable_legacy_api:

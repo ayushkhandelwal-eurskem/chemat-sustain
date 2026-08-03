@@ -281,22 +281,52 @@ async def delete_test(
     await service.delete_test(test_id)
 
 
+# NOTE: this must stay ABOVE the '/{test_id}' route below. FastAPI matches in
+# declaration order, so a single-segment literal path declared after
+# '/{test_id}' gets swallowed by it - which is why '/tests/public/' silently
+# 404'd with an int-parsing error until this was reordered.
+@router.get("/public/", response_model=TestListResponse)
+async def get_public_tests(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    service: TestService = Depends(get_test_service),
+):
+    """Get only public tests."""
+    skip = (page - 1) * per_page
+    tests, total = await service.get_public_tests(skip=skip, limit=per_page)
+    return TestListResponse(
+        tests=tests,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=math.ceil(total / per_page),
+    )
+
+
 @router.get("/{test_id}", response_model=TestResponse)
 async def get_test(
     test_id: int,
     service: TestService = Depends(get_test_service),
+    is_private_user: bool = Depends(check_if_private_user),
 ):
-    """Get a test by ID."""
-    return await service.get_test_by_id(test_id)
+    """Get a test by ID.
+
+    Anonymous callers get public records only, with unreleased fields masked.
+    Previously this endpoint had no privacy check at all and returned every
+    field of every record - including raw_data and processed_data for records
+    explicitly marked is_public = false.
+    """
+    return await service.get_test_by_id(test_id, is_private_user)
 
 
 @router.get("/name/{test_name}", response_model=TestResponse)
 async def get_test_by_name(
     test_name: str,
     service: TestService = Depends(get_test_service),
+    is_private_user: bool = Depends(check_if_private_user),
 ):
-    """Get a test by name."""
-    return await service.get_test_by_name(test_name)
+    """Get a test by name. Same privacy semantics as get_test."""
+    return await service.get_test_by_name(test_name, is_private_user)
 
 
 @router.get("/", response_model=TestListResponse)
@@ -361,27 +391,12 @@ async def update_test_json(
 async def get_tests_by_work_package(
     work_package_name: str,
     service: TestService = Depends(get_test_service),
+    is_private_user: bool = Depends(check_if_private_user),
 ):
-    """Get all tests for a specific work package."""
-    return await service.get_tests_by_work_package(work_package_name)
+    """Get all tests for a work package. Same privacy semantics as get_test."""
+    return await service.get_tests_by_work_package(work_package_name, is_private_user)
 
 
-@router.get("/public/", response_model=TestListResponse)
-async def get_public_tests(
-    page: int = Query(1, ge=1),
-    per_page: int = Query(10, ge=1, le=100),
-    service: TestService = Depends(get_test_service),
-):
-    """Get only public tests."""
-    skip = (page - 1) * per_page
-    tests, total = await service.get_public_tests(skip=skip, limit=per_page)
-    return TestListResponse(
-        tests=tests,
-        total=total,
-        page=page,
-        per_page=per_page,
-        total_pages=math.ceil(total / per_page),
-    )
 
 
 @router.patch("/bulk-release-flags", response_model=List[TestResponse])

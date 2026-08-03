@@ -154,14 +154,16 @@ The consortium deliberately releases some data, and the schema already carries a
 
 RLS is row-level, so it enforces level 1 only (migration `005`):
 
-- **Read:** `current_org_id() IS NOT NULL AND (organisation_id = current_org_id() OR is_public)`
+- **Read:** `organisation_id = current_org_id() OR is_public` — no tenant context required, because **`is_public` means public on the internet**. Anonymous access to released data is an existing product feature (`/tests/public/` and the catalogue endpoints serve unauthenticated callers by design).
 - **Write:** `organisation_id = current_org_id()` — always strict. Publication never confers write access, so a partner can never reach another partner's row by flipping flags; it cannot touch that row at all. Verified: a `tul` context sees a published `ulodz` row but updates 0 of them.
 
-⚠️ **The `IS NOT NULL` guard is load-bearing, not redundant.** The first version of this policy was `organisation_id = current_org_id() OR is_public` — with no tenant context the first clause is NULL but `is_public` still matched, so *any unscoped connection leaked every published row*. The isolation suite's no-context assertions (T1/T2) caught it. "Public" here means **consortium-public** — readable by any authenticated partner — **not anonymous**. Genuinely unauthenticated public access, if ever wanted, must be an explicit separate path (dedicated read-only role or view), never a side effect of a missing context.
+The security invariant is narrower than "nothing without a context", and it holds: an unscoped connection sees **only published rows, never unpublished ones**, because `current_org_id()` is NULL without context so the first clause matches nothing.
+
+> An earlier draft of this document asserted that "public" meant consortium-public and added a `current_org_id() IS NOT NULL` guard to the read policy. That was wrong — it would have broken anonymous access to released data — and has been reverted. The clarification is what prompted a proper review of the anonymous read paths, which immediately surfaced a **live critical vulnerability**: `GET /tests/{id}`, `/tests/name/{name}` and `/tests/work-package/{name}` had no authentication, no `is_public` filter and no field masking, exposing all 327 restricted records in production. See `incident-2026-08-unauthenticated-data-exposure.md`.
 
 **Publication is a governed action.** Releasing data is effectively irreversible once others hold copies, so a database trigger rejects any change to `is_public` or a `release_*` flag outside a governance context (set only when the verified token carries `data_owner`/`api_owner`/`security_approver`/`platform_admin`). Verified: an ordinary `tul` context attempting to publish its *own* row is rejected; the same change succeeds under a governance context. Note this trigger fires for superusers too — unlike RLS, triggers are not superuser-bypassed — so it cannot be sidestepped by connecting as `postgres`.
 
-**Outstanding application-layer obligation (Phase 6/7):** field-level masking. RLS cannot mask columns, so when a caller reads a published test their organisation does *not* own, the serializer must return each field only if its `release_*` flag is set. Until that exists, nothing should be published — `is_public = true` would currently expose every field of that row cross-tenant. Nothing is published today, so this is a guard-rail, not a live exposure.
+**Field-level masking is implemented** in `mask_test_for_public()` (`backend/api/services/test.py`), the single place that decision is made, since RLS cannot mask columns. Each field is returned only if its `release_*` flag is set, and `file_path` is always withheld. Verified end-to-end: a record published with only `release_final_results` returns `final_results` to an anonymous caller and withholds the other four payloads plus the file path.
 
 ## Other Phase 5 tables
 

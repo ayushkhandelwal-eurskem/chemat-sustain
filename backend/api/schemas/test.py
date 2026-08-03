@@ -8,7 +8,11 @@ class TestBase(BaseModel):
     work_package_name: str = Field(..., description="Work package name")
     element_cms_id: str = Field(..., description="Element CMS ID")
     test_name: str = Field(..., description="Unique test name")
-    file_path:str = Field(..., description="Path of the file")
+    # Optional to match the model, where file_path is nullable=True. It was
+    # declared required here, so any record without a stored file - or any
+    # response that deliberately withholds the path from a public caller -
+    # failed serialization with a 500.
+    file_path: Optional[str] = Field(None, description="Server-side file reference; withheld from public callers")
     test_details: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Test details in JSON format")
     raw_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Raw data in JSON format")
     processed_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Processed data in JSON format")

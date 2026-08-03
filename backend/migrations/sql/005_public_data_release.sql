@@ -30,24 +30,28 @@ BEGIN;
 -- ---------------------------------------------------------------------------
 -- Split the single FOR ALL policy on `tests` into read and write halves.
 --
--- READ:  requires a VALID tenant context, and then allows own organisation
---        or any row explicitly published.
+-- READ:  own organisation, OR any row explicitly published.
 -- WRITE: own organisation only, always - publication never grants anyone the
 --        ability to modify another tenant's row. A tenant therefore cannot
 --        reach another tenant's data by flipping flags, because it cannot
 --        touch that row at all.
 --
--- The `current_org_id() IS NOT NULL` guard matters and is not redundant.
--- Without it, `... OR is_public = TRUE` matches even when no tenant context is
--- set, so any unscoped connection would leak every published row - losing the
--- fail-closed property. "Public" here means consortium-public (readable by any
--- authenticated partner organisation), NOT anonymous. If genuinely
--- unauthenticated public access is ever wanted it must be an explicit,
--- separate path - a dedicated read-only role or view - never a side effect of
--- a missing tenant context.
+-- `is_public` here means PUBLIC ON THE INTERNET - anyone can read it, no
+-- authentication required. That is an existing product feature: /tests/public/
+-- and the catalogue endpoints intentionally serve anonymous callers. So the
+-- read policy must NOT require a tenant context, or anonymous access to
+-- released data would break.
 --
--- This was caught by backend/tests/sql/test_tenant_isolation.sql (T1/T2),
--- which is precisely why that suite asserts the no-context case.
+-- The security invariant this must preserve is narrower, and it holds here:
+-- an unscoped connection sees ONLY published rows, never unpublished ones.
+-- current_org_id() is NULL without context, so `organisation_id =
+-- current_org_id()` is NULL and matches nothing - the only rows that surface
+-- are those deliberately marked is_public. That is the intent, not a leak.
+--
+-- Row visibility is only half the control. Which FIELDS an anonymous caller
+-- receives is governed by the release_* flags and enforced in the application
+-- (mask_test_for_public in backend/api/services/test.py) - see the note at the
+-- end of this file.
 -- ---------------------------------------------------------------------------
 DROP POLICY IF EXISTS tenant_isolation ON tests;
 DROP POLICY IF EXISTS tests_read       ON tests;
@@ -55,10 +59,7 @@ DROP POLICY IF EXISTS tests_write      ON tests;
 
 CREATE POLICY tests_read ON tests
     FOR SELECT
-    USING (
-        current_org_id() IS NOT NULL
-        AND (organisation_id = current_org_id() OR is_public = TRUE)
-    );
+    USING (organisation_id = current_org_id() OR is_public = TRUE);
 
 CREATE POLICY tests_write ON tests
     FOR ALL
@@ -106,26 +107,26 @@ CREATE INDEX IF NOT EXISTS idx_tests_is_public ON tests (is_public) WHERE is_pub
 COMMIT;
 
 -- ===========================================================================
--- APPLICATION-LAYER OBLIGATION (field-level masking) - Phase 6/7
+-- FIELD-LEVEL MASKING - implemented in the application, since RLS cannot mask
+-- individual columns.
 --
--- RLS decides whether a row is visible; it cannot mask individual columns.
--- When a caller reads a published test that their organisation does NOT own,
--- the serializer must return each field only if its release flag is set:
+-- `mask_test_for_public()` in backend/api/services/test.py is the single place
+-- this decision is made. Every read path an unauthenticated caller can reach
+-- routes through it, returning each field only if its release flag is set:
 --
 --     test_details          -> only if release_test_details
 --     raw_data              -> only if release_raw_data
 --     processed_data        -> only if release_processed_data
 --     final_results         -> only if release_final_results
 --     statistical_analysis  -> only if release_statistical_analysis
+--     file_path             -> ALWAYS withheld (absolute server path)
 --
 -- The owning organisation always sees all of its own fields.
 --
--- Note that test_details is also the column the tenant backfill derives from
--- (test_details->work_package->partner), so it carries the producing partner's
--- identity - withholding it from non-owners when unreleased matters.
---
--- Until that masking exists, do NOT publish anything: is_public = true would
--- currently expose every field of that row cross-tenant. All 327 rows are
--- unpublished today, so nothing is exposed - this is a guard-rail note, not an
--- active vulnerability.
+-- This mattered: before it was centralised, only ONE of five read paths applied
+-- the release flags. GET /tests/{id}, /tests/name/{name} and
+-- /tests/work-package/{name} had no authentication and no is_public filter at
+-- all, so every restricted record was readable anonymously in production -
+-- confirmed live against database.eurskem.com before the fix. See
+-- docs/security/incident-2026-08-unauthenticated-data-exposure.md.
 -- ===========================================================================

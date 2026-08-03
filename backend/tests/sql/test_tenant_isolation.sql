@@ -41,27 +41,33 @@ BEGIN
     END IF;
 
     -- -------------------------------------------------------------------
-    -- T1: no tenant context => no rows. Fail-closed, not fail-open.
+    -- T1: with no tenant context, NO UNPUBLISHED row may be visible.
+    --
+    -- Published rows (is_public) ARE intentionally visible without a context -
+    -- "public" on this platform means public on the internet, and
+    -- /tests/public/ serves anonymous callers by design. The invariant that
+    -- matters is that unpublished data never surfaces.
     -- -------------------------------------------------------------------
     PERFORM set_config('app.current_org', '', true);
-    SELECT count(*) INTO n FROM tests;
+    SELECT count(*) INTO n FROM tests WHERE NOT is_public;
     IF n <> 0 THEN
-        RAISE WARNING 'T1 FAIL: % rows visible with no tenant context (expected 0)', n;
+        RAISE WARNING 'T1 FAIL: % UNPUBLISHED row(s) visible with no tenant context', n;
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T1 PASS: no context => 0 rows';
+        RAISE NOTICE 'T1 PASS: no context => no unpublished rows';
     END IF;
 
     -- -------------------------------------------------------------------
-    -- T2: a bogus tenant slug also yields nothing.
+    -- T2: an unknown tenant slug must not act as a wildcard - it grants no
+    -- more than no context at all.
     -- -------------------------------------------------------------------
     PERFORM set_config('app.current_org', 'no-such-org', true);
-    SELECT count(*) INTO n FROM tests;
+    SELECT count(*) INTO n FROM tests WHERE NOT is_public;
     IF n <> 0 THEN
-        RAISE WARNING 'T2 FAIL: % rows visible for unknown tenant slug', n;
+        RAISE WARNING 'T2 FAIL: % unpublished row(s) visible for unknown tenant slug', n;
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T2 PASS: unknown slug => 0 rows';
+        RAISE NOTICE 'T2 PASS: unknown slug => no unpublished rows';
     END IF;
 
     -- -------------------------------------------------------------------
@@ -121,18 +127,53 @@ BEGIN
     END;
 
     -- -------------------------------------------------------------------
-    -- T6b: published rows are readable cross-tenant, but ONLY with a valid
-    -- tenant context - a published row must never be visible to an unscoped
-    -- connection. Guards the regression fixed in 005.
+    -- T6b: publication actually works. A row marked is_public must be readable
+    -- with no tenant context at all (anonymous internet access), while its
+    -- unpublished neighbours stay hidden. Publish, assert both, roll back.
+    --
+    -- Note the governance context: the trigger in 005 refuses publication
+    -- changes without one, deliberately.
     -- -------------------------------------------------------------------
+    PERFORM set_config('app.platform_governance', 'on', true);
+    PERFORM set_config('app.current_org', 'ulodz', true);
+    UPDATE tests SET is_public = TRUE
+     WHERE id = (SELECT min(id) FROM tests WHERE organisation_id = org_a);
+    PERFORM set_config('app.platform_governance', 'off', true);
+
     PERFORM set_config('app.current_org', '', true);
     SELECT count(*) INTO n FROM tests WHERE is_public;
-    IF n <> 0 THEN
-        RAISE WARNING 'T6b FAIL: % published row(s) visible with NO tenant context', n;
+    IF n < 1 THEN
+        RAISE WARNING 'T6b FAIL: published row NOT visible anonymously (public access broken)';
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T6b PASS: published rows hidden from unscoped connections';
+        RAISE NOTICE 'T6b PASS: published row readable with no tenant context';
     END IF;
+
+    SELECT count(*) INTO n FROM tests WHERE NOT is_public;
+    IF n <> 0 THEN
+        RAISE WARNING 'T6c FAIL: % unpublished row(s) leaked alongside published ones', n;
+        failures := failures + 1;
+    ELSE
+        RAISE NOTICE 'T6c PASS: publishing one row did not expose the others';
+    END IF;
+
+    PERFORM set_config('app.platform_governance', 'on', true);
+    PERFORM set_config('app.current_org', 'ulodz', true);
+    UPDATE tests SET is_public = FALSE WHERE is_public;
+    PERFORM set_config('app.platform_governance', 'off', true);
+
+    -- -------------------------------------------------------------------
+    -- T6d: an ordinary tenant context cannot publish its own data - that is a
+    -- governed, data-owner decision.
+    -- -------------------------------------------------------------------
+    PERFORM set_config('app.current_org', 'tul', true);
+    BEGIN
+        UPDATE tests SET is_public = TRUE WHERE organisation_id = org_b;
+        RAISE WARNING 'T6d FAIL: non-governance context was able to publish data';
+        failures := failures + 1;
+    EXCEPTION WHEN others THEN
+        RAISE NOTICE 'T6d PASS: publication blocked outside governance context';
+    END;
 
     -- -------------------------------------------------------------------
     -- T7: audit_events is append-only at the GRANT level, so tampering

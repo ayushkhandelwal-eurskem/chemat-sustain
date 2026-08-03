@@ -32,3 +32,6 @@ backend/data/
 prod-backups/
 backups/
 node_modules
+
+# pytest/hypothesis local cache
+.hypothesis/

@@ -37,7 +37,38 @@ command -v flock >/dev/null 2>&1 || fail "flock is not installed"
 
 mkdir -p "$(dirname "$LOCK_FILE")"
 exec 9>"$LOCK_FILE"
-flock -n 9 || fail "another deployment is already running"
+if ! flock -n 9; then
+  # Every child inherits fd 9, so the lock outlives this script if any child is
+  # still alive - including one that was merely SUSPENDED. Pressing Ctrl+Z
+  # (SIGTSTP) rather than Ctrl+C leaves the whole pipeline frozen but running,
+  # holding the lock, and every later run then fails here. Report who actually
+  # holds it instead of just refusing, because "another deployment is already
+  # running" is misleading when the real state is "a stopped job from your last
+  # attempt".
+  printf '\nERROR: another deployment is already running.\n' >&2
+  printf '\nProcesses currently holding %s:\n' "$LOCK_FILE" >&2
+  if command -v fuser >/dev/null 2>&1; then
+    # fuser -v names the exact pids holding the file, which is the authoritative
+    # answer. Deliberately not also grepping `ps` for deploy.sh: the lock can be
+    # held by a child (sleep, docker) whose command line never mentions this
+    # script, and matching on the name mostly produces noise.
+    fuser -v "$LOCK_FILE" >&2 2>&1 || true
+  fi
+  cat >&2 <<'HINT'
+
+Check the state of those pids with `ps -o pid,stat,cmd -p <pid>`. A STAT
+containing "T" means stopped, not running - almost certainly a Ctrl+Z'd earlier
+run. Clear it with:
+
+    jobs -l                       # if it belongs to this shell
+    kill -9 %1
+    pkill -9 -f 'scripts/deploy.sh'
+    pkill -9 -f 'docker compose exec'
+
+Then re-run. Use Ctrl+C rather than Ctrl+Z to interrupt a deploy.
+HINT
+  exit 1
+fi
 
 cd "$REPO_DIR"
 [ -f "$COMPOSE_FILE" ] || fail "$REPO_DIR/$COMPOSE_FILE does not exist"

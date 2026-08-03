@@ -153,7 +153,9 @@ Plus, once OIDC is enforced (Phase 6/7): `KEYCLOAK_ISSUER_URL=https://auth.eursk
 
 ## Still open (needs owner action)
 
-1. **DNS:** an A record for `auth.eurskem.com` → `217.154.65.136`, and a decision on Cloudflare proxying. Not accessible from this environment.
+1. **DNS — managed in Cloudflare, not IONOS.** Verified: `eurskem.com` uses `dean.ns.cloudflare.com` / `martha.ns.cloudflare.com`, and `database.eurskem.com` resolves to Cloudflare IPs (104.21.1.152, 172.67.129.114) rather than the origin, so it is **proxied**. An earlier draft of this document implied DNS was an IONOS task; that was wrong. Full walkthrough in `keycloak-dns-setup.md`.
+
+   **The record must be proxied (orange cloud), not DNS-only.** `/etc/ssl/certs/origin.pem` is a *Cloudflare Origin CA* certificate. Those are trusted only by Cloudflare's edge, never by browsers. A DNS-only record would send browsers straight to the origin, where they would reject that certificate — so the auth subdomain would fail TLS for every user even though the certificate covers `*.eurskem.com`.
 2. **Backup encryption + off-host destination** (see P0 backup section).
 3. **Root password rotation** and SSH hardening.
 

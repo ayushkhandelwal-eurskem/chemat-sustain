@@ -93,3 +93,49 @@ Not done here — option 1 or 2 needs Cloudflare dashboard access, and option 3 
 ## After DNS is live
 
 Keycloak becomes reachable but nothing depends on it yet — the backend still authenticates via the legacy session path, so this step is non-breaking and reversible (delete the record to undo). The remaining sequence is in `deployment-readiness.md`: provision the 19 existing users into the realm, migrate the frontend to the PKCE flow, then switch the backend to OIDC enforcement behind a feature flag.
+
+---
+
+## Post-DNS verification (performed 2026-08-03)
+
+| Check | Result |
+|---|---|
+| `dig +short auth.eurskem.com` | `172.67.129.114`, `104.21.1.152` — Cloudflare, proxied (matches `database.eurskem.com`, not the origin) |
+| TLS without `-k` | `HTTP/2 200`; edge cert `CN=eurskem.com` from Google Trust Services (Cloudflare Universal SSL) — browser-trusted |
+| OIDC discovery | `200`; issuer/authorization/token/jwks all `https://auth.eurskem.com/...` — forwarded headers are reaching Keycloak |
+| HTTP → HTTPS | `301` |
+| Issuer vs backend config | matches `KEYCLOAK_ISSUER_URL` already in the server's `.env` |
+| PKCE | `S256` advertised |
+
+### Deprecated flows — now blocked realm-wide
+
+Discovery advertised `implicit`, `password` (ROPC) and `plain` PKCE, which the brief forbids. Those entries are Keycloak advertising *server capabilities* and cannot be removed from the discovery document, so enforcement is applied through a **client policy** instead:
+
+- Profile `chematsustain-secure-flows` → executors `reject-implicit-grant`, `reject-ropc-grant`, `pkce-enforcer`
+- Policy `chematsustain-enforce-secure-flows` → condition `any-client`
+
+Deliberately a **minimal subset** of the built-in `oauth-2-1-*` profiles. Applying those wholesale was tested and would have broken production: `secure-redirect-uris-enforcer` (OAuth 2.1 forbids the wildcard redirect URIs `portal-frontend` uses), `dpop-bind-enforcer` (the frontend does not implement DPoP), and `secure-client-authenticator` (would force private-key JWT, breaking `m2m-test-client`'s secret auth). Those three remain valid future hardening, each requiring a client-side change first.
+
+Verified by probe: clients created requesting `implicitFlowEnabled: true` and `directAccessGrantsEnabled: true` were **auto-corrected** to `false` with `pkce=S256`. Note the mechanism is correction, not rejection — arguably stronger, since it cannot be worked around, but it means the API returns `201` rather than an error. Probes deleted afterwards; `portal-frontend` and `m2m-test-client` confirmed unchanged.
+
+Client policies apply on create/update, **not retroactively**, so `admin-cli` in this realm kept its password grant and was disabled explicitly. Admin access is unaffected: it authenticates against the `master` realm.
+
+### ⚠️ Organisation membership is NOT carried by the realm export
+
+The m2m token initially came back with **`organisation_id: null`**, which `security/auth.py` rejects with a 403 — so every partner API call would have failed.
+
+Cause: the realm export recreates the *organisations* and the membership *mapper*, but **not the memberships themselves**. A fresh import therefore produces empty organisations, and the claim the entire tenant model depends on is silently absent. Fixed by adding the service account to `eurskem`; re-issued token now carries `organisation_id: "eurskem"`.
+
+**This applies to every identity, and is the single easiest way to break partner access:**
+
+```bash
+# for each user or service account, after creating it:
+POST /admin/realms/chematsustain/organizations/{organisationId}/members
+Body: "{userId}"     # raw JSON string, not an object
+```
+
+When the 19 existing users are provisioned into Keycloak, each must be added to their organisation per the mapping in `tenant-isolation-design.md` (`tul` 10, `ulodz` 4, `eurskem` 4, `mmu` 1). A user without a membership authenticates successfully and then gets 403 on every request — which looks like a broken API rather than missing provisioning, so check this first when diagnosing.
+
+### Still outstanding
+
+The **admin console is publicly reachable** — `/admin/master/console/` returns `200` to the internet. It is login-gated, but it is the identity trust root, so brute-force attempts and any future Keycloak admin CVE are internet-facing. Restrict via Cloudflare Access or a WAF rule on `auth.eurskem.com/admin*` (dashboard access required).

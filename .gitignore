@@ -3,9 +3,16 @@ certs/
 .env
 
 # Local data and uploads - never committed.
+#
+# On the production host these live INSIDE the repository directory
+# (/home/chematsustain/{protocol_files,research_data}) because that is where the
+# compose bind mounts point, so they must be ignored explicitly or a `git add -A`
+# would publish real research data to a public repo.
 data
 backend/protocol_files/
 protocol_files/
+research_data/
+backend/data/
 
 # Database dumps, data exports and backups.
 #

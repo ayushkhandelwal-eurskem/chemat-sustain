@@ -1,5 +1,27 @@
 # Production Deployment Readiness — IONOS
 
+> ## Deploy log — 2026-08-03
+>
+> The security work was merged to `main` and deployed. Outcome:
+>
+> **Achieved:** the unauthenticated data exposure is closed in production (`/api/tests/3` → 404, work-package → 0 records); `/app/data` is now a host bind mount with all 24 research files intact; data verified unchanged (19 users, 327 tests, 3 categories); Keycloak and its database are running; the leaked SQL dump is gone from the server's working tree.
+>
+> **Two incidents during the deploy, both self-inflicted and both resolved:**
+>
+> 1. **~4 minute frontend outage (502).** `docker compose up --build` gave the frontend container a new IP, but nginx — which was *not* recreated — had resolved `frontend:3000` at startup six days earlier and kept proxying to the dead address. A `curl` from inside nginx worked (fresh lookup) while nginx's own workers held the stale IP. Fixed by force-recreating nginx.
+> 2. **~5 minute API outage (500).** Attempting to fix (1) permanently, I switched the upstreams to variables with a `resolver` so nginx would re-resolve per request. That works for the frontend but broke `/api/`, which combines `rewrite ... break` with `proxy_pass` — nginx returned its own 500. **Reverted to the known-good literal config rather than debugging forward on production.** Service fully restored.
+>
+> **Consequence — an unresolved operational fragility.** With literal `proxy_pass` hostnames, nginx must be force-recreated after any deploy that recreates the frontend or backend container, or the site 502s:
+>
+> ```bash
+> docker compose up -d --force-recreate nginx
+> ```
+>
+> `/usr/local/bin/deploy` does **not** do this, so every future deploy carries the same 502 risk. Two options, neither yet applied: add that line to the deploy script, or land a properly tested resolver-based config (the `/api/` block needs `proxy_pass $upstream$uri$is_args$args` with the rewrite, verified in dev first — my untested version is what caused incident 2).
+>
+> **Lesson recorded honestly:** I changed a load-bearing proxy config on production without testing that specific path first. `nginx -t` passed, which validates syntax but not request-path behaviour. The frontend variable worked, so I assumed the backend one would too — the `rewrite` interaction is exactly the kind of thing that needs a real request through it before shipping.
+
+
 Date: 2026-08-03. Verified against the live production host (`217.154.65.136`, Ubuntu, kernel 7.0.0-22) by direct inspection, not inference.
 
 Goal context: expose Phase 1 research APIs to consortium partners as fast as safely possible. Items below are ordered by what blocks that.

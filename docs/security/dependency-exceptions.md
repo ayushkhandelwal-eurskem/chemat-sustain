@@ -2,9 +2,51 @@
 
 Time-bound, reviewed exceptions to the CI dependency-scan gate (`pip-audit`). Per policy, CI fails the build on any unresolved finding unless it appears here with a justification and a review trigger. Each exception must be re-evaluated at its trigger point, not left indefinitely.
 
-## backend/requirements.txt — starlette 0.49.3
+## RESOLVED 2026-08-03 — no starlette exceptions remain
 
-Bumped from 0.46.1 → 0.49.3 (also required fastapi 0.115.12 → 0.121.0, httpcore 1.0.7 → 1.0.9, h11 0.14.0 → 0.16.0 to resolve the constraint chain) on 2026-08-02. This closed `PYSEC-2026-1941` and `PYSEC-2026-1942`. Five findings remain unresolved at 0.49.3 because their fixes require starlette ≥1.0.1–1.3.1, a major-version jump that only the latest FastAPI (0.141.1, which drops the starlette upper-bound pin entirely) permits — a much larger, higher-risk bump with no test suite yet to validate it (Phase 9 builds one).
+**There are currently no active exceptions for `backend/requirements.txt`.**
+`pip-audit -r backend/requirements.txt` reports *"No known vulnerabilities
+found"* with **no** `--ignore-vuln` flags, and `.trivyignore` is empty. The
+flags and CVE suppressions that implemented the exceptions below have been
+removed rather than left in place, because a stale suppression would hide a real
+regression if these packages were ever pinned back.
+
+All five findings previously accepted here — `PYSEC-2026-161`, `-248`, `-249`,
+`-2280`, `-2281` — are **genuinely fixed** by starlette 1.3.1, alongside 28
+other findings across pyjwt, h11, idna, pygments, python-dotenv,
+python-multipart and click.
+
+### Why they were accepted longer than necessary
+
+The reasoning recorded below rested on a factual error worth naming, because it
+kept five accepted risks open when a fix was available:
+
+> *"a major-version jump that only the latest FastAPI (0.141.1, which drops the
+> starlette upper-bound pin entirely) permits"*
+
+FastAPI **0.136.0** declares `starlette>=0.46.0` with **no upper bound**. The
+belief that a cap existed came from reading an older release's metadata —
+0.129.2 does pin `starlette<1.0.0` — and generalising it. So the "major-version
+jump" needed no bleeding-edge FastAPI at all, and the risk it was weighed
+against was overstated.
+
+Verified before removing the exceptions: resolves clean, `pip check` clean,
+34/34 backend tests pass, and `TestClient` returns identical status codes to the
+previous fastapi 0.115.12 / starlette 0.46.1 baseline across `/health`,
+`/api/v1/portal/catalog`, `/tests/catalog`, and the `custom_router`
+trailing-slash variant `/tests/public/`.
+
+**Lesson for future entries:** an exception justified by "no compatible version
+exists" must record the exact constraint checked and the version it was read
+from, so it can be re-tested cheaply rather than re-argued.
+
+### Historical record (all resolved — retained for audit)
+
+Bumped 0.46.1 → 0.49.3 on 2026-08-02, closing `PYSEC-2026-1941` and
+`PYSEC-2026-1942`; then 0.49.3 → 1.3.1 on 2026-08-03, closing the five below.
+The per-finding analysis is kept because the compensating-control reasoning
+remains a useful constraint on future code — in particular the rule that
+authorisation must never derive from `request.url`.
 
 | ID | Fix requires | Why accepted now |
 |---|---|---|

@@ -12,6 +12,8 @@ for, and cannot be turned on in production at all.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from security.config import get_settings
@@ -74,17 +76,58 @@ def test_docs_cannot_be_enabled_in_production(monkeypatch):
         get_settings()
 
 
-def test_app_exposes_no_schema_routes_by_default(monkeypatch):
-    """End-to-end: assert against the mounted routes, not just config."""
-    _base_env(monkeypatch)
-    monkeypatch.delenv("APP_ENV", raising=False)
+def test_app_exposes_no_schema_routes_by_default(tmp_path):
+    """End-to-end: assert against the mounted routes, not just config.
 
-    import importlib
+    Runs in a SUBPROCESS deliberately. The first version of this test called
+    importlib.reload(app) inside the pytest process, which re-executed app.py's
+    module-level `settings = get_settings()` under a monkeypatched environment
+    and left that in the lru_cache and in sys.modules. security/auth.py calls
+    get_settings() per request (line 79), so every later test read the polluted
+    settings: test_auth.py::test_machine_principal_has_no_email then failed with
+    403 "Token client is not authorised" because keycloak_allowed_azp and
+    keycloak_machine_azp_prefix were no longer the values conftest had set.
 
-    import app as app_module
+    The failure only appeared when the whole suite ran - the file passed in
+    isolation - and it was mistaken for a dependency-upgrade regression until
+    the same failure reproduced on the old pinned versions.
 
-    importlib.reload(app_module)
+    A child process cannot corrupt this process's caches, so the check keeps its
+    end-to-end value without the coupling.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
 
-    paths = {getattr(r, "path", None) for r in app_module.app.routes}
-    for leaked in ("/docs", "/redoc", "/openapi.json"):
-        assert leaked not in paths, f"{leaked} is mounted and would serve anonymously"
+    backend_dir = Path(__file__).resolve().parent.parent
+
+    env = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "DATABASE_URL": "postgresql+asyncpg://u:p@localhost/db",
+        "AUTH_MODE": "legacy",
+        # APP_ENV deliberately absent - the exact production misconfiguration.
+        "PROTOCOL_FILE_DIR": str(tmp_path / "protocols"),
+        "TENANT_DATA_ROOT": str(tmp_path / "tenants"),
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import app; "
+            "print(' '.join(sorted({getattr(r,'path','') for r in app.app.routes} "
+            "& {'/docs','/redoc','/openapi.json'})))",
+        ],
+        cwd=backend_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+    assert result.returncode == 0, f"app failed to import:\n{result.stderr[-2000:]}"
+
+    leaked = result.stdout.strip().splitlines()[-1].strip() if result.stdout.strip() else ""
+    assert leaked == "", (
+        f"schema routes are mounted and would serve anonymously: {leaked}"
+    )

@@ -13,6 +13,46 @@ from ..schemas.test import (
 )
 
 
+def mask_test_for_public(test: Test) -> TestResponse:
+    """Strip everything an anonymous/public caller is not entitled to see.
+
+    `is_public` decides whether a record is visible at all; the per-field
+    `release_*` flags decide which parts of a visible record are exposed. A
+    record can therefore be public while most of its contents stay withheld,
+    which is the whole point of having both.
+
+    `file_path` is always withheld: it is an absolute server path
+    (/app/data/...), and internal filesystem layout must never be exposed.
+
+    This is the single place that decision is made - every read path that an
+    unauthenticated caller can reach must route through it, because before
+    this existed only ONE of five read paths applied the release flags.
+    """
+    return TestResponse(
+        id=test.id,
+        work_package_name=test.work_package_name,
+        element_cms_id=test.element_cms_id,
+        test_name=test.test_name,
+        test_details=test.test_details if test.release_test_details else None,
+        raw_data=test.raw_data if test.release_raw_data else None,
+        processed_data=test.processed_data if test.release_processed_data else None,
+        final_results=test.final_results if test.release_final_results else None,
+        statistical_analysis=(
+            test.statistical_analysis if test.release_statistical_analysis else None
+        ),
+        is_public=test.is_public,
+        release_test_details=test.release_test_details,
+        release_raw_data=test.release_raw_data,
+        release_processed_data=test.release_processed_data,
+        release_final_results=test.release_final_results,
+        release_statistical_analysis=test.release_statistical_analysis,
+        test_result=test.test_result,
+        file_path=None,
+        created_at=test.created_at,
+        updated_at=test.updated_at,
+    )
+
+
 class TestService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -44,31 +84,46 @@ class TestService:
         await self.db.refresh(db_test)
         return db_test
 
-    async def get_test_by_id(self, test_id: int) -> Optional[Test]:
-        """Get a test by ID."""
+    async def get_test_by_id(self, test_id: int, is_private_user: bool = False):
+        """Get a test by ID.
+
+        `is_private_user` defaults to False - fail closed. A caller that forgets
+        to pass it gets the anonymous treatment (public records only, fields
+        masked) rather than unrestricted access, which is the failure mode that
+        left every restricted record readable on /tests/{id}.
+
+        Non-public records return 404 rather than 403 for anonymous callers, so
+        record existence cannot be probed by sequential ID.
+        """
         stmt = select(Test).filter(Test.id == test_id)
         result = await self.db.execute(stmt)
         test = result.scalar_one_or_none()
 
-        if not test:
+        if not test or (not is_private_user and not test.is_public):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Test with ID {test_id} not found",
+                detail="Test not found",
             )
-        return test
+        return test if is_private_user else mask_test_for_public(test)
 
-    async def get_test_by_name(self, test_name: str) -> Optional[Test]:
-        """Get a test by name."""
-        stmt = select(Test).filter(Test.test_name == test_name)
+    async def get_test_by_name(self, test_name: str, is_private_user: bool = False):
+        """Get a test by name. Same fail-closed semantics as get_test_by_id.
+
+        test_name is NOT unique (e.g. 'SIMS' and 'MTT' each cover several
+        records), so this deliberately takes the lowest-id match rather than
+        using scalar_one_or_none(), which raised MultipleResultsFound and
+        returned a 500 for every duplicated name.
+        """
+        stmt = select(Test).filter(Test.test_name == test_name).order_by(Test.id).limit(1)
         result = await self.db.execute(stmt)
-        test = result.scalar_one_or_none()
+        test = result.scalars().first()
 
-        if not test:
+        if not test or (not is_private_user and not test.is_public):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Test with name '{test_name}' not found",
+                detail="Test not found",
             )
-        return test
+        return test if is_private_user else mask_test_for_public(test)
 
     async def get_tests(
         self,
@@ -157,17 +212,28 @@ class TestService:
         await self.db.commit()
         return True
 
-    async def get_tests_by_work_package(self, work_package_name: str) -> List[Test]:
-        """Get all tests for a specific work package."""
+    async def get_tests_by_work_package(
+        self, work_package_name: str, is_private_user: bool = False
+    ):
+        """Get all tests for a work package. Fail-closed default, as above."""
         stmt = select(Test).filter(Test.work_package_name == work_package_name)
+        if not is_private_user:
+            stmt = stmt.filter(Test.is_public == True)  # noqa: E712
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        tests = list(result.scalars().all())
+        if is_private_user:
+            return tests
+        return [mask_test_for_public(t) for t in tests]
 
-    async def get_public_tests(
-        self, skip: int = 0, limit: int = 100
-    ) -> tuple[List[Test], int]:
-        """Get only public tests."""
-        return await self.get_tests(skip=skip, limit=limit, is_public=True)
+    async def get_public_tests(self, skip: int = 0, limit: int = 100):
+        """Public listing: is_public records only, with release_* masking applied.
+
+        The masking matters as much as the is_public filter - without it,
+        publishing a record intending to release only final_results would expose
+        its raw_data and processed_data to the internet as well.
+        """
+        tests, total = await self.get_tests(skip=skip, limit=limit, is_public=True)
+        return [mask_test_for_public(t) for t in tests], total
 
     async def get_catalog(self, is_private_user: bool = True):
         """
@@ -311,29 +377,8 @@ class TestService:
             test = result.scalar_one_or_none()
 
             if test and not is_private_user:
-                # Filter data for public users — only return released sheets.
-                filtered_test = TestResponse(
-                    id=test.id,
-                    work_package_name=test.work_package_name,
-                    element_cms_id=test.element_cms_id,
-                    test_name=test.test_name,
-                    test_details=test.test_details if test.release_test_details else None,
-                    raw_data=test.raw_data if test.release_raw_data else None,
-                    processed_data=test.processed_data if test.release_processed_data else None,
-                    final_results=test.final_results if test.release_final_results else None,
-                    statistical_analysis=test.statistical_analysis if test.release_statistical_analysis else None,
-                    is_public=test.is_public,
-                    release_test_details=test.release_test_details,
-                    release_raw_data=test.release_raw_data,
-                    release_processed_data=test.release_processed_data,
-                    release_final_results=test.release_final_results,
-                    release_statistical_analysis=test.release_statistical_analysis,
-                    test_result=test.test_result,
-                    file_path=test.file_path,
-                    created_at=test.created_at,
-                    updated_at=test.updated_at,
-                )
-                return filtered_test
+                # Only released sheets, via the single shared masking helper.
+                return mask_test_for_public(test)
 
             return test
 

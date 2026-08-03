@@ -3,11 +3,20 @@ from sqlalchemy import select
 from api.models.user import User
 from api.schemas.user import UserCreate, UserOut
 from utils.auth import hash_password, verify_password
+from utils.logging_config import get_logger
 from datetime import datetime
+import os
 import pyotp
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+logger = get_logger(__name__)
+
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_SENDER_EMAIL = os.getenv("SMTP_SENDER_EMAIL")
+SMTP_SENDER_PASSWORD = os.getenv("SMTP_SENDER_PASSWORD")
 
 async def create_user(db: AsyncSession, user: UserCreate):
     """Create a new user with hashed password"""
@@ -35,6 +44,10 @@ async def authenticate_user(db: AsyncSession, email: str, password: str):
 
 async def send_otp(db: AsyncSession, email: str):
     """Generate and send OTP to user's email"""
+    if not SMTP_SENDER_EMAIL or not SMTP_SENDER_PASSWORD:
+        logger.error("OTP email not sent: SMTP_SENDER_EMAIL/SMTP_SENDER_PASSWORD are not configured")
+        return False, "Email service is not configured"
+
     try:
         user = await get_user_by_email(db, email)
         if not user:
@@ -46,70 +59,66 @@ async def send_otp(db: AsyncSession, email: str):
             user.otp_secret = otp_secret
             await db.commit()
             await db.refresh(user)
-            print(f"Generated new OTP secret for {email}")
+            logger.info("Generated new OTP secret for user")
         else:
-            print(f"Using existing OTP secret for {email}")
+            logger.info("Using existing OTP secret for user")
 
         # Create TOTP with 5-minute interval (300 seconds)
         otp = pyotp.TOTP(user.otp_secret, interval=300)
-        
-        # Send OTP via email
+
+        # Send OTP via email - the code itself is never logged.
         otp_code = otp.now()
-        print(f"Generated OTP code: {otp_code} for {email} (valid for 5 minutes)")
-        sender_email = "database@eurskem.com"  # Replace with your email
         receiver_email = email
-        password = "zgct bacw xupc ithx"  # Replace with your email password
 
         message = MIMEMultipart()
-        message["From"] = sender_email
+        message["From"] = SMTP_SENDER_EMAIL
         message["To"] = receiver_email
         message["Subject"] = "Your OTP Code"
 
         body = f"Your OTP code is {otp_code}"
         message.attach(MIMEText(body, "plain"))
 
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
-            server.login(sender_email, password)
-            server.sendmail(sender_email, receiver_email, message.as_string())
-            print(f"OTP email sent successfully to {email}")
+            server.login(SMTP_SENDER_EMAIL, SMTP_SENDER_PASSWORD)
+            server.sendmail(SMTP_SENDER_EMAIL, receiver_email, message.as_string())
+            logger.info("OTP email dispatched for user")
             return True, "OTP sent successfully"
 
-    except smtplib.SMTPException as e:
-        print(f"Failed to send OTP email to {email}. Error: {str(e)}")
-        return False, f"Failed to send OTP: {str(e)}"
-    except Exception as e:
-        print(f"Unexpected error while sending OTP to {email}. Error: {str(e)}")
-        return False, f"Unexpected error: {str(e)}"
+    except smtplib.SMTPException:
+        logger.exception("Failed to send OTP email")
+        return False, "Failed to send OTP"
+    except Exception:
+        logger.exception("Unexpected error while sending OTP")
+        return False, "Unexpected error while sending OTP"
 
 async def verify_otp(db: AsyncSession, email: str, otp_code: str):
     """Verify OTP code - valid for 5 minutes"""
     user = await get_user_by_email(db, email)
     if not user:
-        print(f"User not found for email: {email}")
+        logger.warning("OTP verification attempted for unknown user")
         return False
-    
+
     if not user.otp_secret:
-        print(f"No OTP secret found for user: {email}")
+        logger.warning("OTP verification attempted with no OTP secret on record")
         return False
-    
+
     # Create TOTP with same 5-minute interval (300 seconds) as used in send_otp
     otp = pyotp.TOTP(user.otp_secret, interval=300)
-    
-    print(f"Verifying OTP for {email}: provided={otp_code}")
-    
-    # Verify the OTP code (valid for 5 minutes)
+
+    # Verify the OTP code (valid for 5 minutes). Neither the provided code nor
+    # the secret are ever logged.
     is_valid = otp.verify(otp_code)
-    
+
     if is_valid:
-        print(f"OTP verification successful for {email}")
+        logger.info("OTP verification succeeded")
         # Clear the OTP secret after successful verification to prevent reuse
         user.otp_secret = None
         await db.commit()
         await db.refresh(user)
     else:
-        print(f"OTP verification failed for {email}. OTP is valid for 5 minutes from generation.")
-    
+        logger.warning("OTP verification failed")
+
     return is_valid
 
 async def change_password(db: AsyncSession, email: str, new_password: str):

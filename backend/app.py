@@ -7,9 +7,12 @@ from api.services.user import create_user, get_user_by_email
 from utils.auth import get_current_user
 from api.schemas.user import UserCreate
 from utils.db import get_db
+from utils.logging_config import configure_logging, get_logger
 from dotenv import load_dotenv
 
 load_dotenv()
+configure_logging()
+logger = get_logger(__name__)
 
 app = FastAPI()
 
@@ -21,35 +24,36 @@ async def init_models():
 # Run database initialization
 @app.on_event("startup")
 async def startup_event():
-    print("Running startup")
+    logger.info("Application startup")
     await init_models()
-    
+
     # Read admin credentials from environment variables
     admin_email = os.getenv("ADMIN_EMAIL")
     admin_password = os.getenv("ADMIN_PASSWORD")
-    
+
     # Only create admin user if credentials are provided and user doesn't exist
     if admin_email and admin_password:
         async for db in get_db():
             # Check if admin user already exists
             existing_admin = await get_user_by_email(db, admin_email)
-            
+
             if not existing_admin:
-                # Create admin user if it doesn't exist
+                # Create admin user if it doesn't exist. The password value is
+                # never logged - only its presence and the resulting outcome.
                 admin_user = UserCreate(
                     email=admin_email,
                     password=admin_password,
                     role="admin"
                 )
-                
+
                 await create_user(db, admin_user)
-                print(f"Admin user created with email: {admin_email}, {admin_password}")
+                logger.info("Admin user created from ADMIN_EMAIL/ADMIN_PASSWORD environment variables")
             else:
-                print(f"Admin user already exists with email: {admin_email}")
-            
+                logger.info("Admin user already exists; skipping bootstrap creation")
+
             break  # Break after the first iteration to ensure the session is closed
     else:
-        print("Admin credentials not provided in environment variables (ADMIN_EMAIL, ADMIN_PASSWORD)")
+        logger.info("Admin bootstrap skipped: ADMIN_EMAIL/ADMIN_PASSWORD not set")
 
 # Configure CORS
 app.add_middleware(
@@ -79,3 +83,24 @@ app.include_router(user_router, prefix="/users", tags=["User Management"])
 app.include_router(tree_router, tags=["Tree"])              # remove prefix="/tree"
 app.include_router(protocol_files_router, tags=["Protocol Files"])  # remove prefix="/protocols"
 app.include_router(tree_admin_router, tags=["Tree Admin"])  # this one stays prefix-less (correct already)
+
+
+from utils.oidc import get_current_principal, require_scope
+
+
+@app.get("/oidc/whoami")
+async def oidc_whoami(principal=Depends(get_current_principal)):
+    """Demo endpoint proving OIDC resource-server validation end-to-end."""
+    return {
+        "subject": principal.subject,
+        "organisation_id": principal.organisation_id,
+        "roles": sorted(principal.roles),
+        "scopes": sorted(principal.scopes),
+        "authorized_party": principal.authorized_party,
+    }
+
+
+@app.get("/oidc/tests-scope-check")
+async def oidc_tests_scope_check(principal=Depends(require_scope("tests:read"))):
+    """Demo endpoint proving deny-by-default scope enforcement."""
+    return {"ok": True, "organisation_id": principal.organisation_id}

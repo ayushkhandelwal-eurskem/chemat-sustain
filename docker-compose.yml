@@ -34,6 +34,12 @@ services:
       - app-network
     volumes:
       - /home/chematsustain/protocol_files:/app/protocol_files
+      # Uploaded research files (.xlsx). WITHOUT this mount /app/data lives in
+      # the container's writable layer, so every `docker compose up --build`
+      # destroys it - which had already happened: 327 test records referenced a
+      # file_path while only 24 files remained on disk.
+      # See docs/security/deployment-readiness.md.
+      - /home/chematsustain/research_data:/app/data
     deploy:
       resources:
         limits:
@@ -54,12 +60,71 @@ services:
         limits:
           memory: 2G
 
+  keycloak-db:
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KEYCLOAK_DB_USER}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME}
+    volumes:
+      - keycloak_pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+    # NO ports: section - identity data is reachable only from keycloak over
+    # app-network, same isolation as the app's own db service.
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  keycloak:
+    # Built locally rather than pulled: the image bakes in Keycloak's
+    # build-time options via `kc.sh build` (see keycloak/Dockerfile), which
+    # `start --optimized` requires. Passing build-time options such as KC_DB
+    # as plain runtime env vars fails on first start.
+    build: ./keycloak
+    restart: unless-stopped
+    command: start --optimized --import-realm
+    depends_on:
+      - keycloak-db
+    env_file:
+      - .env
+    environment:
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Real production hostname - update if the auth subdomain differs.
+      # Given as a full URL (Hostname v2 form): the https scheme here is what
+      # makes Keycloak issue https URLs in tokens/redirects, replacing the
+      # deprecated KC_HOSTNAME_STRICT_HTTPS.
+      #
+      # TLS is terminated at nginx (see nginx/default.conf); Keycloak sits
+      # behind it on the app-network over plain HTTP and trusts the
+      # X-Forwarded-* headers nginx sets rather than terminating TLS itself.
+      KC_HOSTNAME: https://auth.eurskem.com
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    networks:
+      - app-network
+    # NO host port mapping. nginx proxies to it internally, same pattern as
+    # frontend/backend above.
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
   nginx:
     image: nginx:stable
     restart: unless-stopped
     depends_on:
       - frontend
       - backend
+      - keycloak
     ports:
       - "80:80"
       - "443:443"
@@ -71,6 +136,7 @@ services:
       - app-network
 volumes:
   pgdata:
+  keycloak_pgdata:
 
 networks:
   app-network:

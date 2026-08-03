@@ -1,11 +1,21 @@
 from fastapi import HTTPException, Depends
 from utils.custom_router import APIRouter
-import os 
+import os
 from typing import List
 from parsers.mtt import parse_excel_mtt
 from parsers.dls import parse_excel_dls
 from utils.auth import get_current_user
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 # Base directory for folder navigation - change to your target path
+#
+# NOTE (tracked for the tenant-isolation phase): this router has no
+# per-organisation scoping and no path-traversal guarding yet - folder_name /
+# subfolder_name / nested_subfolder / file_name are joined into BASE_DIR
+# without validation. Do not treat this endpoint as safe against traversal or
+# cross-tenant access until that phase lands.
 BASE_DIR = os.path.join(os.getcwd(), "data")
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -18,8 +28,9 @@ async def get_folders():
         items = os.listdir(BASE_DIR)
         folders = [item for item in items if os.path.isdir(os.path.join(BASE_DIR, item))]
         return folders
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve folders: {str(e)}")
+    except Exception:
+        logger.exception("Failed to retrieve top-level folders")
+        raise HTTPException(status_code=500, detail="Failed to retrieve folders")
 
 
 @router.get("/{folder_name}", response_model=List[str])
@@ -29,13 +40,14 @@ async def get_subfolders(folder_name: str):
         folder_path = os.path.join(BASE_DIR, folder_name)
         items = os.listdir(folder_path)
         subfolders = [
-                item for item in items 
+                item for item in items
                 if os.path.isdir(os.path.join(folder_path, item))
             ]
         return subfolders
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve subfolders: {str(e)}")
-    
+    except Exception:
+        logger.exception("Failed to retrieve subfolders")
+        raise HTTPException(status_code=500, detail="Failed to retrieve subfolders")
+
 
 
 @router.get("/{folder_name}/{subfolder_name}", response_model=List[str])
@@ -45,13 +57,14 @@ async def get_files(folder_name: str, subfolder_name: str):
         folder_path = os.path.join(BASE_DIR, folder_name, subfolder_name)
         items = os.listdir(folder_path)
         files = [
-                item for item in items 
+                item for item in items
                 if os.path.isdir(os.path.join(folder_path, item))
             ]
         return files
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve files: {str(e)}")
-    
+    except Exception:
+        logger.exception("Failed to retrieve files")
+        raise HTTPException(status_code=500, detail="Failed to retrieve files")
+
 
 @router.get("/{folder_name}/{subfolder_name}/{nested_subfolder}", response_model=List[dict])
 async def get_nested_subfolder_contents(folder_name: str, subfolder_name: str, nested_subfolder: str):
@@ -60,7 +73,7 @@ async def get_nested_subfolder_contents(folder_name: str, subfolder_name: str, n
         nested_path = os.path.join(BASE_DIR, folder_name, subfolder_name, nested_subfolder)
         directory_contents = os.listdir(nested_path)
         file_details = []
-        
+
         for item in directory_contents:
             item_path = os.path.join(nested_path, item)
             if os.path.isfile(item_path) and '~' not in item_path:
@@ -73,8 +86,9 @@ async def get_nested_subfolder_contents(folder_name: str, subfolder_name: str, n
                     'type': file_type
                 })
         return file_details
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve files: {str(e)}")
+    except Exception:
+        logger.exception("Failed to retrieve nested folder contents")
+        raise HTTPException(status_code=500, detail="Failed to retrieve files")
 
 
 @router.get("/{folder_name}/{subfolder_name}/{nested_subfolder}/{file_name}")
@@ -88,6 +102,7 @@ async def get_file(folder_name: str, subfolder_name: str, nested_subfolder: str,
         elif nested_subfolder.lower() == "dls":
             data_dls = parse_excel_dls(file_path)
             return data_dls
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to parse file: {str(e)}")
+
+    except Exception:
+        logger.exception("Failed to parse requested file")
+        raise HTTPException(status_code=500, detail="Failed to parse file")

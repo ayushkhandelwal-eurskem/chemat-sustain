@@ -34,6 +34,12 @@ services:
       - app-network
     volumes:
       - /home/chematsustain/protocol_files:/app/protocol_files
+      # Uploaded research files (.xlsx). WITHOUT this mount /app/data lives in
+      # the container's writable layer, so every `docker compose up --build`
+      # destroys it - which had already happened: 327 test records referenced a
+      # file_path while only 24 files remained on disk.
+      # See docs/security/deployment-readiness.md.
+      - /home/chematsustain/research_data:/app/data
     deploy:
       resources:
         limits:

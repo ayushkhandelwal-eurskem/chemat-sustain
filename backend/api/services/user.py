@@ -61,6 +61,16 @@ async def send_otp(db: AsyncSession, email: str):
         password = os.getenv("SMTP_PASSWORD")
         smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        # The SMTP account used to authenticate is not always the same address
+        # the mail is sent FROM. Gmail happens to require them to match, so this
+        # was previously hard-coded to sender_email - which silently rules out
+        # every transactional provider (Brevo, Mailgun, SES), where the login is
+        # an account identifier or API key name and the From address is a
+        # separately verified sender.
+        #
+        # Defaults to sender_email, so existing Gmail configuration keeps
+        # working with no change.
+        smtp_username = os.getenv("SMTP_USERNAME") or sender_email
         if not sender_email or not password:
             logger.error("OTP delivery is unavailable because SMTP is not configured")
             return False, "OTP delivery is temporarily unavailable"
@@ -75,7 +85,7 @@ async def send_otp(db: AsyncSession, email: str):
 
         with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
             server.starttls()
-            server.login(sender_email, password)
+            server.login(smtp_username, password)
             server.sendmail(sender_email, receiver_email, message.as_string())
             logger.info("OTP email sent", extra={"recipient_domain": email.rsplit("@", 1)[-1]})
             return True, "OTP sent successfully"

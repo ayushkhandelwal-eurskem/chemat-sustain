@@ -254,8 +254,33 @@ Then:
 - **Organizations** → the institution → **Members** → add the client's service
   account user (`service-account-partner-<alias>`).
 
-That last step is required and easy to miss — without it the client's token has
-no `organisation_id` and every call fails.
+### Then attach the `organisation` client scope — do not skip this
+
+**Clients** → the client → **Client scopes** tab → **Add client scope** →
+select **organisation** → add it as **Default**.
+
+**A client created through the admin UI does not get this scope.** It is not one
+of the realm's default-default scopes, so new clients start without it — and it
+is the scope that carries both of these into the access token:
+
+| Mapper in the scope | Adds to the token | Without it |
+|---|---|---|
+| `chematsustain-api-audience` | `aud: chematsustain-api` | token fails audience validation → **401** |
+| `organisation-id` | `organisation_id` claim | no tenant → **403**, and RLS returns nothing |
+
+So a client that looks correctly configured — right roles, right organisation
+membership — will still fail every single API call if this scope is missing. The
+existing `portal-frontend` and `m2m-test-client` have it because they came from
+the realm import, which is exactly why the omission is easy to miss when
+creating the next one by hand.
+
+Verify it worked before handing the credentials over: **Client scopes** tab →
+**Evaluate** sub-tab → pick the service account user → **Generated access
+token**, and confirm both `aud` and `organisation_id` are present.
+
+The two organisation steps are different things and both are required: adding
+the service account as an organisation **member** establishes the relationship,
+while the client **scope** is what puts the resulting claim into the token.
 
 **To disable a machine client:** **Clients** → the client → **Settings** →
 **Enabled** off. To rotate instead, **Credentials** tab → **Regenerate** — which

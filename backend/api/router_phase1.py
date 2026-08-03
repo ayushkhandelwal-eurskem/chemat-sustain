@@ -84,7 +84,7 @@ async def experimental_data(
 
 @router.get("/protocols")
 async def protocols(
-    principal: Principal = Depends(require_scopes("protocol-files:read")),
+    principal: Principal = Depends(require_scopes("protocols:read")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     records = (
@@ -121,7 +121,6 @@ async def download_protocol(
     ).scalar_one_or_none()
     if record is None or not record.file_path:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Resource not found")
-
     tenant_root = Path(get_settings().protocol_file_dir) / principal.organisation_id
     try:
         relative_path = Path(record.file_path).relative_to(tenant_root)

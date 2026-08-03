@@ -81,7 +81,6 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-
 @app.get("/health")
 async def health_check():
     return Response(status_code=200, content="OK")
@@ -97,8 +96,10 @@ app.include_router(portal_router)
 # Mounted unconditionally: it is how partners get access before the Keycloak
 # cutover, and it is admin-only regardless of AUTH_MODE.
 from api.router_api_clients import router as api_clients_router
+from api.router_access_admin import router as access_admin_router
 
 app.include_router(api_clients_router)
+app.include_router(access_admin_router)
 
 # Compatibility mode is explicitly unavailable in production. It exists only
 # to support a controlled migration of the current UI and old integrations.

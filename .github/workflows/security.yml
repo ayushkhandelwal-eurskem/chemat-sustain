@@ -176,7 +176,7 @@ jobs:
 
       - name: Apply tenant migrations
         run: |
-          for f in backend/migrations/sql/0*.sql; do
+          for f in backend/migrations/0*.sql; do
             echo "--- applying $f"
             psql -v ON_ERROR_STOP=1 -q -f "$f"
           done
@@ -184,12 +184,18 @@ jobs:
       - name: Seed a two-tenant fixture
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO organisations (id, slug, name) VALUES
+            (gen_random_uuid()::text, 'ulodz', 'University of Lodz'),
+            (gen_random_uuid()::text, 'tul',   'Lodz University of Technology')
+          ON CONFLICT (slug) DO NOTHING;
           INSERT INTO tests (work_package_name, test_name, organisation_id)
           SELECT 'WP2', 'ci-ulodz-' || g, (SELECT id FROM organisations WHERE slug='ulodz')
           FROM generate_series(1,3) g;
           INSERT INTO tests (work_package_name, test_name, organisation_id)
           SELECT 'WP2', 'ci-tul-' || g, (SELECT id FROM organisations WHERE slug='tul')
           FROM generate_series(1,2) g;
+          INSERT INTO categories (name) VALUES
+            ('Human Toxicity'), ('Physico-Chemical Characteristics'), ('Uncategorized');
           SQL
 
       - name: Set application role password

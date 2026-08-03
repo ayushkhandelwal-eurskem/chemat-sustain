@@ -11,7 +11,7 @@ below to wherever your project defines it (commonly app.database or app.db).
 """
 from __future__ import annotations
 
-from sqlalchemy import Integer, Text, ForeignKey, TIMESTAMP, UniqueConstraint, func
+from sqlalchemy import Integer, Text, String, ForeignKey, TIMESTAMP, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from utils.db import Base
@@ -21,6 +21,9 @@ class Category(Base):
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organisation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("organisations.id"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(Text, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -35,6 +38,9 @@ class Protocol(Base):
     __tablename__ = "protocols"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organisation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("organisations.id"), nullable=True, index=True
+    )
     category_id: Mapped[int] = mapped_column(
         ForeignKey("categories.id", ondelete="CASCADE"), nullable=False
     )
@@ -66,6 +72,9 @@ class ProtocolTest(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organisation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("organisations.id"), nullable=True, index=True
+    )
     protocol_id: Mapped[int] = mapped_column(
         ForeignKey("protocols.id", ondelete="CASCADE"), nullable=False
     )

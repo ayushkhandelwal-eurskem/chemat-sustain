@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getAccessToken } from './oidc';
 
 export const getBaseUrl = (): string => {
     if (typeof window === 'undefined') {
@@ -22,6 +23,13 @@ export const api = axios.create({
         'Content-Type': 'application/json',
     },
     withCredentials: true, // If you need to handle cookies
+});
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['X-Request-ID'] = crypto.randomUUID();
+  return config;
 });
 
 // // Request interceptor

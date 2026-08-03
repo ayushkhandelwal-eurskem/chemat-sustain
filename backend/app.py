@@ -1,20 +1,31 @@
+import logging
 import os
-from fastapi import FastAPI, APIRouter, Response, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from utils.db import Base, engine
-from api.controllers.user import router as user_router
-from api.services.user import create_user, get_user_by_email
-from utils.auth import get_current_user
-from api.schemas.user import UserCreate
-from utils.db import get_db
-from utils.logging_config import configure_logging, get_logger
+from uuid import uuid4
+
 from dotenv import load_dotenv
 
 load_dotenv()
-configure_logging()
-logger = get_logger(__name__)
 
-app = FastAPI()
+from fastapi import FastAPI, Response, Request
+from fastapi.middleware.cors import CORSMiddleware
+from utils.db import Base, engine
+from security.config import get_settings
+
+# Register all mapped classes before optional development-only create_all.
+import api.models  # noqa: F401
+from api.models.test import Test  # noqa: F401
+from api.models_tree import Category, Protocol, ProtocolTest  # noqa: F401
+
+settings = get_settings()
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="CheMatSustain Secure Research API",
+    version="1.0.0",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
+)
 
 # Initialize the database
 async def init_models():
@@ -24,45 +35,33 @@ async def init_models():
 # Run database initialization
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Application startup")
-    await init_models()
-
-    # Read admin credentials from environment variables
-    admin_email = os.getenv("ADMIN_EMAIL")
-    admin_password = os.getenv("ADMIN_PASSWORD")
-
-    # Only create admin user if credentials are provided and user doesn't exist
-    if admin_email and admin_password:
-        async for db in get_db():
-            # Check if admin user already exists
-            existing_admin = await get_user_by_email(db, admin_email)
-
-            if not existing_admin:
-                # Create admin user if it doesn't exist. The password value is
-                # never logged - only its presence and the resulting outcome.
-                admin_user = UserCreate(
-                    email=admin_email,
-                    password=admin_password,
-                    role="admin"
-                )
-
-                await create_user(db, admin_user)
-                logger.info("Admin user created from ADMIN_EMAIL/ADMIN_PASSWORD environment variables")
-            else:
-                logger.info("Admin user already exists; skipping bootstrap creation")
-
-            break  # Break after the first iteration to ensure the session is closed
-    else:
-        logger.info("Admin bootstrap skipped: ADMIN_EMAIL/ADMIN_PASSWORD not set")
+    if settings.enable_auto_ddl:
+        logger.warning("Development auto-DDL is enabled; use reviewed migrations outside development")
+        await init_models()
+    logger.info("Application startup completed", extra={"environment": settings.environment})
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://database.eurskem.com/", "http://localhost", "https://localhost"],  # Your Next.js frontend URL
+    allow_origins=list(settings.cors_origins),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid4())
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 
@@ -71,36 +70,25 @@ async def health_check():
     return Response(status_code=200, content="OK")
 
 
-from api.controllers.file_navigator import router as file_navigator_router
-from api.controllers.test import router as test_router
-from api.router_tree import router as tree_router
-from api.router_tree_admin import router as tree_admin_router
-from api.router_protocol_files import router as protocol_files_router
+from api.router_phase1 import router as phase1_router
+from api.router_portal import router as portal_router
 
-app.include_router(test_router, prefix="/tests", tags=["Tests"])
-app.include_router(file_navigator_router, prefix="/files", tags=["File Navigator"])
-app.include_router(user_router, prefix="/users", tags=["User Management"])
-app.include_router(tree_router, tags=["Tree"])              # remove prefix="/tree"
-app.include_router(protocol_files_router, tags=["Protocol Files"])  # remove prefix="/protocols"
-app.include_router(tree_admin_router, tags=["Tree Admin"])  # this one stays prefix-less (correct already)
+app.include_router(phase1_router)
+app.include_router(portal_router)
 
+# Compatibility mode is explicitly unavailable in production. It exists only
+# to support a controlled migration of the current UI and old integrations.
+if settings.enable_legacy_api:
+    from api.controllers.file_navigator import router as file_navigator_router
+    from api.controllers.test import router as test_router
+    from api.controllers.user import router as user_router
+    from api.router_protocol_files import router as protocol_files_router
+    from api.router_tree import router as tree_router
+    from api.router_tree_admin import router as tree_admin_router
 
-from utils.oidc import get_current_principal, require_scope
-
-
-@app.get("/oidc/whoami")
-async def oidc_whoami(principal=Depends(get_current_principal)):
-    """Demo endpoint proving OIDC resource-server validation end-to-end."""
-    return {
-        "subject": principal.subject,
-        "organisation_id": principal.organisation_id,
-        "roles": sorted(principal.roles),
-        "scopes": sorted(principal.scopes),
-        "authorized_party": principal.authorized_party,
-    }
-
-
-@app.get("/oidc/tests-scope-check")
-async def oidc_tests_scope_check(principal=Depends(require_scope("tests:read"))):
-    """Demo endpoint proving deny-by-default scope enforcement."""
-    return {"ok": True, "organisation_id": principal.organisation_id}
+    app.include_router(test_router, prefix="/tests", tags=["Legacy Tests"])
+    app.include_router(file_navigator_router, prefix="/files", tags=["Legacy File Navigator"])
+    app.include_router(user_router, prefix="/users", tags=["Legacy User Management"])
+    app.include_router(tree_router, tags=["Legacy Tree"])
+    app.include_router(protocol_files_router, tags=["Legacy Protocol Files"])
+    app.include_router(tree_admin_router, tags=["Legacy Tree Admin"])

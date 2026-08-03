@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, JSON, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, JSON, Boolean, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from utils.db import Base
@@ -9,6 +9,7 @@ class Test(Base):
     __tablename__ = "tests"
 
     id = Column(Integer, primary_key=True, index=True)
+    organisation_id = Column(String(36), ForeignKey("organisations.id"), nullable=True, index=True)
     work_package_name = Column(String, index=True)
     element_cms_id = Column(String, index=True)
     test_name = Column(String, index=True)

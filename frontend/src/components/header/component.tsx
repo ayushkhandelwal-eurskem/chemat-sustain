@@ -94,6 +94,7 @@ export default function Header() {
           <NavLink href="/prediction">Prediction model (QSAR)</NavLink>
 
           <NavLink href="/help">Help</NavLink>
+          {user && <NavLink href="/developer">Developer Portal</NavLink>}
 
           {/* Search Form */}
           <form onSubmit={handleSearch} className="relative">

@@ -31,3 +31,4 @@ backend/data/
 *.dump
 prod-backups/
 backups/
+node_modules

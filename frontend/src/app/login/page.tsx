@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { isKeycloakMode } from '@/lib/oidc';
 
 const LoginPage: React.FC = () => {
   const [step, setStep] = useState<'login' | 'otp'>('login');
@@ -56,6 +57,19 @@ const LoginPage: React.FC = () => {
     setError('');
     setMessage('');
   };
+
+  if (isKeycloakMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-sky-100 px-4">
+        <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-md">
+          <Image src="https://chematsustain.eu/wp-content/uploads/2024/03/CMS-Logo-horizontal-color-transp.png" alt="CheMatSustain" width={240} height={72} className="mx-auto h-auto w-56" priority />
+          <h1 className="mt-8 text-2xl font-bold text-blue-900">Secure consortium sign-in</h1>
+          <p className="mt-2 text-sm text-slate-600">Continue to Keycloak. Multi-factor authentication is required by your organisation.</p>
+          <button onClick={() => void login()} className="mt-6 w-full rounded-md bg-blue-900 px-4 py-3 font-semibold text-white hover:bg-blue-800">Continue to sign in</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ProtectedRoute requireAuth={false}>

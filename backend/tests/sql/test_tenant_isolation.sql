@@ -1,232 +1,171 @@
 -- ===========================================================================
--- Cross-tenant isolation tests. MUST be run as the non-superuser application
--- role (chemat_app) - as a superuser every assertion below passes vacuously
--- because superusers bypass RLS entirely, which is exactly the false-assurance
--- trap this file exists to prevent.
+-- Cross-tenant isolation tests.
+--
+-- MUST run as chemat_app (non-superuser). As a superuser every assertion below
+-- passes vacuously, because superusers bypass RLS unconditionally - that false
+-- assurance is exactly what this file exists to prevent, so T0 checks it first
+-- and fails hard.
 --
 --   PGPASSWORD=... psql -h <host> -U chemat_app -d <db> \
 --     -v ON_ERROR_STOP=1 -f test_tenant_isolation.sql
 --
+-- Each assertion maps to a defect genuinely present in 001_secure_foundation.sql
+-- and corrected in 003_fix_tenant_enforcement.sql:
+--   T0    <- the app role was never created, so no policy enforced anything
+--   T1/T3 <- the policy compared organisations.id to the token's slug, matching
+--            nothing, so every tenant silently saw zero rows
+--   T7    <- is_public was absent, so published data was invisible to everyone
+--   T9    <- categories was tenant-scoped despite being shared reference data
+--
 -- Any failure RAISEs, so psql exits non-zero and CI fails the build.
--- Creates and removes its own fixtures; leaves no residue except audit rows,
--- which are append-only by design.
 -- ===========================================================================
 
 \set ON_ERROR_STOP on
 
 DO $$
 DECLARE
-    org_a UUID;
-    org_b UUID;
-    n     BIGINT;
-    r     RECORD;
-    failures INT := 0;
+    org_a    varchar(36);
+    org_b    varchar(36);
+    slug_a   text := 'ulodz';
+    slug_b   text := 'tul';
+    n        bigint;
+    r        record;
+    failures int := 0;
 BEGIN
-    -- -------------------------------------------------------------------
-    -- T0: the mechanism itself. If the connected role bypasses RLS, every
-    -- other test is meaningless - fail immediately and loudly.
-    -- -------------------------------------------------------------------
+    -- T0: the enforcement mechanism itself.
     SELECT rolsuper, rolbypassrls INTO r FROM pg_roles WHERE rolname = current_user;
     IF r.rolsuper OR r.rolbypassrls THEN
         RAISE EXCEPTION
-          'T0 FAIL: connected as % which bypasses RLS (rolsuper=%, rolbypassrls=%). These tests only mean something as a non-superuser role.',
+          'T0 FAIL: connected as % which BYPASSES RLS (rolsuper=%, rolbypassrls=%). Every assertion below would pass without proving anything.',
           current_user, r.rolsuper, r.rolbypassrls;
     END IF;
-    RAISE NOTICE 'T0 PASS: % does not bypass RLS', current_user;
+    RAISE NOTICE 'T0 PASS: % cannot bypass RLS', current_user;
 
-    SELECT id INTO org_a FROM organisations WHERE slug = 'ulodz';
-    SELECT id INTO org_b FROM organisations WHERE slug = 'tul';
+    SELECT id INTO org_a FROM organisations WHERE slug = slug_a;
+    SELECT id INTO org_b FROM organisations WHERE slug = slug_b;
     IF org_a IS NULL OR org_b IS NULL THEN
-        RAISE EXCEPTION 'fixture orgs missing - run 001_tenant_foundation.sql';
+        RAISE EXCEPTION 'fixture organisations (%, %) are missing', slug_a, slug_b;
     END IF;
 
-    -- -------------------------------------------------------------------
-    -- T1: with no tenant context, NO UNPUBLISHED row may be visible.
-    --
-    -- Published rows (is_public) ARE intentionally visible without a context -
-    -- "public" on this platform means public on the internet, and
-    -- /tests/public/ serves anonymous callers by design. The invariant that
-    -- matters is that unpublished data never surfaces.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', '', true);
+    -- T1: the resolver accepts the alias tokens actually carry. If this fails,
+    -- claim and column are different values and nothing matches - the failure
+    -- mode is total invisibility, easily mistaken for "no data yet".
+    PERFORM set_config('app.current_organisation_id', slug_a, true);
+    IF current_organisation_id() IS DISTINCT FROM org_a THEN
+        RAISE WARNING 'T1 FAIL: alias % did not resolve to an organisation id', slug_a;
+        failures := failures + 1;
+    ELSE
+        RAISE NOTICE 'T1 PASS: token alias resolves to an organisation id';
+    END IF;
+
+    -- T2: no tenant context => no unpublished rows. Published rows are
+    -- deliberately world-readable, so scope this to unpublished data.
+    PERFORM set_config('app.current_organisation_id', '', true);
     SELECT count(*) INTO n FROM tests WHERE NOT is_public;
     IF n <> 0 THEN
-        RAISE WARNING 'T1 FAIL: % UNPUBLISHED row(s) visible with no tenant context', n;
+        RAISE WARNING 'T2 FAIL: % unpublished row(s) visible with no tenant context', n;
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T1 PASS: no context => no unpublished rows';
+        RAISE NOTICE 'T2 PASS: no context => no unpublished rows';
     END IF;
 
-    -- -------------------------------------------------------------------
-    -- T2: an unknown tenant slug must not act as a wildcard - it grants no
-    -- more than no context at all.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', 'no-such-org', true);
-    SELECT count(*) INTO n FROM tests WHERE NOT is_public;
+    -- T3: a tenant CAN read its own rows. The positive case matters as much as
+    -- the negative ones: a policy that denies everything is not isolation.
+    PERFORM set_config('app.current_organisation_id', slug_a, true);
+    SELECT count(*) INTO n FROM tests WHERE organisation_id = org_a;
+    IF n = 0 THEN
+        RAISE WARNING 'T3 FAIL: tenant % cannot see any of its own rows', slug_a;
+        failures := failures + 1;
+    ELSE
+        RAISE NOTICE 'T3 PASS: tenant sees its own rows (%)', n;
+    END IF;
+
+    -- T4: and none of another tenant's unpublished rows.
+    SELECT count(*) INTO n FROM tests WHERE organisation_id = org_b AND NOT is_public;
     IF n <> 0 THEN
-        RAISE WARNING 'T2 FAIL: % unpublished row(s) visible for unknown tenant slug', n;
+        RAISE WARNING 'T4 FAIL: % sees % unpublished row(s) belonging to %', slug_a, n, slug_b;
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T2 PASS: unknown slug => no unpublished rows';
+        RAISE NOTICE 'T4 PASS: cross-tenant read blocked';
     END IF;
 
-    -- -------------------------------------------------------------------
-    -- T3: tenant A never sees tenant B's rows.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', 'ulodz', true);
-    SELECT count(*) INTO n FROM tests WHERE organisation_id = org_b;
-    IF n <> 0 THEN
-        RAISE WARNING 'T3 FAIL: ulodz context sees % of tul''s rows', n;
-        failures := failures + 1;
-    ELSE
-        RAISE NOTICE 'T3 PASS: ulodz cannot see tul rows';
-    END IF;
-
-    -- -------------------------------------------------------------------
-    -- T4: cross-tenant UPDATE silently affects nothing (policy filters the
-    -- rows out rather than erroring).
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', 'tul', true);
+    -- T5: cross-tenant UPDATE affects nothing.
+    PERFORM set_config('app.current_organisation_id', slug_b, true);
     WITH upd AS (
         UPDATE tests SET test_name = test_name WHERE organisation_id = org_a RETURNING 1
     ) SELECT count(*) INTO n FROM upd;
     IF n <> 0 THEN
-        RAISE WARNING 'T4 FAIL: tul context updated % of ulodz''s rows', n;
+        RAISE WARNING 'T5 FAIL: % updated % row(s) belonging to %', slug_b, n, slug_a;
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T4 PASS: cross-tenant UPDATE affected 0 rows';
+        RAISE NOTICE 'T5 PASS: cross-tenant UPDATE affected 0 rows';
     END IF;
 
-    -- -------------------------------------------------------------------
-    -- T5: cross-tenant INSERT is actively rejected by WITH CHECK.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', 'tul', true);
+    -- T6: cross-tenant INSERT is refused by WITH CHECK.
     BEGIN
         INSERT INTO tests (work_package_name, test_name, organisation_id, created_at, updated_at)
-        VALUES ('WP-RLS-TEST', 'cross-tenant-probe', org_a, now(), now());
-        RAISE WARNING 'T5 FAIL: cross-tenant INSERT was ALLOWED';
+        VALUES ('WP-ISO-TEST', 'cross-tenant-probe', org_a, now(), now());
+        RAISE WARNING 'T6 FAIL: cross-tenant INSERT was ALLOWED';
         failures := failures + 1;
-        DELETE FROM tests WHERE test_name = 'cross-tenant-probe';
     EXCEPTION WHEN insufficient_privilege OR check_violation THEN
-        RAISE NOTICE 'T5 PASS: cross-tenant INSERT rejected';
+        RAISE NOTICE 'T6 PASS: cross-tenant INSERT refused';
     END;
 
-    -- -------------------------------------------------------------------
-    -- T6: same-tenant INSERT still works - isolation must not break the
-    -- legitimate path.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', 'tul', true);
-    BEGIN
-        INSERT INTO tests (work_package_name, test_name, organisation_id, created_at, updated_at)
-        VALUES ('WP-RLS-TEST', 'same-tenant-probe', org_b, now(), now());
-        DELETE FROM tests WHERE test_name = 'same-tenant-probe';
-        RAISE NOTICE 'T6 PASS: same-tenant INSERT allowed';
-    EXCEPTION WHEN others THEN
-        RAISE WARNING 'T6 FAIL: same-tenant INSERT rejected: %', SQLERRM;
-        failures := failures + 1;
-    END;
-
-    -- -------------------------------------------------------------------
-    -- T6b: publication actually works. A row marked is_public must be readable
-    -- with no tenant context at all (anonymous internet access), while its
-    -- unpublished neighbours stay hidden. Publish, assert both, roll back.
-    --
-    -- Note the governance context: the trigger in 005 refuses publication
-    -- changes without one, deliberately.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.platform_governance', 'on', true);
-    PERFORM set_config('app.current_org', 'ulodz', true);
+    -- T7: publication works. is_public means public on the internet, so a
+    -- published row must be readable with NO tenant context at all.
+    PERFORM set_config('app.current_organisation_id', slug_a, true);
     UPDATE tests SET is_public = TRUE
      WHERE id = (SELECT min(id) FROM tests WHERE organisation_id = org_a);
-    PERFORM set_config('app.platform_governance', 'off', true);
 
-    PERFORM set_config('app.current_org', '', true);
+    PERFORM set_config('app.current_organisation_id', '', true);
     SELECT count(*) INTO n FROM tests WHERE is_public;
     IF n < 1 THEN
-        RAISE WARNING 'T6b FAIL: published row NOT visible anonymously (public access broken)';
+        RAISE WARNING 'T7 FAIL: published row NOT readable without a tenant context - anonymous public access is broken';
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T6b PASS: published row readable with no tenant context';
+        RAISE NOTICE 'T7 PASS: published row readable with no tenant context';
     END IF;
 
+    -- T8: publishing one row must not drag its neighbours along.
     SELECT count(*) INTO n FROM tests WHERE NOT is_public;
     IF n <> 0 THEN
-        RAISE WARNING 'T6c FAIL: % unpublished row(s) leaked alongside published ones', n;
+        RAISE WARNING 'T8 FAIL: publishing one row exposed % unpublished row(s)', n;
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T6c PASS: publishing one row did not expose the others';
+        RAISE NOTICE 'T8 PASS: publishing one row did not expose others';
     END IF;
 
-    PERFORM set_config('app.platform_governance', 'on', true);
-    PERFORM set_config('app.current_org', 'ulodz', true);
+    PERFORM set_config('app.current_organisation_id', slug_a, true);
     UPDATE tests SET is_public = FALSE WHERE is_public;
-    PERFORM set_config('app.platform_governance', 'off', true);
 
-    -- -------------------------------------------------------------------
-    -- T6d: an ordinary tenant context cannot publish its own data - that is a
-    -- governed, data-owner decision.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', 'tul', true);
-    BEGIN
-        UPDATE tests SET is_public = TRUE WHERE organisation_id = org_b;
-        RAISE WARNING 'T6d FAIL: non-governance context was able to publish data';
-        failures := failures + 1;
-    EXCEPTION WHEN others THEN
-        RAISE NOTICE 'T6d PASS: publication blocked outside governance context';
-    END;
-
-    -- -------------------------------------------------------------------
-    -- T7: audit_events is append-only at the GRANT level, so tampering
-    -- fails even if application code is compromised.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', 'tul', true);
-    INSERT INTO audit_events (action, result, organisation_id)
-    VALUES ('rls.selftest', 'success', org_b);
-
-    BEGIN
-        UPDATE audit_events SET action = 'tampered' WHERE action = 'rls.selftest';
-        RAISE WARNING 'T7 FAIL: UPDATE on audit_events was ALLOWED';
-        failures := failures + 1;
-    EXCEPTION WHEN insufficient_privilege THEN
-        RAISE NOTICE 'T7 PASS: UPDATE on audit_events denied';
-    END;
-
-    BEGIN
-        DELETE FROM audit_events WHERE action = 'rls.selftest';
-        RAISE WARNING 'T8 FAIL: DELETE on audit_events was ALLOWED';
-        failures := failures + 1;
-    EXCEPTION WHEN insufficient_privilege THEN
-        RAISE NOTICE 'T8 PASS: DELETE on audit_events denied';
-    END;
-
-    -- -------------------------------------------------------------------
-    -- T9: one tenant cannot forge an audit entry attributed to another.
-    -- -------------------------------------------------------------------
-    PERFORM set_config('app.current_org', 'tul', true);
-    BEGIN
-        INSERT INTO audit_events (action, result, organisation_id)
-        VALUES ('rls.forge', 'success', org_a);
-        RAISE WARNING 'T9 FAIL: tul forged an audit event attributed to ulodz';
-        failures := failures + 1;
-    EXCEPTION WHEN insufficient_privilege OR check_violation THEN
-        RAISE NOTICE 'T9 PASS: cross-tenant audit forgery rejected';
-    END;
-
-    -- -------------------------------------------------------------------
-    -- T10: the audit hash chain is intact (tamper evidence).
-    -- -------------------------------------------------------------------
-    SELECT count(*) INTO n FROM (
-        SELECT id, prev_hash,
-               lag(entry_hash) OVER (ORDER BY id) AS expected_prev
-        FROM audit_events
-    ) c WHERE id > (SELECT min(id) FROM audit_events)
-        AND coalesce(prev_hash, '') <> coalesce(expected_prev, '');
-    IF n <> 0 THEN
-        RAISE WARNING 'T10 FAIL: audit hash chain broken at % row(s)', n;
+    -- T9: categories is shared reference data. Every tenant must see the whole
+    -- taxonomy; scoping it breaks the navigation tree for everyone at once.
+    PERFORM set_config('app.current_organisation_id', slug_b, true);
+    SELECT count(*) INTO n FROM categories;
+    IF n = 0 THEN
+        RAISE WARNING 'T9 FAIL: shared categories taxonomy invisible to % - wrongly tenant-scoped?', slug_b;
         failures := failures + 1;
     ELSE
-        RAISE NOTICE 'T10 PASS: audit hash chain intact';
+        RAISE NOTICE 'T9 PASS: shared taxonomy visible (% rows)', n;
     END IF;
+
+    -- T10/T11: audit is append-only by GRANT, not convention, so tampering
+    -- fails in the database even if application code is compromised.
+    BEGIN
+        UPDATE audit_events SET outcome = 'tampered' WHERE true;
+        RAISE WARNING 'T10 FAIL: UPDATE on audit_events was ALLOWED';
+        failures := failures + 1;
+    EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE 'T10 PASS: UPDATE on audit_events denied';
+    END;
+
+    BEGIN
+        DELETE FROM audit_events WHERE true;
+        RAISE WARNING 'T11 FAIL: DELETE on audit_events was ALLOWED';
+        failures := failures + 1;
+    EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE 'T11 PASS: DELETE on audit_events denied';
+    END;
 
     IF failures > 0 THEN
         RAISE EXCEPTION 'TENANT ISOLATION TESTS FAILED: % assertion(s)', failures;

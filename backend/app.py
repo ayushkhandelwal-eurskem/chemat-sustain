@@ -19,12 +19,29 @@ from api.models_tree import Category, Protocol, ProtocolTest  # noqa: F401
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+# Interactive docs and the OpenAPI schema are OFF unless explicitly switched on
+# via ENABLE_API_DOCS=true.
+#
+# These were previously gated on `is_production`, which is derived from
+# APP_ENV and DEFAULTS TO "development". A deployment that simply omits APP_ENV
+# therefore served /docs, /redoc and /openapi.json to the internet - which is
+# what production was doing when this was written: 38 endpoints and 45
+# operations, 26 of them state-changing (DELETE /tests/{id},
+# PATCH /tests/bulk-release-flags, ...) published anonymously as a complete
+# attack-surface map, along with internal schema and field names.
+#
+# Keying the negative control off an env var that defaults to the permissive
+# value is fail-open. This flag inverts that: the schema stays private unless
+# someone asks for it, so forgetting a variable can no longer publish the API
+# surface. Enable it in local development only.
+_docs_enabled = settings.enable_api_docs
+
 app = FastAPI(
     title="CheMatSustain Secure Research API",
     version="1.0.0",
-    docs_url=None if settings.is_production else "/docs",
-    redoc_url=None if settings.is_production else "/redoc",
-    openapi_url=None if settings.is_production else "/openapi.json",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
 # Initialize the database

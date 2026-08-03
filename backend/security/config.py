@@ -45,6 +45,9 @@ class Settings:
     tenant_data_root: str
     max_upload_bytes: int
     audit_hmac_key: str
+    # Publishes /docs, /redoc and /openapi.json. Defaults to False so that an
+    # incomplete environment cannot expose the API surface - see app.py.
+    enable_api_docs: bool = False
 
     @property
     def is_production(self) -> bool:
@@ -86,6 +89,11 @@ class Settings:
                 raise RuntimeError(f"Missing Keycloak provisioning settings: {', '.join(missing)}")
         if self.is_production and not self.audit_hmac_key:
             raise RuntimeError("AUDIT_HMAC_KEY is required in production")
+        # Defence in depth: enable_api_docs already defaults to False, so this
+        # only fires if someone sets ENABLE_API_DOCS=true against a production
+        # APP_ENV. Refuse to start rather than publish the API surface.
+        if self.is_production and self.enable_api_docs:
+            raise RuntimeError("ENABLE_API_DOCS must be false in production")
         if "*" in self.cors_origins:
             raise RuntimeError("Wildcard CORS origins are not permitted")
 
@@ -121,6 +129,7 @@ def get_settings() -> Settings:
         tenant_data_root=os.getenv("TENANT_DATA_ROOT", "/data/tenants"),
         max_upload_bytes=int(os.getenv("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024))),
         audit_hmac_key=os.getenv("AUDIT_HMAC_KEY", ""),
+        enable_api_docs=_bool("ENABLE_API_DOCS", False),
     )
     settings.validate()
     return settings

@@ -111,8 +111,18 @@ services:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     networks:
       - app-network
-    # NO host port mapping. nginx proxies to it internally, same pattern as
-    # frontend/backend above.
+    ports:
+      # Bound to LOOPBACK ONLY - not reachable from the internet. This exists so
+      # the admin console can be reached over an SSH tunnel, because /admin is
+      # blocked at nginx for public traffic (it is the identity trust root, and
+      # the host receives untargeted internet scanning).
+      #
+      #   ssh -L 8081:127.0.0.1:8081 root@<host>
+      #   then browse http://localhost:8081/admin/master/console/
+      #
+      # Do NOT change this to 8081:8080 - that would bind 0.0.0.0 and expose the
+      # admin console directly, bypassing both nginx and Cloudflare.
+      - "127.0.0.1:8081:8080"
     deploy:
       resources:
         limits:

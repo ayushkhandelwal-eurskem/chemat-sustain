@@ -139,3 +139,61 @@ When the 19 existing users are provisioned into Keycloak, each must be added to 
 ### Still outstanding
 
 The **admin console is publicly reachable** — `/admin/master/console/` returns `200` to the internet. It is login-gated, but it is the identity trust root, so brute-force attempts and any future Keycloak admin CVE are internet-facing. Restrict via Cloudflare Access or a WAF rule on `auth.eurskem.com/admin*` (dashboard access required).
+
+---
+
+## Admin console lockdown (applied 2026-08-03)
+
+Cloudflare's account-level WAF page is Enterprise-only, so the restriction was implemented at the origin instead. No Cloudflare paid feature is required.
+
+**Public access to `/admin` is refused; the console is reached over an SSH tunnel.**
+
+```bash
+ssh -L 8081:127.0.0.1:8081 root@217.154.65.136
+# then browse:
+http://localhost:8081/admin/master/console/
+```
+
+Keycloak is bound to `127.0.0.1:8081` on the host for this purpose (`docker-compose.yml`). Verified **not** reachable from the internet — a direct connection to `217.154.65.136:8081` is refused.
+
+### Why this rather than the alternatives
+
+- **Cloudflare Access / WAF custom rule** — the better tool, and free at zone level, but appeared paywalled on this account. Still worth revisiting.
+- **IP allowlist** — rejected. The only available address was a Jio dynamic IPv6 (`2401:4900:…`); an allowlist on it breaks whenever the prefix rotates, and the failure mode is locking the operator out of their own identity system.
+- **HTTP Basic auth** — does not work here. The admin console is a SPA whose XHRs set their own `Authorization: Bearer` header, which displaces the Basic credential and 401s every request. Worth recording so it is not retried.
+- **SSH tunnel** — costs nothing, needs no IP maintenance, cannot lock anyone out (it reuses existing root SSH), and removes the admin surface from the internet entirely rather than merely gating it.
+
+This is not theoretical: an open-proxy probe (`CONNECT www.google.com:443` from `62.210.220.46`) was observed in these access logs, confirming the host receives untargeted internet scanning.
+
+### Verified after applying
+
+| | |
+|---|---|
+| `/admin/master/console/` public | **403** |
+| `/admin/realms/master` public | **403** |
+| `/admin/master/console/` at origin (bypassing Cloudflare) | **403** — proves it is enforced at nginx, not just cached |
+| `/realms/chematsustain` | 200 |
+| `.well-known/openid-configuration` | 200 |
+| JWKS `…/openid-connect/certs` | 200 |
+| PKCE authorize endpoint | 200, serves "Sign in to chematsustain" |
+| Partner m2m token | issued, `organisation_id='eurskem'` |
+| Console via loopback tunnel | 200 |
+| App `/`, `/login`, `/api/health`, `/api/tests/catalog` | 200 |
+
+The scope matters: the block matches `/admin` **only**. Everything authentication-related lives under `/realms/`, which stays public — widening the rule to `/realms` would break every login and every API call.
+
+`KEYCLOAK_ADMIN_BASE_URL` was set to the internal `http://keycloak:8080` so that when portal-driven provisioning is enabled it talks to Keycloak container-to-container and is unaffected by this block.
+
+### Also hardened
+
+| Setting | Before | After |
+|---|---|---|
+| Brute-force protection (both realms) | **off** | on, lockout after 10 failures with escalating wait |
+| Password policy (both realms) | **none** | 14 chars, upper/lower/digit/special |
+| Admin MFA | none | `CONFIGURE_TOTP` required action set |
+
+Requiring TOTP **blocks the password grant** for that account (`invalid_grant - Account is not fully set up`), which is the intended effect but means Admin REST access via password grant is unavailable until enrolment completes in the browser. Break-glass if the authenticator is ever lost — verified available:
+
+```bash
+docker exec chematsustain-keycloak-1 /opt/keycloak/bin/kc.sh bootstrap-admin user
+```

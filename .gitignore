@@ -1,7 +1,26 @@
 .ssh
 certs/
 .env
+
+# Local data and uploads - never committed.
 data
 backend/protocol_files/
+protocol_files/
+
+# Database dumps, data exports and backups.
+#
+# A production dump containing real user data and restricted research records
+# was committed to this public repository once already (see
+# docs/security/incident-2026-08-credential-and-data-exposure.md). These
+# patterns are deliberately shaped to catch data-export filenames while
+# keeping legitimate schema/seed scripts (seed_categories.sql,
+# backend/setup_tree.sql) tracked - hence not a blanket *.sql.
 *backup*.sql
+*backup*.tar.gz
+*_backup*.tar.gz
 *dump*.sql
+*_data.sql
+*_live*.sql
+*.dump
+prod-backups/
+backups/

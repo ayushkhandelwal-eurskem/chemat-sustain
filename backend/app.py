@@ -83,3 +83,24 @@ app.include_router(user_router, prefix="/users", tags=["User Management"])
 app.include_router(tree_router, tags=["Tree"])              # remove prefix="/tree"
 app.include_router(protocol_files_router, tags=["Protocol Files"])  # remove prefix="/protocols"
 app.include_router(tree_admin_router, tags=["Tree Admin"])  # this one stays prefix-less (correct already)
+
+
+from utils.oidc import get_current_principal, require_scope
+
+
+@app.get("/oidc/whoami")
+async def oidc_whoami(principal=Depends(get_current_principal)):
+    """Demo endpoint proving OIDC resource-server validation end-to-end."""
+    return {
+        "subject": principal.subject,
+        "organisation_id": principal.organisation_id,
+        "roles": sorted(principal.roles),
+        "scopes": sorted(principal.scopes),
+        "authorized_party": principal.authorized_party,
+    }
+
+
+@app.get("/oidc/tests-scope-check")
+async def oidc_tests_scope_check(principal=Depends(require_scope("tests:read"))):
+    """Demo endpoint proving deny-by-default scope enforcement."""
+    return {"ok": True, "organisation_id": principal.organisation_id}

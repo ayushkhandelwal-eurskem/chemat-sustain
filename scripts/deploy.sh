@@ -153,8 +153,15 @@ log "Checking persistent mounts from the backend container"
 # `timeout` guards against a hung exec. `docker compose exec` was observed
 # hanging indefinitely against this host; without a bound it would sit until the
 # workflow's 30m command_timeout killed it, giving no diagnostics at all.
+#
+# `</dev/null` is REQUIRED, not tidiness. `docker compose exec -T` inherits the
+# caller's stdin, and when that is a terminal it blocks reading it - so this step
+# appeared to hang forever when the script was run by hand over an interactive
+# SSH session, while behaving fine under CI where stdin is already /dev/null.
+# Detaching stdin makes the two environments behave the same.
 timeout 60 "${COMPOSE[@]}" exec -T backend sh -c \
   'test -r /app/data && test -w /app/data && test -r /app/protocol_files && test -w /app/protocol_files' \
+  </dev/null \
   || fail "backend cannot read and write one or more persistent data mounts (or the check timed out).
        If the host directory ownership check above passed, exec into the container and compare:
          ${COMPOSE[*]} exec -T backend sh -c 'id; ls -ld /app/data /app/protocol_files'"

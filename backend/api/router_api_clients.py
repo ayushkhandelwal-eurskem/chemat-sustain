@@ -40,6 +40,7 @@ router = APIRouter(prefix="/admin/api-clients", tags=["API Clients"])
 # would look granted but authorise nothing.
 ALLOWED_SCOPES = [
     "tests:read",
+    "experimental-data:read",
     "protocols:read",
     "protocol-files:download",
     "files:navigate",

@@ -61,7 +61,10 @@ async def append_audit_event(
         "metadata": metadata or {},
     }
     event = AuditEvent(
-        **{key: value for key, value in payload.items() if key != "metadata"},
+        # occurred_at is passed explicitly below (as a datetime, not the
+        # isoformat string in the payload), so it must be excluded here -
+        # passing both raises "got multiple values for keyword argument".
+        **{key: value for key, value in payload.items() if key not in ("metadata", "occurred_at")},
         event_metadata=payload["metadata"],
         occurred_at=occurred_at,
         previous_hash=previous_hash,

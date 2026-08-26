@@ -72,6 +72,10 @@ type ResourceResponse = {
 
 const emptyResources: ResourceResponse = { tests: [], protocols: [] };
 
+// Sentinel value for "no filter applied", mirroring the backoffice tests
+// page: never collides with a real work package / test / element value.
+const ALL = 'all';
+
 function errorMessage(error: any): string {
   const detail = error?.response?.data?.detail;
   if (typeof detail === 'string') return detail;
@@ -128,6 +132,12 @@ export default function ApiAccessPage() {
   const [testSearch, setTestSearch] = useState('');
   const [protocolSearch, setProtocolSearch] = useState('');
   const [allowReassign, setAllowReassign] = useState(false);
+
+  // ---- Tests & protocols filters (mirrors the backoffice tests page) ----
+  const [filterWorkPackage, setFilterWorkPackage] = useState<string>(ALL);
+  const [filterTest, setFilterTest] = useState<string>(ALL);
+  const [filterElement, setFilterElement] = useState<string>(ALL);
+  const [filterCategory, setFilterCategory] = useState<string>(ALL);
 
   const [editingUserId, setEditingUserId] = useState<number | ''>('');
   const [editingUser, setEditingUser] = useState({
@@ -218,29 +228,110 @@ export default function ApiAccessPage() {
     return credentials.filter((credential) => credential.user_id === selectedUserId);
   }, [credentials, selectedUserId]);
 
+  // Distinct filter options, derived from the resource list itself so the
+  // dropdowns always match the data (the tests page uses static lists; here
+  // the values come from whatever tests/protocols actually exist).
+  const uniqueSorted = (values: (string | null | undefined)[]) =>
+    Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+      a.localeCompare(b),
+    );
+
+  const workPackageOptions = useMemo(
+    () => uniqueSorted(resources.tests.map((item) => item.work_package_name)),
+    [resources.tests],
+  );
+  const testTypeOptions = useMemo(
+    () => uniqueSorted(resources.tests.map((item) => item.test_name)),
+    [resources.tests],
+  );
+  const elementOptions = useMemo(
+    () => uniqueSorted(resources.tests.map((item) => item.element_cms_id)),
+    [resources.tests],
+  );
+  const categoryOptions = useMemo(
+    () => uniqueSorted(resources.protocols.map((item) => item.category_name)),
+    [resources.protocols],
+  );
+
   const filteredTests = useMemo(() => {
     const query = testSearch.trim().toLowerCase();
-    if (!query) return resources.tests;
-    return resources.tests.filter((item) =>
-      [item.work_package_name, item.element_cms_id, item.test_name, item.organisation_name]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [resources.tests, testSearch]);
+    return resources.tests.filter((item) => {
+      if (filterWorkPackage !== ALL && item.work_package_name !== filterWorkPackage) return false;
+      if (filterTest !== ALL && item.test_name !== filterTest) return false;
+      if (filterElement !== ALL && item.element_cms_id !== filterElement) return false;
+      if (
+        query &&
+        ![item.work_package_name, item.element_cms_id, item.test_name, item.organisation_name]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(query)
+      )
+        return false;
+      return true;
+    });
+  }, [resources.tests, testSearch, filterWorkPackage, filterTest, filterElement]);
 
   const filteredProtocols = useMemo(() => {
     const query = protocolSearch.trim().toLowerCase();
-    if (!query) return resources.protocols;
-    return resources.protocols.filter((item) =>
-      [item.name, item.category_name, item.organisation_name]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
+    return resources.protocols.filter((item) => {
+      if (filterCategory !== ALL && item.category_name !== filterCategory) return false;
+      if (
+        query &&
+        ![item.name, item.category_name, item.organisation_name]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(query)
+      )
+        return false;
+      return true;
+    });
+  }, [resources.protocols, protocolSearch, filterCategory]);
+
+  // A record owned by a DIFFERENT organisation cannot be selected unless the
+  // admin explicitly allowed ownership transfer for this save.
+  const isLocked = (item: { organisation_id: string | null }) =>
+    Boolean(item.organisation_id && item.organisation_id !== dataOrganisationId) && !allowReassign;
+
+  // "Select all" operates on the FILTERED, selectable set - so an
+  // organisation can be granted every test (or every WP2 test, every
+  // morphology test, ...) in one click. Locked records are skipped and
+  // reported rather than silently ignored.
+  const selectableFilteredTests = useMemo(
+    () => filteredTests.filter((item) => !isLocked(item)),
+    [filteredTests, dataOrganisationId, allowReassign],
+  );
+  const selectableFilteredProtocols = useMemo(
+    () => filteredProtocols.filter((item) => !isLocked(item)),
+    [filteredProtocols, dataOrganisationId, allowReassign],
+  );
+  const lockedTestCount = filteredTests.length - selectableFilteredTests.length;
+  const lockedProtocolCount = filteredProtocols.length - selectableFilteredProtocols.length;
+
+  const selectAllFilteredTests = () => {
+    setSelectedTestIds((current) =>
+      Array.from(new Set([...current, ...selectableFilteredTests.map((item) => item.id)])),
     );
-  }, [resources.protocols, protocolSearch]);
+  };
+  const selectAllFilteredProtocols = () => {
+    setSelectedProtocolIds((current) =>
+      Array.from(new Set([...current, ...selectableFilteredProtocols.map((item) => item.id)])),
+    );
+  };
+  const clearTestFilters = () => {
+    setFilterWorkPackage(ALL);
+    setFilterTest(ALL);
+    setFilterElement(ALL);
+    setTestSearch('');
+  };
+  const clearProtocolFilters = () => {
+    setFilterCategory(ALL);
+    setProtocolSearch('');
+  };
+  const hasActiveTestFilters =
+    filterWorkPackage !== ALL || filterTest !== ALL || filterElement !== ALL || Boolean(testSearch.trim());
+  const hasActiveProtocolFilters = filterCategory !== ALL || Boolean(protocolSearch.trim());
 
   const selectedCredentialUser = selectedUserId ? userById.get(selectedUserId) : undefined;
 
@@ -774,18 +865,75 @@ export default function ApiAccessPage() {
           <div className="grid gap-6 xl:grid-cols-2">
             <section className="rounded-xl bg-white p-5 shadow">
               <div className="flex items-center justify-between gap-3">
-                <div><h2 className="font-semibold">Tests</h2><p className="text-sm text-gray-500">{selectedTestIds.length} selected</p></div>
+                <div><h2 className="font-semibold">Tests</h2><p className="text-sm text-gray-500">{selectedTestIds.length} selected of {resources.tests.length}</p></div>
                 <input value={testSearch} onChange={(event) => setTestSearch(event.target.value)} placeholder="Search tests" className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
               </div>
+
+              {/* Filters - same pattern as the backoffice tests page */}
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <label className="text-xs font-medium text-gray-600">
+                  Work Package
+                  <select value={filterWorkPackage} onChange={(event) => setFilterWorkPackage(event.target.value)} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900">
+                    <option value={ALL}>All work packages</option>
+                    {workPackageOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-medium text-gray-600">
+                  Test
+                  <select value={filterTest} onChange={(event) => setFilterTest(event.target.value)} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900">
+                    <option value={ALL}>All test types</option>
+                    {testTypeOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-medium text-gray-600">
+                  Element
+                  <select value={filterElement} onChange={(event) => setFilterElement(event.target.value)} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900">
+                    <option value={ALL}>All elements</option>
+                    {elementOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!dataOrganisationId || !selectableFilteredTests.length}
+                    onClick={selectAllFilteredTests}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    Select all ({selectableFilteredTests.length})
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!selectedTestIds.length}
+                    onClick={() => setSelectedTestIds([])}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-50"
+                  >
+                    Clear selection
+                  </button>
+                  {hasActiveTestFilters && (
+                    <button type="button" onClick={clearTestFilters} className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-700 hover:underline">
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">Showing {filteredTests.length} of {resources.tests.length}</p>
+              </div>
+              {lockedTestCount > 0 && (
+                <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {lockedTestCount} filtered {lockedTestCount === 1 ? 'test is' : 'tests are'} owned by another organisation and were skipped. Enable &quot;Allow transfer&quot; above to include them.
+                </p>
+              )}
+
               <div className="mt-4 max-h-[34rem] space-y-2 overflow-y-auto pr-2">
                 {filteredTests.map((test) => {
-                  const ownedElsewhere = Boolean(test.organisation_id && test.organisation_id !== dataOrganisationId);
-                  const disabled = ownedElsewhere && !allowReassign;
+                  const locked = isLocked(test);
                   return (
-                    <label key={test.id} className={`flex gap-3 rounded-lg border p-3 text-sm ${disabled ? 'cursor-not-allowed bg-gray-50 opacity-60' : 'hover:bg-blue-50'}`}>
+                    <label key={test.id} className={`flex gap-3 rounded-lg border p-3 text-sm ${locked ? 'cursor-not-allowed bg-gray-50 opacity-60' : 'hover:bg-blue-50'}`}>
                       <input
                         type="checkbox"
-                        disabled={disabled || !dataOrganisationId}
+                        disabled={locked || !dataOrganisationId}
                         checked={selectedTestIds.includes(test.id)}
                         onChange={(event) => setSelectedTestIds((current) => event.target.checked ? [...current, test.id] : current.filter((id) => id !== test.id))}
                       />
@@ -797,23 +945,70 @@ export default function ApiAccessPage() {
                     </label>
                   );
                 })}
+                {!filteredTests.length && (
+                  <p className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                    No tests match your filters.
+                  </p>
+                )}
               </div>
             </section>
 
             <section className="rounded-xl bg-white p-5 shadow">
               <div className="flex items-center justify-between gap-3">
-                <div><h2 className="font-semibold">Protocols</h2><p className="text-sm text-gray-500">{selectedProtocolIds.length} selected</p></div>
+                <div><h2 className="font-semibold">Protocols</h2><p className="text-sm text-gray-500">{selectedProtocolIds.length} selected of {resources.protocols.length}</p></div>
                 <input value={protocolSearch} onChange={(event) => setProtocolSearch(event.target.value)} placeholder="Search protocols" className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
               </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <label className="text-xs font-medium text-gray-600">
+                  Category
+                  <select value={filterCategory} onChange={(event) => setFilterCategory(event.target.value)} className="mt-1 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900">
+                    <option value={ALL}>All categories</option>
+                    {categoryOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!dataOrganisationId || !selectableFilteredProtocols.length}
+                    onClick={selectAllFilteredProtocols}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    Select all ({selectableFilteredProtocols.length})
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!selectedProtocolIds.length}
+                    onClick={() => setSelectedProtocolIds([])}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-50"
+                  >
+                    Clear selection
+                  </button>
+                  {hasActiveProtocolFilters && (
+                    <button type="button" onClick={clearProtocolFilters} className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-700 hover:underline">
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">Showing {filteredProtocols.length} of {resources.protocols.length}</p>
+              </div>
+              {lockedProtocolCount > 0 && (
+                <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {lockedProtocolCount} filtered {lockedProtocolCount === 1 ? 'protocol is' : 'protocols are'} owned by another organisation and were skipped. Enable &quot;Allow transfer&quot; above to include them.
+                </p>
+              )}
+
               <div className="mt-4 max-h-[34rem] space-y-2 overflow-y-auto pr-2">
                 {filteredProtocols.map((protocol) => {
-                  const ownedElsewhere = Boolean(protocol.organisation_id && protocol.organisation_id !== dataOrganisationId);
-                  const disabled = ownedElsewhere && !allowReassign;
+                  const locked = isLocked(protocol);
                   return (
-                    <label key={protocol.id} className={`flex gap-3 rounded-lg border p-3 text-sm ${disabled ? 'cursor-not-allowed bg-gray-50 opacity-60' : 'hover:bg-blue-50'}`}>
+                    <label key={protocol.id} className={`flex gap-3 rounded-lg border p-3 text-sm ${locked ? 'cursor-not-allowed bg-gray-50 opacity-60' : 'hover:bg-blue-50'}`}>
                       <input
                         type="checkbox"
-                        disabled={disabled || !dataOrganisationId}
+                        disabled={locked || !dataOrganisationId}
                         checked={selectedProtocolIds.includes(protocol.id)}
                         onChange={(event) => setSelectedProtocolIds((current) => event.target.checked ? [...current, protocol.id] : current.filter((id) => id !== protocol.id))}
                       />
@@ -825,6 +1020,11 @@ export default function ApiAccessPage() {
                     </label>
                   );
                 })}
+                {!filteredProtocols.length && (
+                  <p className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                    No protocols match your filters.
+                  </p>
+                )}
               </div>
             </section>
           </div>

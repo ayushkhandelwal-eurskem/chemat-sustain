@@ -28,6 +28,9 @@ services:
       - db
     environment:
       - PROTOCOL_FILE_DIR=/app/protocol_files
+      # Pinned explicitly so the value survives container recreation even if
+      # the env_file line is missed; must stay in sync with the bind mount.
+      - TENANT_DATA_ROOT=/app/data
     ports:
       - "127.0.0.1:8000:8000"
     networks:

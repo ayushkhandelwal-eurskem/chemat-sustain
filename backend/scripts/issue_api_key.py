@@ -45,6 +45,7 @@ from utils.db import AsyncSessionLocal  # noqa: E402
 # looks granted but cannot read anything.
 ALLOWED_SCOPES = [
     "tests:read",
+    "experimental-data:read",
     "protocols:read",
     "protocol-files:download",
     "files:navigate",

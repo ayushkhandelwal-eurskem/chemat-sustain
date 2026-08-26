@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode; skipInit
           return;
         }
         setAccessToken(oidcUser.access_token);
-        const response = await api.get('/api/v1/portal/me');
+        const response = await api.get('/v1/portal/me');
         const roles: string[] = response.data.roles || [];
         setUser({
           ...response.data,

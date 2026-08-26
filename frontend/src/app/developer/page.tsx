@@ -18,9 +18,9 @@ export default function DeveloperPortalPage() {
 
   const load = async () => {
     const [catalogResponse, appsResponse, requestsResponse] = await Promise.all([
-      api.get('/api/v1/portal/catalog'),
-      api.get('/api/v1/portal/applications'),
-      api.get('/api/v1/portal/access-requests'),
+      api.get('/v1/portal/catalog'),
+      api.get('/v1/portal/applications'),
+      api.get('/v1/portal/access-requests'),
     ]);
     setCatalog(catalogResponse.data);
     setApplications(appsResponse.data);
@@ -31,7 +31,7 @@ export default function DeveloperPortalPage() {
 
   const createApplication = async (event: React.FormEvent) => {
     event.preventDefault();
-    await api.post('/api/v1/portal/applications', { name, description: 'CheMatSustain consortium integration' });
+    await api.post('/v1/portal/applications', { name, description: 'CheMatSustain consortium integration' });
     setName('');
     setMessage('Application registered. You can now request scopes.');
     await load();

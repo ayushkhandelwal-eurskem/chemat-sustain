@@ -17,7 +17,13 @@ def safe_filename(value: str, fallback: str = "download") -> str:
 
 
 def resolve_beneath(root: Path, *parts: str, must_exist: bool = True) -> Path:
-    root = root.resolve(strict=True)
+    try:
+        root = root.resolve(strict=True)
+    except OSError:
+        # The tenant root itself does not exist (e.g. no file was ever stored
+        # for this organisation). Without this guard the FileNotFoundError
+        # escapes as a 500.
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resource not found")
     for part in parts:
         if not isinstance(part, str) or not part or "\x00" in part:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid path")

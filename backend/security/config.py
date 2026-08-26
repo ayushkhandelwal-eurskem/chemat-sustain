@@ -48,6 +48,11 @@ class Settings:
     # Publishes /docs, /redoc and /openapi.json. Defaults to False so that an
     # incomplete environment cannot expose the API surface - see app.py.
     enable_api_docs: bool = False
+    # Slug of the organisation that OPERATES the platform. Credentials bound
+    # to it may read research data across every tenant through the /v1 APIs
+    # (see router_phase1). Empty by default: cross-tenant read is OFF unless
+    # a deployment explicitly opts in.
+    platform_operator_org_slug: str = ""
 
     @property
     def is_production(self) -> bool:
@@ -130,6 +135,7 @@ def get_settings() -> Settings:
         max_upload_bytes=int(os.getenv("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024))),
         audit_hmac_key=os.getenv("AUDIT_HMAC_KEY", ""),
         enable_api_docs=_bool("ENABLE_API_DOCS", False),
+        platform_operator_org_slug=os.getenv("PLATFORM_OPERATOR_ORG_SLUG", ""),
     )
     settings.validate()
     return settings

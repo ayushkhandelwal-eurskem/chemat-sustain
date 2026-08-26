@@ -1,4 +1,5 @@
-from security.audit import event_digest
+from security.audit import append_audit_event, event_digest
+from security.auth import Principal
 
 
 def test_audit_digest_is_deterministic():
@@ -20,3 +21,55 @@ def test_audit_digest_detects_chain_tampering():
 def test_audit_digest_depends_on_secret_key():
     payload = {"outcome": "success"}
     assert event_digest("GENESIS", payload, "key-one") != event_digest("GENESIS", payload, "key-two")
+
+
+# --- append_audit_event construction -----------------------------------------
+#
+# Regression test: occurred_at was passed to AuditEvent() twice - once via the
+# **payload expansion (isoformat string) and once explicitly (datetime) -
+# raising TypeError: got multiple values for keyword argument 'occurred_at'.
+# That made every endpoint which audits a read (experimental-data, protocol
+# download, portal actions) return 500.
+
+class _FakeResult:
+    def scalar_one_or_none(self):
+        return None
+
+
+class _FakeSession:
+    """Minimal AsyncSession stand-in: no previous event, add/flush are no-ops."""
+
+    def __init__(self):
+        self.added = None
+
+    async def execute(self, *_args, **_kwargs):
+        return _FakeResult()
+
+    def add(self, obj):
+        self.added = obj
+
+    async def flush(self):
+        pass
+
+
+async def test_append_audit_event_constructs_event():
+    import os
+    os.environ.setdefault("AUDIT_HMAC_KEY", "test-key")
+    principal = Principal(
+        subject="api-client:cms_test",
+        email=None,
+        organisation_id="org-1",
+        roles=frozenset({"service_account"}),
+        scopes=frozenset({"tests:read"}),
+        client_id="cms_test",
+        token_id=None,
+    )
+    session = _FakeSession()
+    event = await append_audit_event(
+        session, principal, "experimental_data.read", "test", "2", "success"
+    )
+    assert event.organisation_id == "org-1"
+    assert event.sequence == 1
+    assert event.previous_hash == "GENESIS"
+    assert event.event_hash and event.event_hash != "GENESIS"
+    assert session.added is event

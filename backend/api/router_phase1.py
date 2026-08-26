@@ -6,11 +6,15 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.models.security import Organisation
+from api.models.security import (
+    Organisation,
+    OrganisationProtocolAccess,
+    OrganisationTestAccess,
+)
 from api.models.test import Test
 from api.models_tree import Category, Protocol
 from security.audit import append_audit_event
@@ -22,6 +26,26 @@ from utils.db import get_db
 
 
 router = APIRouter(prefix="/v1", tags=["Phase 1 Research APIs"])
+
+
+def _test_access(principal: Principal):
+    return or_(
+        Test.organisation_id == principal.organisation_id,
+        exists().where(
+            OrganisationTestAccess.test_id == Test.id,
+            OrganisationTestAccess.organisation_id == principal.organisation_id,
+        ),
+    )
+
+
+def _protocol_access(principal: Principal):
+    return or_(
+        Protocol.organisation_id == principal.organisation_id,
+        exists().where(
+            OrganisationProtocolAccess.protocol_id == Protocol.id,
+            OrganisationProtocolAccess.organisation_id == principal.organisation_id,
+        ),
+    )
 
 
 async def _platform_operator_org(
@@ -60,7 +84,7 @@ async def tests(
 ):
     query = select(Test)
     if platform_org is None:
-        query = query.where(Test.organisation_id == principal.organisation_id)
+        query = query.where(_test_access(principal))
     records = (
         await db.execute(query.order_by(Test.id).offset(offset).limit(limit))
     ).scalars().all()
@@ -92,7 +116,7 @@ async def experimental_data(
 ):
     conditions = [Test.id == test_id]
     if platform_org is None:
-        conditions.append(Test.organisation_id == principal.organisation_id)
+        conditions.append(_test_access(principal))
     record = (
         await db.execute(select(Test).where(*conditions))
     ).scalar_one_or_none()
@@ -118,7 +142,7 @@ async def protocols(
 ):
     query = select(Protocol)
     if platform_org is None:
-        query = query.where(Protocol.organisation_id == principal.organisation_id)
+        query = query.where(_protocol_access(principal))
     records = (await db.execute(query.order_by(Protocol.sort_order))).scalars().all()
     return [
         {
@@ -144,17 +168,18 @@ async def download_protocol(
 ):
     conditions = [Protocol.id == protocol_id]
     if platform_org is None:
-        conditions.append(Protocol.organisation_id == principal.organisation_id)
+        conditions.append(_protocol_access(principal))
     record = (
         await db.execute(select(Protocol).where(*conditions))
     ).scalar_one_or_none()
     if record is None or not record.file_path:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Resource not found")
-    # The file lives under the OWNING tenant's directory. For the platform
-    # operator that is the record's organisation, not the caller's.
-    owner_org = record.organisation_id if platform_org is not None else principal.organisation_id
+    # The file lives under the owning tenant's directory. Explicit grants do
+    # not transfer ownership. Legacy unassigned protocols retain the historical
+    # shared-file fallback rather than being resolved under the recipient org.
+    owner_org = record.organisation_id
     protocol_root = Path(get_settings().protocol_file_dir)
-    tenant_root = protocol_root / owner_org
+    tenant_root = protocol_root / owner_org if owner_org else protocol_root
     try:
         relative_path = Path(record.file_path).relative_to(tenant_root)
     except ValueError:

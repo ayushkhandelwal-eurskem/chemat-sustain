@@ -53,6 +53,7 @@ type TestResource = {
   organisation_id: string | null;
   organisation_name: string | null;
   organisation_slug: string | null;
+  granted_organisation_ids: string[];
 };
 
 type ProtocolResource = {
@@ -63,6 +64,7 @@ type ProtocolResource = {
   organisation_id: string | null;
   organisation_name: string | null;
   organisation_slug: string | null;
+  granted_organisation_ids: string[];
 };
 
 type ResourceResponse = {
@@ -131,7 +133,6 @@ export default function ApiAccessPage() {
   const [selectedProtocolIds, setSelectedProtocolIds] = useState<number[]>([]);
   const [testSearch, setTestSearch] = useState('');
   const [protocolSearch, setProtocolSearch] = useState('');
-  const [allowReassign, setAllowReassign] = useState(false);
 
   // ---- Tests & protocols filters (mirrors the backoffice tests page) ----
   const [filterWorkPackage, setFilterWorkPackage] = useState<string>(ALL);
@@ -183,12 +184,12 @@ export default function ApiAccessPage() {
     }
     setSelectedTestIds(
       resources.tests
-        .filter((item) => item.organisation_id === dataOrganisationId)
+        .filter((item) => item.granted_organisation_ids.includes(dataOrganisationId))
         .map((item) => item.id),
     );
     setSelectedProtocolIds(
       resources.protocols
-        .filter((item) => item.organisation_id === dataOrganisationId)
+        .filter((item) => item.granted_organisation_ids.includes(dataOrganisationId))
         .map((item) => item.id),
     );
   }, [dataOrganisationId, resources]);
@@ -288,26 +289,10 @@ export default function ApiAccessPage() {
       return true;
     });
   }, [resources.protocols, protocolSearch, filterCategory]);
-
-  // A record owned by a DIFFERENT organisation cannot be selected unless the
-  // admin explicitly allowed ownership transfer for this save.
-  const isLocked = (item: { organisation_id: string | null }) =>
-    Boolean(item.organisation_id && item.organisation_id !== dataOrganisationId) && !allowReassign;
-
-  // "Select all" operates on the FILTERED, selectable set - so an
-  // organisation can be granted every test (or every WP2 test, every
-  // morphology test, ...) in one click. Locked records are skipped and
-  // reported rather than silently ignored.
-  const selectableFilteredTests = useMemo(
-    () => filteredTests.filter((item) => !isLocked(item)),
-    [filteredTests, dataOrganisationId, allowReassign],
-  );
-  const selectableFilteredProtocols = useMemo(
-    () => filteredProtocols.filter((item) => !isLocked(item)),
-    [filteredProtocols, dataOrganisationId, allowReassign],
-  );
-  const lockedTestCount = filteredTests.length - selectableFilteredTests.length;
-  const lockedProtocolCount = filteredProtocols.length - selectableFilteredProtocols.length;
+  // Access grants are many-to-many: every filtered resource remains selectable
+  // without changing its owning organisation.
+  const selectableFilteredTests = filteredTests;
+  const selectableFilteredProtocols = filteredProtocols;
 
   const selectAllFilteredTests = () => {
     setSelectedTestIds((current) =>
@@ -488,12 +473,6 @@ export default function ApiAccessPage() {
       setError('Choose an organisation first.');
       return;
     }
-    if (allowReassign) {
-      const confirmed = window.confirm(
-        'Reassignment can remove data from another partner. Confirm that the selected ownership transfers are correct.',
-      );
-      if (!confirmed) return;
-    }
 
     setBusy(true);
     setError(null);
@@ -501,11 +480,8 @@ export default function ApiAccessPage() {
       await api.put(`/admin/access/organisations/${dataOrganisationId}/resources`, {
         test_ids: selectedTestIds,
         protocol_ids: selectedProtocolIds,
-        replace_existing: true,
-        allow_reassign: allowReassign,
       });
       setNotice('Test and protocol access saved.');
-      setAllowReassign(false);
       await refreshAll();
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -849,10 +825,6 @@ export default function ApiAccessPage() {
                   ))}
                 </select>
               </label>
-              <label className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                <input type="checkbox" checked={allowReassign} onChange={(event) => setAllowReassign(event.target.checked)} />
-                Allow transfer from another organisation
-              </label>
               <button disabled={busy || !dataOrganisationId} onClick={saveResourceAccess} className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white disabled:opacity-50">
                 Save access
               </button>
@@ -920,20 +892,13 @@ export default function ApiAccessPage() {
                 </div>
                 <p className="text-xs text-gray-500">Showing {filteredTests.length} of {resources.tests.length}</p>
               </div>
-              {lockedTestCount > 0 && (
-                <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  {lockedTestCount} filtered {lockedTestCount === 1 ? 'test is' : 'tests are'} owned by another organisation and were skipped. Enable &quot;Allow transfer&quot; above to include them.
-                </p>
-              )}
-
               <div className="mt-4 max-h-[34rem] space-y-2 overflow-y-auto pr-2">
                 {filteredTests.map((test) => {
-                  const locked = isLocked(test);
                   return (
-                    <label key={test.id} className={`flex gap-3 rounded-lg border p-3 text-sm ${locked ? 'cursor-not-allowed bg-gray-50 opacity-60' : 'hover:bg-blue-50'}`}>
+                    <label key={test.id} className="flex gap-3 rounded-lg border p-3 text-sm hover:bg-blue-50">
                       <input
                         type="checkbox"
-                        disabled={locked || !dataOrganisationId}
+                        disabled={!dataOrganisationId}
                         checked={selectedTestIds.includes(test.id)}
                         onChange={(event) => setSelectedTestIds((current) => event.target.checked ? [...current, test.id] : current.filter((id) => id !== test.id))}
                       />
@@ -995,20 +960,13 @@ export default function ApiAccessPage() {
                 </div>
                 <p className="text-xs text-gray-500">Showing {filteredProtocols.length} of {resources.protocols.length}</p>
               </div>
-              {lockedProtocolCount > 0 && (
-                <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  {lockedProtocolCount} filtered {lockedProtocolCount === 1 ? 'protocol is' : 'protocols are'} owned by another organisation and were skipped. Enable &quot;Allow transfer&quot; above to include them.
-                </p>
-              )}
-
               <div className="mt-4 max-h-[34rem] space-y-2 overflow-y-auto pr-2">
                 {filteredProtocols.map((protocol) => {
-                  const locked = isLocked(protocol);
                   return (
-                    <label key={protocol.id} className={`flex gap-3 rounded-lg border p-3 text-sm ${locked ? 'cursor-not-allowed bg-gray-50 opacity-60' : 'hover:bg-blue-50'}`}>
+                    <label key={protocol.id} className="flex gap-3 rounded-lg border p-3 text-sm hover:bg-blue-50">
                       <input
                         type="checkbox"
-                        disabled={locked || !dataOrganisationId}
+                        disabled={!dataOrganisationId}
                         checked={selectedProtocolIds.includes(protocol.id)}
                         onChange={(event) => setSelectedProtocolIds((current) => event.target.checked ? [...current, protocol.id] : current.filter((id) => id !== protocol.id))}
                       />

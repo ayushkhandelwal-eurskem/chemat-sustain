@@ -18,6 +18,8 @@ from api.models.security import (
     DeveloperApplication,
     Organisation,
     OrganisationMembership,
+    OrganisationProtocolAccess,
+    OrganisationTestAccess,
 )
 from api.models.session import Session
 from api.models.test import Test
@@ -64,8 +66,6 @@ class UserAdminUpdate(BaseModel):
 class ResourceAssignment(BaseModel):
     test_ids: list[int] = Field(default_factory=list)
     protocol_ids: list[int] = Field(default_factory=list)
-    replace_existing: bool = True
-    allow_reassign: bool = False
 
 
 def _require_admin(user: User) -> None:
@@ -118,8 +118,26 @@ async def list_organisations(
         result.append(
             _organisation_payload(
                 organisation,
-                test_count=await _count(db, Test, organisation.id),
-                protocol_count=await _count(db, Protocol, organisation.id),
+                test_count=int(
+                    await db.scalar(
+                        select(func.count())
+                        .select_from(OrganisationTestAccess)
+                        .where(
+                            OrganisationTestAccess.organisation_id == organisation.id
+                        )
+                    )
+                    or 0
+                ),
+                protocol_count=int(
+                    await db.scalar(
+                        select(func.count())
+                        .select_from(OrganisationProtocolAccess)
+                        .where(
+                            OrganisationProtocolAccess.organisation_id == organisation.id
+                        )
+                    )
+                    or 0
+                ),
                 credential_count=await _count(db, ApiClient, organisation.id),
             )
         )
@@ -222,6 +240,22 @@ async def delete_organisation(
         "approval decisions": await _count(db, ApprovalDecision, organisation_id),
         "active grants": await _count(db, ActiveGrant, organisation_id),
         "audit events": await _count(db, AuditEvent, organisation_id),
+        "test access grants": int(
+            await db.scalar(
+                select(func.count())
+                .select_from(OrganisationTestAccess)
+                .where(OrganisationTestAccess.organisation_id == organisation_id)
+            )
+            or 0
+        ),
+        "protocol access grants": int(
+            await db.scalar(
+                select(func.count())
+                .select_from(OrganisationProtocolAccess)
+                .where(OrganisationProtocolAccess.organisation_id == organisation_id)
+            )
+            or 0
+        ),
     }
     blocking = {name: count for name, count in dependencies.items() if count}
     if blocking:
@@ -248,47 +282,119 @@ async def list_resources(
 ):
     _require_admin(current_user)
 
+    # Select only the metadata required by the access-management UI.
+    # Do not select the complete Test ORM model: it contains potentially large
+    # JSON fields such as raw_data, processed_data and final_results.
     test_rows = (
         await db.execute(
-            select(Test, Organisation.name, Organisation.slug)
-            .outerjoin(Organisation, Test.organisation_id == Organisation.id)
-            .order_by(Test.work_package_name, Test.element_cms_id, Test.test_name, Test.id)
+            select(
+                Test.id,
+                Test.work_package_name,
+                Test.element_cms_id,
+                Test.test_name,
+                Test.organisation_id,
+                Organisation.name,
+                Organisation.slug,
+            )
+            .outerjoin(
+                Organisation,
+                Test.organisation_id == Organisation.id,
+            )
+            .order_by(
+                Test.work_package_name,
+                Test.element_cms_id,
+                Test.test_name,
+                Test.id,
+            )
         )
     ).all()
 
     protocol_rows = (
         await db.execute(
-            select(Protocol, Category.name, Organisation.name, Organisation.slug)
+            select(
+                Protocol.id,
+                Protocol.name,
+                Protocol.category_id,
+                Category.name,
+                Protocol.organisation_id,
+                Organisation.name,
+                Organisation.slug,
+            )
             .join(Category, Protocol.category_id == Category.id)
-            .outerjoin(Organisation, Protocol.organisation_id == Organisation.id)
-            .order_by(Category.name, Protocol.sort_order, Protocol.name, Protocol.id)
+            .outerjoin(
+                Organisation,
+                Protocol.organisation_id == Organisation.id,
+            )
+            .order_by(
+                Category.name,
+                Protocol.sort_order,
+                Protocol.name,
+                Protocol.id,
+            )
         )
     ).all()
+
+    test_grants: dict[int, list[str]] = {}
+    for test_id, organisation_id in (
+        await db.execute(
+            select(OrganisationTestAccess.test_id, OrganisationTestAccess.organisation_id)
+        )
+    ).all():
+        test_grants.setdefault(test_id, []).append(organisation_id)
+
+    protocol_grants: dict[int, list[str]] = {}
+    for protocol_id, organisation_id in (
+        await db.execute(
+            select(
+                OrganisationProtocolAccess.protocol_id,
+                OrganisationProtocolAccess.organisation_id,
+            )
+        )
+    ).all():
+        protocol_grants.setdefault(protocol_id, []).append(organisation_id)
 
     return {
         "tests": [
             {
-                "id": test.id,
-                "work_package_name": test.work_package_name,
-                "element_cms_id": test.element_cms_id,
-                "test_name": test.test_name,
-                "organisation_id": test.organisation_id,
+                "id": test_id,
+                "work_package_name": work_package_name,
+                "element_cms_id": element_cms_id,
+                "test_name": test_name,
+                "organisation_id": organisation_id,
                 "organisation_name": organisation_name,
                 "organisation_slug": organisation_slug,
+                "granted_organisation_ids": sorted(test_grants.get(test_id, [])),
             }
-            for test, organisation_name, organisation_slug in test_rows
+            for (
+                test_id,
+                work_package_name,
+                element_cms_id,
+                test_name,
+                organisation_id,
+                organisation_name,
+                organisation_slug,
+            ) in test_rows
         ],
         "protocols": [
             {
-                "id": protocol.id,
-                "name": protocol.name,
-                "category_id": protocol.category_id,
+                "id": protocol_id,
+                "name": protocol_name,
+                "category_id": category_id,
                 "category_name": category_name,
-                "organisation_id": protocol.organisation_id,
+                "organisation_id": organisation_id,
                 "organisation_name": organisation_name,
                 "organisation_slug": organisation_slug,
+                "granted_organisation_ids": sorted(protocol_grants.get(protocol_id, [])),
             }
-            for protocol, category_name, organisation_name, organisation_slug in protocol_rows
+            for (
+                protocol_id,
+                protocol_name,
+                category_id,
+                category_name,
+                organisation_id,
+                organisation_name,
+                organisation_slug,
+            ) in protocol_rows
         ],
     }
 
@@ -338,80 +444,47 @@ async def assign_resources(
             },
         )
 
-    conflicting_tests = sorted(
-        item.id
-        for item in selected_tests
-        if item.organisation_id not in (None, organisation_id)
-    )
-    conflicting_protocols = sorted(
-        item.id
-        for item in selected_protocols
-        if item.organisation_id not in (None, organisation_id)
-    )
-    if (conflicting_tests or conflicting_protocols) and not payload.allow_reassign:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            {
-                "message": "Some resources belong to another organisation",
-                "test_ids": conflicting_tests,
-                "protocol_ids": conflicting_protocols,
-                "guidance": "Enable allow_reassign only after confirming the ownership transfer.",
-            },
-        )
-
-    removed_test_ids: list[int] = []
-    removed_protocol_ids: list[int] = []
-    if payload.replace_existing:
-        current_test_ids = set(
-            (
-                await db.execute(
-                    select(Test.id).where(Test.organisation_id == organisation_id)
+    previous_test_ids = set(
+        (
+            await db.execute(
+                select(OrganisationTestAccess.test_id).where(
+                    OrganisationTestAccess.organisation_id == organisation_id
                 )
-            ).scalars().all()
-        )
-        current_protocol_ids = set(
-            (
-                await db.execute(
-                    select(Protocol.id).where(Protocol.organisation_id == organisation_id)
+            )
+        ).scalars().all()
+    )
+    previous_protocol_ids = set(
+        (
+            await db.execute(
+                select(OrganisationProtocolAccess.protocol_id).where(
+                    OrganisationProtocolAccess.organisation_id == organisation_id
                 )
-            ).scalars().all()
-        )
-        removed_test_ids = sorted(current_test_ids - test_ids)
-        removed_protocol_ids = sorted(current_protocol_ids - protocol_ids)
+            )
+        ).scalars().all()
+    )
 
-        if removed_test_ids:
-            await db.execute(
-                update(Test)
-                .where(Test.id.in_(removed_test_ids))
-                .values(organisation_id=None)
-            )
-        if removed_protocol_ids:
-            await db.execute(
-                update(ProtocolTest)
-                .where(ProtocolTest.protocol_id.in_(removed_protocol_ids))
-                .values(organisation_id=None)
-            )
-            await db.execute(
-                update(Protocol)
-                .where(Protocol.id.in_(removed_protocol_ids))
-                .values(organisation_id=None)
-            )
-
-    if test_ids:
-        await db.execute(
-            update(Test).where(Test.id.in_(test_ids)).values(organisation_id=organisation_id)
+    await db.execute(
+        delete(OrganisationTestAccess).where(
+            OrganisationTestAccess.organisation_id == organisation_id
         )
-    if protocol_ids:
-        await db.execute(
-            update(Protocol)
-            .where(Protocol.id.in_(protocol_ids))
-            .values(organisation_id=organisation_id)
+    )
+    await db.execute(
+        delete(OrganisationProtocolAccess).where(
+            OrganisationProtocolAccess.organisation_id == organisation_id
         )
-        await db.execute(
-            update(ProtocolTest)
-            .where(ProtocolTest.protocol_id.in_(protocol_ids))
-            .values(organisation_id=organisation_id)
-        )
+    )
+    db.add_all(
+        [
+            OrganisationTestAccess(organisation_id=organisation_id, test_id=test_id)
+            for test_id in sorted(test_ids)
+        ]
+        + [
+            OrganisationProtocolAccess(
+                organisation_id=organisation_id, protocol_id=protocol_id
+            )
+            for protocol_id in sorted(protocol_ids)
+        ]
+    )
 
     await db.commit()
     logger.info(
@@ -420,7 +493,6 @@ async def assign_resources(
             "organisation_id": organisation_id,
             "test_count": len(test_ids),
             "protocol_count": len(protocol_ids),
-            "allow_reassign": payload.allow_reassign,
             "actor": current_user.email,
         },
     )
@@ -428,8 +500,8 @@ async def assign_resources(
         "organisation_id": organisation_id,
         "assigned_test_ids": sorted(test_ids),
         "assigned_protocol_ids": sorted(protocol_ids),
-        "removed_test_ids": removed_test_ids,
-        "removed_protocol_ids": removed_protocol_ids,
+        "removed_test_ids": sorted(previous_test_ids - test_ids),
+        "removed_protocol_ids": sorted(previous_protocol_ids - protocol_ids),
     }
 
 

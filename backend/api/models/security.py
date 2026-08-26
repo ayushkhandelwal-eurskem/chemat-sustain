@@ -61,6 +61,34 @@ class OrganisationMembership(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
+class OrganisationTestAccess(Base):
+    """Explicit read access to a test without changing its owning organisation."""
+
+    __tablename__ = "organisation_test_access"
+
+    organisation_id: Mapped[str] = mapped_column(
+        ForeignKey("organisations.id", ondelete="CASCADE"), primary_key=True
+    )
+    test_id: Mapped[int] = mapped_column(
+        ForeignKey("tests.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OrganisationProtocolAccess(Base):
+    """Explicit read access to a protocol without changing its owner."""
+
+    __tablename__ = "organisation_protocol_access"
+
+    organisation_id: Mapped[str] = mapped_column(
+        ForeignKey("organisations.id", ondelete="CASCADE"), primary_key=True
+    )
+    protocol_id: Mapped[int] = mapped_column(
+        ForeignKey("protocols.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ApiDefinition(Base):
     __tablename__ = "api_definitions"
 

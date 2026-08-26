@@ -8,6 +8,8 @@ from .security import (
     DeveloperApplication,
     Organisation,
     OrganisationMembership,
+    OrganisationProtocolAccess,
+    OrganisationTestAccess,
     AccessRequest,
 )
 
@@ -16,6 +18,8 @@ __all__ = [
     "Session",
     "Organisation",
     "OrganisationMembership",
+    "OrganisationTestAccess",
+    "OrganisationProtocolAccess",
     "ApiDefinition",
     "DeveloperApplication",
     "AccessRequest",

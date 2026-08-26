@@ -192,6 +192,36 @@ class HRSTEMParser:
             return normalized
         return None
 
+    def canonical_identifier(self, value: object) -> str:
+        """Normalize HR-STEM identifiers used in workbook values/sheet names.
+
+        Consortium workbooks vary between `HR-STEM` and `STEM`, and between
+        spaces, underscores and hyphens. Those are formatting differences, not
+        different test identifiers.
+        """
+        normalized = re.sub(r"[^a-z0-9]", "", str(value).lower())
+        return normalized.replace("hrstem", "stem")
+
+    def find_data_sheet(self, kind: str, test_identifier: object) -> Optional[str]:
+        """Find the sheet for one test identifier without relying on exact spelling."""
+        prefixes = {
+            "raw": ("rawdata",),
+            # `Proceseed` is present in older accepted HR-STEM workbooks.
+            "processed": ("processeddata", "proceseeddata"),
+            "final": ("finalresults",),
+        }[kind]
+        expected_identifier = self.canonical_identifier(test_identifier)
+
+        for sheet_name in self.wb.sheetnames:
+            normalized_name = re.sub(r"[^a-z0-9]", "", sheet_name.lower())
+            for prefix in prefixes:
+                if not normalized_name.startswith(prefix):
+                    continue
+                sheet_identifier = self.canonical_identifier(normalized_name[len(prefix):])
+                if sheet_identifier == expected_identifier:
+                    return sheet_name
+        return None
+
     def split_value_unit(self, value: Optional[str]) -> tuple[Optional[Union[str, float]], Optional[str]]:
         if isinstance(value, str) and " " in value:
             parts = value.split(" ", 1)
@@ -546,13 +576,13 @@ class HRSTEMParser:
             cell_value = raw_ws.cell(row=header_row, column=col).value
             if cell_value:
                 h = self.normalize_key(cell_value)
-                if 'fmin_nm' in h:
+                if ('feret_min' in h or 'fmin' in h) and 'nm' in h:
                     feret_min_col_idx = col
                     logger.debug(f"Found feret_min at col {col}: {cell_value}")
-                if 'l_nm' in h:
+                if ('length' in h or re.search(r'(^|_)lf?(_|$)', h)) and 'nm' in h:
                     length_col_idx = col
                     logger.debug(f"Found length at col {col}: {cell_value}")
-                if 'fmax_nm' in h:
+                if ('feret_max' in h or 'fmax' in h) and 'nm' in h:
                     feret_max_col_idx = col
                     logger.debug(f"Found feret_max at col {col}: {cell_value}")
 
@@ -843,9 +873,13 @@ class HRSTEMParser:
             histogram_params=histogram_params
         ))
 
-    def extract_final_results(self):
+    def extract_final_results(self, final_sheet_name: Optional[str] = None):
         logger.debug("Extracting final results")
-        final_sheet_name = [name for name in self.wb.sheetnames if "Final results" in name][0] if any("Final results" in name for name in self.wb.sheetnames) else None
+        if final_sheet_name is None:
+            final_sheet_name = next(
+                (name for name in self.wb.sheetnames if "final results" in name.lower()),
+                None,
+            )
         if not final_sheet_name:
             logger.error("Final Results sheet not found")
             return asdict(ResultsData())
@@ -923,21 +957,24 @@ class HRSTEMParser:
 
             test_identifier = replication['test_identifier_number']
             if test_identifier:
-                raw_sheet = f"Raw data_{test_identifier}"
-                processed_sheet = f"Processed data{test_identifier}"
-                final_sheet = f"Final results_{test_identifier}"
+                raw_sheet = self.find_data_sheet("raw", test_identifier)
+                processed_sheet = self.find_data_sheet("processed", test_identifier)
+                final_sheet = self.find_data_sheet("final", test_identifier)
 
-                if raw_sheet in self.wb.sheetnames:
+                if raw_sheet:
                     parsed_data['replications'] = self.extract_raw_data(raw_sheet)
                 else:
-                    logger.warning(f"Raw data sheet {raw_sheet} not found")
+                    logger.warning(f"Raw data sheet for {test_identifier} not found")
 
-                if processed_sheet in self.wb.sheetnames:
+                if processed_sheet:
                     parsed_data['processed_data'] = self.extract_processed_data(processed_sheet)
                 else:
-                    logger.warning(f"Processed data sheet {processed_sheet} not found")
+                    logger.warning(f"Processed data sheet for {test_identifier} not found")
 
-                parsed_data['final_results'] = self.extract_final_results()
+                if final_sheet:
+                    parsed_data['final_results'] = self.extract_final_results(final_sheet)
+                else:
+                    logger.warning(f"Final results sheet for {test_identifier} not found")
 
             return parsed_data
         except Exception as e:

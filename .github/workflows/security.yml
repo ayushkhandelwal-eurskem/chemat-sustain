@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # GitHub suppresses workflow triggers for pushes made with some automation
+  # credentials. Keep an attributable way to run the full gate for the current
+  # branch rather than bypassing security with a direct deployment dispatch.
+  workflow_dispatch:
 
 jobs:
   secret-scan:

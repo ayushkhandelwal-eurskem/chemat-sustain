@@ -87,9 +87,9 @@ interface RawData {
 
 interface ProcessedData {
   run_number: number;
-  processed_particles: ProcessedParticle[];
-  metrics: RunMetrics;
-  histogram: HistogramData;
+  processed_particles?: ProcessedParticle[] | null;
+  metrics?: Partial<RunMetrics> | null;
+  histogram?: Partial<HistogramData> | null;
   histogram_params?: {
     feret_min?: Record<string, number | null | undefined>;
     length?: Record<string, number | null | undefined>;
@@ -103,6 +103,10 @@ interface StatisticTableEntry {
   mean: number;
   std_dev: number;
   median: number;
+}
+
+interface FinalResults extends Partial<RunMetrics> {
+  statistic_table?: StatisticTableEntry[] | null;
 }
 
 interface HRSTEMData {
@@ -158,28 +162,8 @@ interface HRSTEMData {
   };
   replication: ReplicationData;
   raw_data: RawData;
-  processed_data: ProcessedData;
-  final_results: {
-    feret_min_mean: number | null;
-    feret_min_std: number | null;
-    feret_min_median: number | null;
-    length_mean: number | null;
-    length_std: number | null;
-    length_median: number | null;
-    feret_max_mean: number | null;
-    feret_max_std: number | null;
-    feret_max_median: number | null;
-    ecd_mean: number | null;
-    ecd_std: number | null;
-    ecd_median: number | null;
-    aspect_ratio_mean: number | null;
-    aspect_ratio_std: number | null;
-    aspect_ratio_median: number | null;
-    roundness_mean: number | null;
-    roundness_std: number | null;
-    roundness_median: number | null;
-    statistic_table: StatisticTableEntry[];
-  };
+  processed_data: ProcessedData | null;
+  final_results: FinalResults | null;
 }
 
 const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => {
@@ -255,6 +239,15 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
       </div>
     );
   }
+
+  // Production contains partial HR-STEM records where processed_data exists but
+  // one or more nested sections (notably metrics) are absent. Normalize those
+  // optional sections once so every tab can render the available data instead
+  // of throwing while reading a missing metric object.
+  const processedData = data.processed_data;
+  const processedMetrics: Partial<RunMetrics> = processedData?.metrics ?? {};
+  const processedHistogram = processedData?.histogram ?? {};
+  const finalResults: FinalResults = data.final_results ?? {};
 
   return (
     <div className="bg-gray-50 min-h-screen py-8 text-black">
@@ -721,7 +714,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
         )}
 
         {/* Processed Data Tab */}
-        {activeTab === "processed-data" && data.processed_data && (
+        {activeTab === "processed-data" && processedData && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-blue-800">Processed Data</h2>
@@ -755,39 +748,39 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
                   <tbody>
                     <tr>
                       <td className="py-2 px-4 border">Feret Min [nm]</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.feret_min_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.feret_min_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.feret_min_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.feret_min_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.feret_min_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.feret_min_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">Length [nm]</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.length_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.length_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.length_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.length_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.length_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.length_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr>
                       <td className="py-2 px-4 border">Feret Max [nm]</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.feret_max_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.feret_max_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.feret_max_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.feret_max_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.feret_max_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.feret_max_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">ECD [nm]</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.ecd_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.ecd_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.ecd_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.ecd_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.ecd_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.ecd_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr>
                       <td className="py-2 px-4 border">Aspect Ratio</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.aspect_ratio_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.aspect_ratio_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.aspect_ratio_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.aspect_ratio_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.aspect_ratio_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.aspect_ratio_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">Roundness</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.roundness_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.roundness_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.processed_data.metrics.roundness_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.roundness_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.roundness_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{processedMetrics.roundness_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -800,60 +793,43 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="font-semibold">d [g/cm³]:</p>
-                  <p>{data.processed_data.metrics.density ?? "N/A"}</p>
+                  <p>{processedMetrics.density ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">V 1 NPs [nm³]:</p>
-                  <p>{data.processed_data.metrics.volume_np_nm3 ?? "N/A"}</p>
+                  <p>{processedMetrics.volume_np_nm3 ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">V 1 NPs [cm³]:</p>
-                  <p>{data.processed_data.metrics.volume_np_cm3 ?? "N/A"}</p>
+                  <p>{processedMetrics.volume_np_cm3 ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">m 1 NPs [g]:</p>
-                  <p>{data.processed_data.metrics.mass_np_g ?? "N/A"}</p>
+                  <p>{processedMetrics.mass_np_g ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">Mass of colloid:</p>
-                  <p>{data.processed_data.metrics.mass_colloid ?? "N/A"}</p>
+                  <p>{processedMetrics.mass_colloid ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">C colloid [%]:</p>
-                  <p>{data.processed_data.metrics.c_colloid_percent ?? "N/A"}</p>
+                  <p>{processedMetrics.c_colloid_percent ?? "N/A"}</p>
                 </div>
                 <div>
                   <p className="font-semibold">No. of particles in stock:</p>
-                  <p>{data.processed_data.metrics.no_particles_stock?? "N/A"}</p>
+                  <p>{processedMetrics.no_particles_stock ?? "N/A"}</p>
                 </div>
               </div>
             </div>
 
-            {/* 3. Histogram parameters (from data.processed_data.histogram_params) */}
+            {/* 3. Histogram parameters */}
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-3">Histogram Parameters</h3>
-
-              {/* helper inside the component to format values */}
-              {/* put this const where this JSX can see it (inside the same component) */}
-              {
-                /* eslint-disable @typescript-eslint/no-unused-vars */
-              }
-              <script
-                /* This is just for clarity — if your file is TSX, add the helper above the return instead.
-                  If you prefer inline, move the helper to the top of the component. */
-                dangerouslySetInnerHTML={{
-                  __html: ''
-                }}
-              />
-              {/* If you're editing inside the component's return, ensure the helper is declared above return:
-                  const histogramParams = data.processed_data?.histogram_params ?? {};
-                  const formatVal = (raw: number | null | undefined, asInt = false) => { ... } 
-              */}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {(() => {
                   // Access histogram params safely
-                  const histogramParams = (data?.processed_data?.histogram_params as any) ?? {};
+                  const histogramParams = (processedData.histogram_params as any) ?? {};
 
                   const columns = [
                     { key: "feret_min", title: "Feret Min" },
@@ -921,7 +897,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
               <div>
                 <h3 className="text-lg font-semibold mb-3">Feret Min Histogram</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={data.processed_data.histogram.feret_min}>
+                  <BarChart data={processedHistogram.feret_min ?? []}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="bin_start" tick={{ fontSize: 10 }} offset={-10} label={{ value: "Feret Min", position: "insideBottom" , dy: 6}} />
                     <YAxis tick={{ fontSize: 10 }} label={{ value: "Counts", angle: -90, position: "insideLeft", dy: -6 }} />
@@ -933,7 +909,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
               <div>
                 <h3 className="text-lg font-semibold mb-3">Length Histogram</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={data.processed_data.histogram.length}>
+                  <BarChart data={processedHistogram.length ?? []}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="bin_start" tick={{ fontSize: 10 }} offset={-10} label={{ value: "Length", position: "insideBottom", dy: 6 }} />
                     <YAxis tick={{ fontSize: 10 }} label={{ value: "Counts", angle: -90, position: "insideLeft", dy: -6 }} />
@@ -945,7 +921,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
               <div>
                 <h3 className="text-lg font-semibold mb-3">Feret Max Histogram</h3>
                 <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={data.processed_data.histogram.feret_max}>
+                  <BarChart data={processedHistogram.feret_max ?? []}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="bin_start" tick={{ fontSize: 10 }} label={{ value: "Feret Max", position: "insideBottom", dy: 6 }} />
                     <YAxis tick={{ fontSize: 10 }} label={{ value: "Counts", angle: -90, position: "insideLeft", dy: -6 }} />
@@ -973,8 +949,8 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
                   </tr>
                 </thead>
                 <tbody>
-                  {data.processed_data?.processed_particles?.length > 0 ? (
-                    data.processed_data.processed_particles.map(
+                  {processedData.processed_particles?.length ? (
+                    processedData.processed_particles.map(
                       (particle, index) => (
                         <tr
                           key={index}
@@ -1031,39 +1007,39 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
                   <tbody>
                     <tr>
                       <td className="py-2 px-4 border">Feret Min [nm]</td>
-                      <td className="py-2 px-4 border">{data.final_results.feret_min_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.feret_min_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.feret_min_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.feret_min_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.feret_min_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.feret_min_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">Length [nm]</td>
-                      <td className="py-2 px-4 border">{data.final_results.length_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.length_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.length_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.length_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.length_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.length_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr>
                       <td className="py-2 px-4 border">Feret Max [nm]</td>
-                      <td className="py-2 px-4 border">{data.final_results.feret_max_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.feret_max_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.feret_max_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.feret_max_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.feret_max_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.feret_max_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">ECD [nm]</td>
-                      <td className="py-2 px-4 border">{data.final_results.ecd_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.ecd_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.ecd_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.ecd_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.ecd_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.ecd_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr>
                       <td className="py-2 px-4 border">Aspect Ratio</td>
-                      <td className="py-2 px-4 border">{data.final_results.aspect_ratio_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.aspect_ratio_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.aspect_ratio_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.aspect_ratio_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.aspect_ratio_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.aspect_ratio_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="py-2 px-4 border">Roundness</td>
-                      <td className="py-2 px-4 border">{data.final_results.roundness_mean?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.roundness_std?.toFixed(2) ?? "N/A"}</td>
-                      <td className="py-2 px-4 border">{data.final_results.roundness_median?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.roundness_mean?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.roundness_std?.toFixed(2) ?? "N/A"}</td>
+                      <td className="py-2 px-4 border">{finalResults.roundness_median?.toFixed(2) ?? "N/A"}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1071,7 +1047,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
             </div>
 
             {/* Statistic Table if available */}
-            {data.final_results.statistic_table?.length > 0 && (
+            {finalResults.statistic_table?.length ? (
               <div className="mb-8">
                 <h3 className="text-lg font-semibold mb-3">Statistic Table</h3>
                 <div className="overflow-x-auto">
@@ -1085,7 +1061,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
                       </tr>
                     </thead>
                     <tbody>
-                      {data.final_results.statistic_table.map((entry, index) => (
+                      {finalResults.statistic_table.map((entry, index) => (
                         <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                           <td className="py-2 px-4 border">{entry.metric}</td>
                           <td className="py-2 px-4 border">{entry.mean.toFixed(2)}</td>
@@ -1097,7 +1073,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
                   </table>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </div>

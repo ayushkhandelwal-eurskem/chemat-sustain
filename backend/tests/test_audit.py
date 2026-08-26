@@ -41,8 +41,10 @@ class _FakeSession:
 
     def __init__(self):
         self.added = None
+        self.statements = []
 
-    async def execute(self, *_args, **_kwargs):
+    async def execute(self, statement, *_args, **_kwargs):
+        self.statements.append(str(statement))
         return _FakeResult()
 
     def add(self, obj):
@@ -73,6 +75,7 @@ async def test_append_audit_event_constructs_event():
     assert event.previous_hash == "GENESIS"
     assert event.event_hash and event.event_hash != "GENESIS"
     assert session.added is event
+    assert "pg_advisory_xact_lock" in session.statements[0]
 
 
 async def test_append_audit_event_can_use_resource_owner_organisation():

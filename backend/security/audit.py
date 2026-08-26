@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models.security import AuditEvent
@@ -40,6 +40,18 @@ async def append_audit_event(
     )
     if not audit_organisation_id:
         raise ValueError("An organisation is required for an audit event")
+
+    # Serialize one organisation's audit chain for the duration of this
+    # transaction. Locking the current last row is insufficient when the chain
+    # is empty (there is no row to lock), and concurrent readers can otherwise
+    # calculate the same next sequence after reading the same snapshot. The
+    # transaction-level advisory lock is released automatically on commit or
+    # rollback; different organisations use different keys and remain
+    # independent.
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:organisation_id))"),
+        {"organisation_id": audit_organisation_id},
+    )
     previous = (
         await db.execute(
             select(AuditEvent)

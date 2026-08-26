@@ -331,3 +331,377 @@ Never include the client secret in a message or screenshot.
   be recovered from the server.
 
 Support contact: **ayush.khandelwal@eurskem.com**
+
+## 13. Worked example: open one test from the list
+
+The appendix below contains every available `test_id` and its associated
+`test_name`. The same name can appear more than once, so always use the numeric
+ID from the row you want.
+
+For example, the first row is:
+
+| Test ID | Test name |
+|---:|---|
+| `3` | MTT |
+
+To open the experimental data for this exact test, replace `{test_id}` with `3`.
+
+### With curl (macOS or Linux)
+
+After setting `CHEMAT_CLIENT_ID` and `CHEMAT_CLIENT_SECRET` as shown in section 3:
+
+```bash
+curl --fail-with-body --user "$CHEMAT_CLIENT_ID:$CHEMAT_CLIENT_SECRET" \
+  'https://database.eurskem.com/api/v1/experimental-data/3'
+```
+
+### With Postman
+
+1. Create a new **GET** request.
+2. Enter:
+   `https://database.eurskem.com/api/v1/experimental-data/3`
+3. Open **Authorization** and select **Basic Auth**.
+4. Enter your `client_id` as **Username**.
+5. Enter your `client_secret` as **Password**.
+6. Click **Send**.
+7. A successful response says **200 OK** and returns JSON for test ID `3`.
+
+The endpoint is not a normal public web page, so pasting it into a browser
+without API authentication returns `401 Unauthorized`. Use curl, Postman, or the
+Python method from section 8.
+
+## 14. Complete test ID and test-name list
+
+This list was exported from the production CheMatSustain database. It contains
+all 327 tests available when this guide was generated. Test IDs are permanent
+record identifiers but are not consecutive. Repeated test names are expected.
+
+| Test ID | Test name |
+|---:|---|
+| `3` | MTT |
+| `4` | MTT |
+| `5` | MTT |
+| `6` | MTT |
+| `7` | MTT |
+| `8` | MTT |
+| `9` | MTT |
+| `10` | MTT |
+| `12` | MTT |
+| `14` | MTT |
+| `16` | MTT |
+| `28` | DLS |
+| `32` | DLS |
+| `36` | DLS |
+| `37` | MTT |
+| `41` | FTIR |
+| `42` | FTIR |
+| `43` | FTIR |
+| `44` | FTIR |
+| `45` | FTIR |
+| `46` | FTIR |
+| `47` | FTIR |
+| `48` | FTIR |
+| `49` | FTIR |
+| `51` | FTIR |
+| `52` | DLS |
+| `53` | DLS |
+| `54` | DLS |
+| `55` | DLS |
+| `58` | DLS |
+| `59` | DLS |
+| `60` | DLS |
+| `61` | FTIR |
+| `99` | HR-STEM |
+| `100` | HR-STEM |
+| `101` | HR-STEM |
+| `102` | HR-STEM |
+| `103` | HR-STEM |
+| `104` | HR-STEM |
+| `105` | HR-STEM |
+| `106` | HR-STEM |
+| `107` | HR-STEM |
+| `108` | HR-STEM |
+| `109` | UV-VIS |
+| `110` | UV-VIS |
+| `111` | ZETA |
+| `121` | SIMS |
+| `122` | SIMS |
+| `123` | SIMS |
+| `124` | SIMS |
+| `125` | SIMS |
+| `126` | SIMS |
+| `127` | SIMS |
+| `128` | SIMS |
+| `129` | SIMS |
+| `130` | SIMS |
+| `145` | XPS |
+| `146` | UPS |
+| `151` | XRD |
+| `153` | UV-VIS |
+| `154` | ZETA |
+| `155` | UV-VIS |
+| `156` | ZETA |
+| `157` | UV-VIS |
+| `158` | UV-VIS |
+| `159` | ZETA |
+| `160` | UV-VIS |
+| `161` | XRD |
+| `162` | UV-VIS |
+| `163` | UV-VIS |
+| `164` | XRD |
+| `165` | UV-VIS |
+| `166` | XRD |
+| `167` | UV-VIS |
+| `168` | XRD |
+| `169` | UV-VIS |
+| `170` | XRD |
+| `171` | UV-VIS |
+| `172` | UV-VIS |
+| `173` | UV-VIS |
+| `174` | UV-VIS |
+| `177` | UV-VIS |
+| `180` | UV-VIS |
+| `183` | UV-VIS |
+| `186` | SIMS |
+| `187` | ZETA |
+| `188` | ZETA |
+| `189` | ZETA |
+| `190` | ZETA |
+| `191` | ZETA |
+| `192` | ZETA |
+| `193` | ZETA |
+| `195` | ZETA |
+| `196` | ZETA |
+| `197` | ZETA |
+| `198` | FTIR |
+| `199` | HR-STEM |
+| `200` | SIMS |
+| `201` | UV-VIS |
+| `202` | DLS |
+| `203` | FTIR |
+| `204` | HR-STEM |
+| `205` | SIMS |
+| `206` | UV-VIS |
+| `207` | DLS |
+| `208` | FTIR |
+| `209` | HR-STEM |
+| `210` | UV-VIS |
+| `211` | ZETA |
+| `212` | SIMS |
+| `213` | DLS |
+| `214` | FTIR |
+| `215` | HR-STEM |
+| `216` | UV-VIS |
+| `217` | ZETA |
+| `218` | SIMS |
+| `219` | FTIR |
+| `220` | DLS |
+| `221` | HR-STEM |
+| `222` | UV-VIS |
+| `223` | ZETA |
+| `224` | SIMS |
+| `225` | DLS |
+| `226` | FTIR |
+| `227` | HR-STEM |
+| `228` | UV-VIS |
+| `229` | ZETA |
+| `230` | SIMS |
+| `241` | TB |
+| `242` | DLS |
+| `243` | TGA |
+| `244` | TGA |
+| `245` | TGA |
+| `246` | TGA |
+| `247` | TGA |
+| `248` | DSC |
+| `249` | DSC |
+| `250` | DSC |
+| `251` | DSC |
+| `252` | DSC |
+| `254` | FTIR |
+| `255` | FTIR |
+| `256` | FTIR |
+| `257` | ZETA |
+| `268` | ROS |
+| `269` | ROS |
+| `270` | ROS |
+| `271` | ROS |
+| `272` | ROS |
+| `273` | ROS |
+| `274` | ROS |
+| `275` | ROS |
+| `277` | ROS |
+| `278` | ROS |
+| `279` | ROS |
+| `280` | ROS |
+| `281` | ROS |
+| `282` | ROS |
+| `284` | ROS |
+| `285` | ROS |
+| `286` | ROS |
+| `287` | ROS |
+| `288` | ROS |
+| `289` | ROS |
+| `290` | ROS |
+| `294` | TB |
+| `295` | TB |
+| `297` | TB |
+| `298` | TB |
+| `299` | TB |
+| `300` | TB |
+| `301` | TB |
+| `302` | TB |
+| `303` | TB |
+| `306` | TB |
+| `307` | TB |
+| `308` | DLS |
+| `309` | HR-STEM |
+| `310` | DLS |
+| `311` | FTIR |
+| `312` | SIMS |
+| `313` | FTIR |
+| `314` | FTIR |
+| `315` | FTIR |
+| `316` | FTIR |
+| `317` | FTIR |
+| `318` | ZETA |
+| `319` | HR-STEM |
+| `320` | DLS |
+| `321` | UPS |
+| `328` | UPS |
+| `329` | UPS |
+| `330` | UPS |
+| `331` | UPS |
+| `332` | UPS |
+| `333` | UPS |
+| `334` | XPS |
+| `335` | XPS |
+| `336` | XPS |
+| `337` | XPS |
+| `338` | XPS |
+| `339` | XPS |
+| `340` | XPS |
+| `341` | MNT |
+| `342` | MNT |
+| `343` | ROS |
+| `345` | ROS |
+| `346` | FTIR |
+| `347` | FTIR |
+| `348` | SIMS |
+| `349` | SIMS |
+| `360` | MTT |
+| `362` | MTT |
+| `363` | MTT |
+| `365` | TB-Microfludic |
+| `366` | Rotifier |
+| `367` | Rotifier |
+| `368` | Rotifier |
+| `370` | Rotifier |
+| `371` | TB-Microfludic |
+| `372` | TB-Microfludic |
+| `373` | TB-Microfludic |
+| `374` | TB-Microfludic |
+| `375` | TB-Microfludic |
+| `376` | TB-Microfludic |
+| `377` | TB-Microfludic |
+| `378` | TB-Microfludic |
+| `379` | TB-Microfludic |
+| `380` | TB-Microfludic |
+| `381` | TB-Microfludic |
+| `382` | TB-Microfludic |
+| `383` | TB-Microfludic |
+| `384` | TB-Microfludic |
+| `385` | TB-Microfludic |
+| `386` | TB-Microfludic |
+| `387` | TB-Microfludic |
+| `388` | TB |
+| `389` | Rotifier |
+| `390` | Rotifier |
+| `391` | Rotifier |
+| `392` | Rotifier |
+| `393` | Rotifier |
+| `394` | Rotifier |
+| `395` | Rotifier |
+| `396` | Rotifier |
+| `397` | Rotifier |
+| `398` | Rotifier |
+| `399` | Rotifier |
+| `400` | Rotifier |
+| `401` | Rotifier |
+| `402` | Rotifier |
+| `403` | Rotifier |
+| `404` | Rotifier |
+| `405` | Rotifier |
+| `406` | Rotifier |
+| `407` | Rotifier |
+| `408` | Rotifier |
+| `409` | TB |
+| `411` | MTT |
+| `412` | MTT |
+| `413` | MTT |
+| `414` | SIMS |
+| `415` | SIMS |
+| `416` | SIMS |
+| `417` | DSC |
+| `419` | DSC |
+| `420` | DSC |
+| `421` | TGA |
+| `422` | TGA |
+| `423` | TGA |
+| `424` | ROS |
+| `426` | MTT |
+| `427` | ROS |
+| `428` | MTT |
+| `430` | MTT |
+| `432` | WaterFlea |
+| `433` | WaterFlea |
+| `434` | WaterFlea |
+| `435` | WaterFlea |
+| `436` | WaterFlea |
+| `437` | WaterFlea |
+| `438` | WaterFlea |
+| `439` | WaterFlea |
+| `440` | WaterFlea |
+| `441` | WaterFlea |
+| `442` | WaterFlea |
+| `443` | WaterFlea |
+| `444` | WaterFlea |
+| `445` | WaterFlea |
+| `446` | WaterFlea |
+| `447` | WaterFlea |
+| `448` | WaterFlea |
+| `449` | WaterFlea |
+| `450` | WaterFlea |
+| `451` | WaterFlea |
+| `452` | WaterFlea |
+| `453` | WaterFlea |
+| `454` | WaterFlea |
+| `455` | WaterFlea |
+| `456` | WaterFlea |
+| `457` | WaterFlea |
+| `458` | WaterFlea |
+| `459` | WaterFlea |
+| `460` | Algae |
+| `461` | Algae |
+| `462` | Algae |
+| `463` | Algae |
+| `464` | Algae |
+| `465` | Algae |
+| `466` | Algae |
+| `467` | Algae |
+| `468` | Algae |
+| `469` | Algae |
+| `470` | Algae |
+| `471` | Algae |
+| `472` | Algae |
+| `473` | Algae |
+| `474` | Algae |
+| `475` | Algae |
+| `476` | Algae |
+| `477` | Algae |
+| `478` | Algae |
+| `479` | Algae |
+| `480` | Algae |
+| `481` | Algae |
+| `482` | Algae |
+| `483` | Algae |

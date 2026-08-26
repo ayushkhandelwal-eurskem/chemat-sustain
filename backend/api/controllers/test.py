@@ -273,12 +273,17 @@ async def update_test(
 async def delete_test(
     test_id: int,
     service: TestService = Depends(get_test_service),
+    admin: Role = Depends(get_user_by_role(Role.admin)),
 ):
-    """Delete a test."""
-    test = await service.get_test_by_id(test_id)
+    """Delete a test as an authenticated administrator."""
+    # Admin-managed tests are commonly private. The service deliberately treats
+    # omitted visibility context as anonymous/public-only, so this must opt into
+    # private visibility or valid backoffice rows incorrectly return 404.
+    test = await service.delete_test(test_id, is_private_user=True)
+    # Delete the uploaded file only after the database commit succeeds. If the
+    # database operation fails, the existing row must not point to a missing file.
     if test.file_path:
         delete_file(test.file_path)
-    await service.delete_test(test_id)
 
 
 # NOTE: this must stay ABOVE the '/{test_id}' route below. FastAPI matches in

@@ -205,12 +205,12 @@ class TestService:
         return test
 
 
-    async def delete_test(self, test_id: int) -> bool:
+    async def delete_test(self, test_id: int, is_private_user: bool = False) -> Test:
         """Delete a test."""
-        test = await self.get_test_by_id(test_id)
+        test = await self.get_test_by_id(test_id, is_private_user=is_private_user)
         await self.db.delete(test)
         await self.db.commit()
-        return True
+        return test
 
     async def get_tests_by_work_package(
         self, work_package_name: str, is_private_user: bool = False

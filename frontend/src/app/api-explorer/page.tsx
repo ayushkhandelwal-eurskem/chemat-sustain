@@ -221,92 +221,91 @@ export default function ApiExplorerPage() {
   }, [testName, testId]);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <section className="border-b border-slate-800 bg-[radial-gradient(circle_at_top_left,_#164e63,_#020617_55%)]">
-        <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8">
+    <main className="min-h-screen bg-gray-50 text-slate-900">
+      <div className="container mx-auto px-4 py-10">
+        <section className="mb-8 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-300">CheMatSustain Developer API</p>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">Explore test data without a website login</h1>
-            <p className="mt-5 text-lg leading-8 text-slate-300">
+            <p className="mb-1 text-sm font-medium uppercase tracking-wide text-blue-700">CheMatSustain Developer API</p>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Explore test data without a website login</h1>
+            <p className="mt-3 leading-relaxed text-slate-600">
               Filter the live test index by test name or test ID, open one complete test,
               and generate a ready-to-run Python example using your issued API credential.
             </p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-5 py-8 sm:px-8 xl:grid-cols-[360px_1fr]">
+        <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <aside className="space-y-6">
-          <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3">
-              <span className="rounded-xl bg-cyan-400/10 p-2 text-cyan-300"><KeyRound size={22} /></span>
-              <div><h2 className="font-semibold">API credential</h2><p className="text-xs text-slate-400">Required to read protected research data</p></div>
+              <span className="rounded-lg bg-blue-50 p-2 text-blue-700"><KeyRound size={22} /></span>
+              <div><h2 className="font-semibold text-slate-900">API credential</h2><p className="text-xs text-slate-500">Required to read protected research data</p></div>
             </div>
             <div className="mt-5 space-y-4">
-              <label className="block text-sm font-medium text-slate-300">Client ID
+              <label className="block text-sm font-medium text-slate-700">Client ID
                 <input value={clientId} onChange={(event) => { setClientId(event.target.value); setVerified(false); }} autoComplete="off" spellCheck={false}
-                  placeholder="cms_..." className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 font-mono text-sm outline-none focus:border-cyan-400" />
+                  placeholder="cms_..." className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 font-mono text-sm text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
               </label>
-              <label className="block text-sm font-medium text-slate-300">Client secret
+              <label className="block text-sm font-medium text-slate-700">Client secret
                 <span className="relative mt-1.5 block">
                   <input type={showSecret ? 'text' : 'password'} value={clientSecret} onChange={(event) => { setClientSecret(event.target.value); setVerified(false); }} autoComplete="new-password" spellCheck={false}
-                    placeholder="Enter the one-time secret" className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 pr-11 font-mono text-sm outline-none focus:border-cyan-400" />
-                  <button type="button" onClick={() => setShowSecret((value) => !value)} aria-label={showSecret ? 'Hide secret' : 'Show secret'} className="absolute right-3 top-2.5 text-slate-400 hover:text-white">
+                    placeholder="Enter the one-time secret" className="w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 pr-11 font-mono text-sm text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
+                  <button type="button" onClick={() => setShowSecret((value) => !value)} aria-label={showSecret ? 'Hide secret' : 'Show secret'} className="absolute right-3 top-2.5 text-slate-400 hover:text-blue-700">
                     {showSecret ? <EyeOff size={19} /> : <Eye size={19} />}
                   </button>
                 </span>
               </label>
               <div className="flex gap-2">
-                <button type="button" disabled={busy || !credentialsReady} onClick={testCredentials} className="flex-1 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-300 disabled:opacity-40">Test credentials</button>
-                <button type="button" onClick={clearCredentials} aria-label="Clear credentials" className="rounded-xl border border-slate-700 p-2.5 text-slate-300 hover:bg-slate-800"><Trash2 size={19} /></button>
+                <button type="button" disabled={busy || !credentialsReady} onClick={testCredentials} className="flex-1 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">Test credentials</button>
+                <button type="button" onClick={clearCredentials} aria-label="Clear credentials" className="rounded-md border border-slate-300 p-2.5 text-slate-600 transition-colors hover:bg-slate-50 hover:text-blue-700"><Trash2 size={19} /></button>
               </div>
-              {verified && <p className="flex items-center gap-2 text-sm text-emerald-300"><CheckCircle2 size={17} /> Credential accepted</p>}
+              {verified && <p className="flex items-center gap-2 text-sm font-medium text-emerald-700"><CheckCircle2 size={17} /> Credential accepted</p>}
             </div>
-            <div className="mt-5 rounded-xl border border-emerald-900/60 bg-emerald-950/30 p-3 text-xs leading-5 text-emerald-200">
+            <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
               <ShieldCheck className="mb-2" size={18} /> Credentials stay only in this page&apos;s memory. They are not saved in cookies, browser storage, URLs, examples, or downloaded files, and disappear when the page refreshes.
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <h2 className="flex items-center gap-2 font-semibold"><Search size={19} className="text-cyan-300" /> Filter test index</h2>
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <h2 className="flex items-center gap-2 font-semibold text-slate-900"><Search size={19} className="text-blue-700" /> Filter test index</h2>
             <div className="mt-4 space-y-4">
-              <label className="block text-sm text-slate-300">Test name
-                <select value={testName} onChange={(event) => setTestName(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-cyan-400">
+              <label className="block text-sm font-medium text-slate-700">Test name
+                <select value={testName} onChange={(event) => setTestName(event.target.value)} className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
                   <option value="">All test names</option>
                   {knownTestNames.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               </label>
-              <label className="block text-sm text-slate-300">Test ID
+              <label className="block text-sm font-medium text-slate-700">Test ID
                 <input value={testId} onChange={(event) => setTestId(event.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="For example: 3"
-                  className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-cyan-400" />
+                  className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
               </label>
-              <code className="block break-all rounded-lg bg-slate-950 p-3 text-xs text-cyan-200">GET {indexUrl}</code>
-              <button type="button" disabled={busy || !credentialsReady} onClick={() => runIndex()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-100 disabled:opacity-40"><Play size={17} /> Run index API</button>
-              <button type="button" disabled={busy || !credentialsReady || !testId} onClick={() => openTest()} className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-500 px-4 py-2.5 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-40">Open test ID</button>
+              <code className="block break-all rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-blue-800">GET {indexUrl}</code>
+              <button type="button" disabled={busy || !credentialsReady} onClick={() => runIndex()} className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"><Play size={17} /> Run index API</button>
+              <button type="button" disabled={busy || !credentialsReady || !testId} onClick={() => openTest()} className="flex w-full items-center justify-center gap-2 rounded-md border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40">Open test ID</button>
             </div>
           </section>
         </aside>
 
         <div className="space-y-6 min-w-0">
-          {error && <div role="alert" className="rounded-xl border border-rose-800 bg-rose-950/40 p-4 text-rose-200">{error}</div>}
+          {error && <div role="alert" className="rounded-lg border border-red-400 bg-red-100 p-4 text-red-700">{error}</div>}
           {lastResult && (
-            <div className="flex flex-wrap gap-3 text-xs text-slate-400">
-              <span className="rounded-full border border-slate-700 px-3 py-1">HTTP {lastResult.status}</span>
-              <span className="rounded-full border border-slate-700 px-3 py-1">{lastResult.duration} ms</span>
-              {lastResult.requestId && <span className="rounded-full border border-slate-700 px-3 py-1 font-mono">Request {lastResult.requestId}</span>}
+            <div className="flex flex-wrap gap-3 text-xs text-slate-600">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1">HTTP {lastResult.status}</span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1">{lastResult.duration} ms</span>
+              {lastResult.requestId && <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-mono">Request {lastResult.requestId}</span>}
             </div>
           )}
 
-          <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 p-5">
-              <div><h2 className="text-xl font-semibold">Test index</h2><p className="mt-1 text-sm text-slate-400">Unlimited lightweight results · {items.length} tests returned</p></div>
-              <button type="button" disabled={!items.length} onClick={() => download(items, 'chematsustain_test_index.json')} className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm hover:bg-slate-800 disabled:opacity-40"><Download size={16} /> JSON</button>
+          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
+              <div><h2 className="text-xl font-semibold text-blue-900">Test index</h2><p className="mt-1 text-sm text-slate-500">Unlimited lightweight results · {items.length} tests returned</p></div>
+              <button type="button" disabled={!items.length} onClick={() => download(items, 'chematsustain_test_index.json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><Download size={16} /> JSON</button>
             </div>
             <div className="max-h-[620px] overflow-auto">
               <table className="w-full min-w-[680px] text-left text-sm">
-                <thead className="sticky top-0 bg-slate-800 text-xs uppercase tracking-wide text-slate-300"><tr><th className="px-4 py-3">Test ID</th><th className="px-4 py-3">Test name</th><th className="px-4 py-3">Work Package</th><th className="px-4 py-3">Identifier</th><th className="px-4 py-3">Action</th></tr></thead>
-                <tbody className="divide-y divide-slate-800">
-                  {items.map((item) => <tr key={item.test_id} className="hover:bg-slate-800/50"><td className="px-4 py-3 font-mono text-cyan-300">{item.test_id}</td><td className="px-4 py-3 font-medium">{item.test_name || 'Unnamed test'}</td><td className="px-4 py-3">{item.work_package}</td><td className="px-4 py-3 font-mono text-xs text-slate-300">{item.identifier}</td><td className="px-4 py-3"><button type="button" onClick={() => openTest(item.test_id)} className="rounded-lg bg-cyan-500/10 px-3 py-1.5 font-medium text-cyan-300 hover:bg-cyan-500/20">Open</button></td></tr>)}
+                <thead className="sticky top-0 bg-gray-100 text-xs uppercase tracking-wide text-blue-900"><tr><th className="px-4 py-3">Test ID</th><th className="px-4 py-3">Test name</th><th className="px-4 py-3">Work Package</th><th className="px-4 py-3">Identifier</th><th className="px-4 py-3">Action</th></tr></thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {items.map((item) => <tr key={item.test_id} className="hover:bg-blue-50/50"><td className="px-4 py-3 font-mono font-medium text-blue-700">{item.test_id}</td><td className="px-4 py-3 font-medium text-slate-900">{item.test_name || 'Unnamed test'}</td><td className="px-4 py-3">{item.work_package}</td><td className="px-4 py-3 font-mono text-xs text-slate-600">{item.identifier}</td><td className="px-4 py-3"><button type="button" onClick={() => openTest(item.test_id)} className="rounded-md bg-blue-50 px-3 py-1.5 font-medium text-blue-700 transition-colors hover:bg-blue-100">Open</button></td></tr>)}
                   {!items.length && <tr><td colSpan={5} className="px-5 py-16 text-center text-slate-500">Enter your API credential and run the index to see live tests.</td></tr>}
                 </tbody>
               </table>
@@ -314,16 +313,17 @@ export default function ApiExplorerPage() {
           </section>
 
           {detail && (
-            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Single-test detail</p><h2 className="mt-1 text-xl font-semibold">Test ID {testId}</h2></div><div className="flex gap-2"><button type="button" onClick={() => copy(JSON.stringify(detail.data, null, 2), 'json')} className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm hover:bg-slate-800"><Clipboard size={16} /> {copied === 'json' ? 'Copied' : 'Copy'}</button><button type="button" onClick={() => download(detail.data, `chematsustain_test_${testId}.json`)} className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm hover:bg-slate-800"><Download size={16} /> JSON</button></div></div>
-              <pre className="mt-4 max-h-[650px] overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950 p-4 text-xs leading-6 text-slate-300">{JSON.stringify(detail.data, null, 2)}</pre>
+            <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Single-test detail</p><h2 className="mt-1 text-xl font-semibold text-blue-900">Test ID {testId}</h2></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => copy(JSON.stringify(detail.data, null, 2), 'json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><Clipboard size={16} /> {copied === 'json' ? 'Copied' : 'Copy'}</button><button type="button" onClick={() => download(detail.data, `chematsustain_test_${testId}.json`)} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Download size={16} /> JSON</button></div></div>
+              <pre className="mt-4 max-h-[650px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-900 p-4 text-xs leading-6 text-slate-200">{JSON.stringify(detail.data, null, 2)}</pre>
             </section>
           )}
 
-          <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-xl font-semibold"><Code2 size={20} className="text-cyan-300" /> Python test</h2><p className="mt-1 text-sm text-slate-400">Uses environment variables—your actual secret is never inserted.</p></div><div className="flex gap-2"><button type="button" onClick={() => copy(script, 'python')} className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm hover:bg-slate-800"><Clipboard size={16} /> {copied === 'python' ? 'Copied' : 'Copy'}</button><button type="button" onClick={() => download(script, 'chematsustain_api_test.py')} className="flex items-center gap-2 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300"><Download size={16} /> Download .py</button></div></div>
-            <pre className="mt-4 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-950 p-4 text-xs leading-6 text-slate-300">{script}</pre>
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-xl font-semibold text-blue-900"><Code2 size={20} className="text-blue-700" /> Python test</h2><p className="mt-1 text-sm text-slate-500">Uses environment variables—your actual secret is never inserted.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => copy(script, 'python')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><Clipboard size={16} /> {copied === 'python' ? 'Copied' : 'Copy'}</button><button type="button" onClick={() => download(script, 'chematsustain_api_test.py')} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Download size={16} /> Download .py</button></div></div>
+            <pre className="mt-4 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-900 p-4 text-xs leading-6 text-slate-200">{script}</pre>
           </section>
+        </div>
         </div>
       </div>
     </main>

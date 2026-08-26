@@ -57,6 +57,7 @@ class Principal:
     all_protocols: bool = False
     all_files: bool = False
     is_platform_tester: bool = False
+    audit_organisation_id: str | None = None
 
     @property
     def is_machine(self) -> bool:

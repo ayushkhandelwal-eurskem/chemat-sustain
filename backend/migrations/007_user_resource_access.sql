@@ -9,8 +9,13 @@ CREATE TABLE IF NOT EXISTS user_access_profiles (
     all_protocols boolean NOT NULL DEFAULT false,
     all_files boolean NOT NULL DEFAULT false,
     is_platform_tester boolean NOT NULL DEFAULT false,
+    audit_organisation_id varchar(36) REFERENCES organisations(id) ON DELETE SET NULL,
     updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE user_access_profiles
+    ADD COLUMN IF NOT EXISTS audit_organisation_id varchar(36)
+    REFERENCES organisations(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS user_test_access (
     user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -34,16 +39,19 @@ CREATE INDEX IF NOT EXISTS ix_user_protocol_access_protocol ON user_protocol_acc
 -- auditable profile assignment, not an application-level email-domain bypass.
 -- Future candidates are enabled deliberately from Backoffice > API Access.
 INSERT INTO user_access_profiles (
-    user_id, all_tests, all_protocols, all_files, is_platform_tester, updated_at
+    user_id, all_tests, all_protocols, all_files, is_platform_tester,
+    audit_organisation_id, updated_at
 )
-SELECT id, true, true, true, true, now()
-FROM users
-WHERE is_active = true AND lower(email) LIKE '%@eurskem.com'
+SELECT u.id, true, true, true, true, o.id, now()
+FROM users u
+LEFT JOIN organisations o ON o.slug = 'eurskem'
+WHERE u.is_active = true AND lower(u.email) LIKE '%@eurskem.com'
 ON CONFLICT (user_id) DO UPDATE SET
     all_tests = true,
     all_protocols = true,
     all_files = true,
     is_platform_tester = true,
+    audit_organisation_id = EXCLUDED.audit_organisation_id,
     updated_at = now();
 
 DO $$ BEGIN

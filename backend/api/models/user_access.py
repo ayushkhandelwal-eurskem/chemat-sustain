@@ -1,6 +1,6 @@
 """User-level API resource grants; independent of organisation provenance."""
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
 
 from utils.db import Base
 
@@ -13,6 +13,9 @@ class UserAccessProfile(Base):
     all_protocols = Column(Boolean, nullable=False, default=False)
     all_files = Column(Boolean, nullable=False, default=False)
     is_platform_tester = Column(Boolean, nullable=False, default=False)
+    audit_organisation_id = Column(
+        String(36), ForeignKey("organisations.id", ondelete="SET NULL"), nullable=True
+    )
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

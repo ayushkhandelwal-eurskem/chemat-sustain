@@ -86,6 +86,7 @@ async def test_append_audit_event_can_use_resource_owner_organisation():
         token_id=None,
         user_id=22,
         is_platform_tester=True,
+        audit_organisation_id="eurskem-org",
     )
     event = await append_audit_event(
         _FakeSession(),
@@ -97,3 +98,13 @@ async def test_append_audit_event_can_use_resource_owner_organisation():
         organisation_id="resource-owner-org",
     )
     assert event.organisation_id == "resource-owner-org"
+
+    ownerless_event = await append_audit_event(
+        _FakeSession(),
+        principal,
+        "experimental_data.read",
+        "test",
+        "3",
+        "success",
+    )
+    assert ownerless_event.organisation_id == "eurskem-org"

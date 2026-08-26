@@ -35,7 +35,9 @@ async def append_audit_event(
     metadata: dict[str, Any] | None = None,
     organisation_id: str | None = None,
 ) -> AuditEvent:
-    audit_organisation_id = organisation_id or principal.organisation_id
+    audit_organisation_id = (
+        organisation_id or principal.audit_organisation_id or principal.organisation_id
+    )
     if not audit_organisation_id:
         raise ValueError("An organisation is required for an audit event")
     previous = (

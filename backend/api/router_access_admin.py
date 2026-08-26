@@ -478,6 +478,17 @@ async def set_user_resource_access(
     profile.all_protocols = payload.all_protocols
     profile.all_files = payload.all_files
     profile.is_platform_tester = payload.is_platform_tester
+    if payload.is_platform_tester:
+        profile.audit_organisation_id = await db.scalar(
+            select(Organisation.id).where(Organisation.slug == "eurskem")
+        )
+        if profile.audit_organisation_id is None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "The Eurskem audit organisation is not configured",
+            )
+    else:
+        profile.audit_organisation_id = None
     await db.commit()
     return await get_user_resource_access(user_id, db, current_user)
 

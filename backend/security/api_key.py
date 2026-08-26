@@ -105,4 +105,5 @@ async def authenticate_api_client(
         all_protocols=bool(profile and profile.all_protocols),
         all_files=bool(profile and profile.all_files),
         is_platform_tester=bool(profile and profile.is_platform_tester),
+        audit_organisation_id=profile.audit_organisation_id if profile else None,
     )

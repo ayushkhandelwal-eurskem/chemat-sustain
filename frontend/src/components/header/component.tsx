@@ -58,13 +58,13 @@ export default function Header() {
       <nav className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between">
         {/* Logo and mobile menu button */}
         <div className="flex items-center justify-between w-full md:w-auto">
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center shrink-0">
             <Image
               src="https://chematsustain.eu/wp-content/uploads/2024/03/CMS-Logo-horizontal-color-transp.png"
               alt="Chematsustain Logo"
-              width={200}
-              height={60}
-              className="h-auto w-48 md:w-56"
+              width={300}
+              height={90}
+              className="h-auto w-60 md:w-72"
               priority
             />
           </Link>
@@ -94,9 +94,6 @@ export default function Header() {
           <NavLink href="/prediction">Prediction model (QSAR)</NavLink>
 
           <NavLink href="/help">Help</NavLink>
-          <NavLink href="/api-explorer">API Explorer</NavLink>
-          {user && <NavLink href="/developer">Developer Portal</NavLink>}
-
           {/* Search Form */}
           <form onSubmit={handleSearch} className="relative">
             <input

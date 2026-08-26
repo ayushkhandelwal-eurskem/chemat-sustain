@@ -37,26 +37,26 @@ async def authenticate_user(db: AsyncSession, email: str, password: str):
         return False
     return user
 
-async def send_otp(db: AsyncSession, email: str):
-    """Generate and send OTP to user's email"""
+async def send_otp(db: AsyncSession, email: str, purpose: str = "sign-in"):
+    """Generate and send a short-lived OTP to a user's email."""
     try:
         user = await get_user_by_email(db, email)
         if not user:
             return False, "User not found"
 
-        # Generate new OTP secret only if user doesn't have one
-        if not user.otp_secret:
-            otp_secret = pyotp.random_base32()
-            user.otp_secret = otp_secret
-            await db.commit()
-            await db.refresh(user)
+        # Replace any previous code and bind the secret to this action. Without
+        # purpose binding, a sign-in code could also be used to reset a password.
+        otp_secret = pyotp.random_base32()
+        user.otp_secret = f"{purpose}:{otp_secret}"
+        await db.commit()
+        await db.refresh(user)
 
         # Create TOTP with 5-minute interval (300 seconds)
-        otp = pyotp.TOTP(user.otp_secret, interval=300)
+        otp = pyotp.TOTP(otp_secret, interval=300)
         
         # Send OTP via email
         otp_code = otp.now()
-        sender_email = os.getenv("SMTP_SENDER")
+        sender_email = os.getenv("SMTP_SENDER", "database@eurskem.com")
         receiver_email = email
         password = os.getenv("SMTP_PASSWORD")
         smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -78,9 +78,12 @@ async def send_otp(db: AsyncSession, email: str):
         message = MIMEMultipart()
         message["From"] = sender_email
         message["To"] = receiver_email
-        message["Subject"] = "Your OTP Code"
+        message["Subject"] = "Your CheMatSustain verification code"
 
-        body = f"Your OTP code is {otp_code}"
+        body = (
+            f"Your CheMatSustain {purpose} verification code is {otp_code}.\n\n"
+            "This code is valid for 5 minutes. If you did not request it, you can ignore this email."
+        )
         message.attach(MIMEText(body, "plain"))
 
         with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
@@ -97,7 +100,7 @@ async def send_otp(db: AsyncSession, email: str):
         logger.exception("Unexpected OTP delivery failure")
         return False, "OTP delivery is temporarily unavailable"
 
-async def verify_otp(db: AsyncSession, email: str, otp_code: str):
+async def verify_otp(db: AsyncSession, email: str, otp_code: str, purpose: str = "sign-in"):
     """Verify OTP code - valid for 5 minutes"""
     user = await get_user_by_email(db, email)
     if not user:
@@ -106,8 +109,17 @@ async def verify_otp(db: AsyncSession, email: str, otp_code: str):
     if not user.otp_secret:
         return False
     
+    stored_secret = user.otp_secret
+    if ":" in stored_secret:
+        stored_purpose, stored_secret = stored_secret.split(":", 1)
+        if stored_purpose != purpose:
+            return False
+    elif purpose != "sign-in":
+        # Untagged secrets predate purpose binding and may only complete login.
+        return False
+
     # Create TOTP with same 5-minute interval (300 seconds) as used in send_otp
-    otp = pyotp.TOTP(user.otp_secret, interval=300)
+    otp = pyotp.TOTP(stored_secret, interval=300)
     
     # Verify the OTP code (valid for 5 minutes)
     is_valid = otp.verify(otp_code)

@@ -12,7 +12,7 @@ export default function AuthCallbackPage() {
     getOidcManager().signinRedirectCallback()
       .then((user) => {
         setAccessToken(user.access_token);
-        router.replace('/developer');
+        router.replace('/');
       })
       .catch(() => setError('Secure sign-in could not be completed. Please try again.'));
   }, [router]);

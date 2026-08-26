@@ -4,7 +4,8 @@ from fastapi import Depends, HTTPException, status, Request, Response
 from utils.custom_router import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.schemas.user import (
-    UserCreate, UserOut, LoginRequest, VerifyOTPRequest, 
+    UserCreate, UserOut, LoginRequest, VerifyOTPRequest,
+    ForgotPasswordRequest, ResetPasswordRequest,
     ChangePasswordRequest, TokenResponse, MessageResponse, Role
 )
 from api.services.user import (
@@ -51,6 +52,58 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
 
     return MessageResponse(msg="OTP sent to email")
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(
+    request_data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a password-reset code without revealing whether an account exists."""
+    user = await get_user_by_email(db, request_data.email)
+    if user and user.is_active:
+        success, _message = await send_otp(db, request_data.email, purpose="password reset")
+        if not success:
+            # Do not disclose account existence or SMTP details to the caller.
+            logger.error("Password-reset email could not be delivered")
+    return MessageResponse(
+        msg="If an active account exists for this email, a reset code has been sent."
+    )
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(
+    reset_data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset a password after verifying the emailed five-minute code."""
+    user = await get_user_by_email(db, reset_data.email)
+    if (
+        not user
+        or not user.is_active
+        or not await verify_otp(
+            db,
+            reset_data.email,
+            reset_data.otp_code,
+            purpose="password reset",
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification code",
+        )
+    user = await change_password(
+        db=db,
+        email=reset_data.email,
+        new_password=reset_data.new_password,
+    )
+    if not user:
+        # Same response family as an invalid code; do not reveal account state.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification code",
+        )
+    return MessageResponse(msg="Password reset successfully. You can now sign in.")
 
 @router.post("/verify-otp", response_model=MessageResponse)
 async def verify_otp_endpoint(otp_data: VerifyOTPRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):

@@ -94,6 +94,16 @@ KEYCLOAK_MACHINE_AZP_PREFIX=partner-
 # --- Admin API provisioning: leave OFF unless actively provisioning -------
 ENABLE_KEYCLOAK_PROVISIONING=false
 KEYCLOAK_ADMIN_BASE_URL=http://keycloak:8080
+
+# --- Legacy OTP and password-reset email ---------------------------------
+# User-facing messages must come from the database service identity, not a
+# developer's personal mailbox. The SMTP provider must authorize/verify this
+# From address; otherwise it may reject or rewrite the sender.
+SMTP_SENDER=database@eurskem.com
+# Authentication identity may differ for a transactional provider. For Gmail,
+# this generally must be the same mailbox as SMTP_SENDER.
+SMTP_USERNAME=<SMTP account authorised to send as database@eurskem.com>
+SMTP_PASSWORD=<stored only in /home/chematsustain/.env>
 ```
 
 `KEYCLOAK_ADMIN_BASE_URL` must stay on the internal Docker address. The public

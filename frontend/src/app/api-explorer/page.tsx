@@ -41,6 +41,16 @@ function testNamesFrom(records: TestIndexItem[]): string[] {
   ).sort((left, right) => left.localeCompare(right));
 }
 
+function parseTestIds(value: string): number[] {
+  const input = value.trim();
+  if (!input) return [];
+  const parts = input.split(',').map((part) => part.trim());
+  if (parts.some((part) => !/^\d+$/.test(part) || Number(part) < 1)) {
+    throw new Error('Test IDs must be positive numbers separated by commas, for example: 3, 4, 12.');
+  }
+  return Array.from(new Set(parts.map(Number)));
+}
+
 export default function ApiExplorerPage() {
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
@@ -53,6 +63,7 @@ export default function ApiExplorerPage() {
   const [detail, setDetail] = useState<ApiResult | null>(null);
   const [lastResult, setLastResult] = useState<ApiResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [detailProgress, setDetailProgress] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState('');
 
@@ -115,16 +126,27 @@ export default function ApiExplorerPage() {
   };
 
   const runIndex = async (overrides?: { testName?: string; testId?: string }) => {
-    setBusy(true);
     setError('');
     const selectedTestName = overrides?.testName ?? testName;
     const selectedTestId = overrides?.testId ?? testId;
+    let selectedIds: number[];
+    try {
+      selectedIds = parseTestIds(selectedTestId);
+    } catch (validationError) {
+      setError(messageFor(validationError));
+      return;
+    }
+    setBusy(true);
     const params = new URLSearchParams();
     if (selectedTestName) params.set('test_name', selectedTestName);
-    if (selectedTestId.trim()) params.set('test_id', selectedTestId.trim());
+    if (selectedIds.length === 1) params.set('test_id', String(selectedIds[0]));
     try {
       const result = await request(`/test-index${params.size ? `?${params}` : ''}`);
-      const records = Array.isArray(result.data) ? result.data as TestIndexItem[] : [];
+      const returnedRecords = Array.isArray(result.data) ? result.data as TestIndexItem[] : [];
+      const selectedIdSet = new Set(selectedIds);
+      const records = selectedIds.length > 1
+        ? returnedRecords.filter((record) => selectedIdSet.has(record.test_id))
+        : returnedRecords;
       setItems(records);
       setDetail(null);
       setLastResult(result);
@@ -139,23 +161,66 @@ export default function ApiExplorerPage() {
     }
   };
 
-  const openTest = async (id?: number) => {
-    const selected = id ? String(id) : testId.trim();
-    if (!selected) {
-      setError('Enter or select a test ID first.');
+  const openTestDetails = async () => {
+    setError('');
+    let selectedIds: number[];
+    try {
+      selectedIds = parseTestIds(testId);
+    } catch (validationError) {
+      setError(messageFor(validationError));
+      return;
+    }
+    if (!selectedIds.length && !testName) {
+      setError('Select a test name or enter one or more test IDs first.');
       return;
     }
     setBusy(true);
-    setError('');
-    setTestId(selected);
+    setDetail(null);
+    setDetailProgress('Finding matching tests…');
     try {
-      const result = await request(`/tests/${selected}`);
-      setDetail(result);
-      setLastResult(result);
+      let detailIds = selectedIds;
+      let matchingIndex: TestIndexItem[] = [];
+
+      if (testName) {
+        const params = new URLSearchParams({ test_name: testName });
+        const indexResult = await request(`/test-index?${params}`);
+        matchingIndex = Array.isArray(indexResult.data) ? indexResult.data as TestIndexItem[] : [];
+        if (selectedIds.length) {
+          const requestedIds = new Set(selectedIds);
+          matchingIndex = matchingIndex.filter((record) => requestedIds.has(record.test_id));
+        }
+        detailIds = matchingIndex.map((record) => record.test_id);
+        setItems(matchingIndex);
+      }
+
+      if (!detailIds.length) {
+        throw new Error('No tests match the selected test name and IDs.');
+      }
+
+      const records: unknown[] = [];
+      let totalDuration = 0;
+      let lastRequestId: string | null = null;
+      for (const [index, id] of detailIds.entries()) {
+        setDetailProgress(`Loading complete test data ${index + 1} of ${detailIds.length}…`);
+        const result = await request(`/tests/${id}`);
+        records.push(result.data);
+        totalDuration += result.duration;
+        lastRequestId = result.requestId;
+      }
+
+      const combinedResult: ApiResult = {
+        status: 200,
+        requestId: detailIds.length === 1 ? lastRequestId : null,
+        duration: totalDuration,
+        data: records,
+      };
+      setDetail(combinedResult);
+      setLastResult(combinedResult);
       setVerified(true);
     } catch (requestError) {
       setError(messageFor(requestError));
     } finally {
+      setDetailProgress('');
       setBusy(false);
     }
   };
@@ -169,6 +234,7 @@ export default function ApiExplorerPage() {
     setTestName('');
     setTestId('');
     setDetail(null);
+    setDetailProgress('');
     setLastResult(null);
     setError('');
   };
@@ -192,8 +258,14 @@ export default function ApiExplorerPage() {
 
   const indexUrl = useMemo(() => {
     const params = new URLSearchParams();
+    let ids: number[] = [];
+    try {
+      ids = parseTestIds(testId);
+    } catch {
+      // Keep showing the name-only URL while the ID input is incomplete.
+    }
     if (testName) params.set('test_name', testName);
-    if (testId.trim()) params.set('test_id', testId.trim());
+    if (ids.length === 1) params.set('test_id', String(ids[0]));
     return `/api/v1/test-index${params.size ? `?${params}` : ''}`;
   }, [testName, testId]);
 
@@ -252,13 +324,14 @@ export default function ApiExplorerPage() {
                   {knownTestNames.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               </label>
-              <label className="block text-sm font-medium text-slate-700">Test ID
-                <input value={testId} onChange={(event) => setTestId(event.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="For example: 3"
+              <label className="block text-sm font-medium text-slate-700">Test IDs <span className="font-normal text-slate-500">(optional)</span>
+                <input value={testId} onChange={(event) => setTestId(event.target.value.replace(/[^\d,\s]/g, ''))} inputMode="text" placeholder="For example: 3, 4, 12"
                   className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
+                <span className="mt-1 block text-xs font-normal text-slate-500">Separate multiple IDs with commas. Leave empty to load every complete record for the selected test name.</span>
               </label>
               <code className="block break-all rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-blue-800">GET {indexUrl}</code>
               <button type="button" disabled={busy || !credentialsReady} onClick={() => runIndex()} className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"><Play size={17} /> Run index API</button>
-              <button type="button" disabled={busy || !credentialsReady || !testId} onClick={() => openTest()} className="flex w-full items-center justify-center gap-2 rounded-md border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40">Open test ID</button>
+              <button type="button" disabled={busy || !credentialsReady || (!testId.trim() && !testName)} onClick={openTestDetails} className="flex w-full items-center justify-center gap-2 rounded-md border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40">{detailProgress || 'Load full test data'}</button>
             </div>
           </section>
         </aside>
@@ -290,7 +363,7 @@ export default function ApiExplorerPage() {
 
           {detail && (
             <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Single-test detail</p><h2 className="mt-1 text-xl font-semibold text-blue-900">Test ID {testId}</h2></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => copy(JSON.stringify(detail.data, null, 2), 'json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><Clipboard size={16} /> {copied === 'json' ? 'Copied' : 'Copy'}</button><button type="button" onClick={() => download(detail.data, `chematsustain_test_${testId}.json`)} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Download size={16} /> JSON</button></div></div>
+              <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Complete test data</p><h2 className="mt-1 text-xl font-semibold text-blue-900">{Array.isArray(detail.data) ? detail.data.length : 0} complete test record{Array.isArray(detail.data) && detail.data.length === 1 ? '' : 's'}</h2><p className="mt-1 text-sm text-slate-500">{testName ? `Test name: ${testName}` : `Test IDs: ${testId}`}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => copy(JSON.stringify(detail.data, null, 2), 'json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><Clipboard size={16} /> {copied === 'json' ? 'Copied' : 'Copy JSON'}</button><button type="button" onClick={() => download(detail.data, testName ? `chematsustain_${testName}_complete_tests.json` : 'chematsustain_complete_tests.json')} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Download size={16} /> Download JSON</button></div></div>
               <pre className="mt-4 max-h-[650px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-900 p-4 text-xs leading-6 text-slate-200">{JSON.stringify(detail.data, null, 2)}</pre>
             </section>
           )}

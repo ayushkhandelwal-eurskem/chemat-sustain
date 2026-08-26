@@ -41,26 +41,17 @@ function testNamesFrom(records: TestIndexItem[]): string[] {
   ).sort((left, right) => left.localeCompare(right));
 }
 
-function parseTestIds(value: string): number[] {
-  const input = value.trim();
-  if (!input) return [];
-  const parts = input.split(',').map((part) => part.trim());
-  if (parts.some((part) => !/^\d+$/.test(part) || Number(part) < 1)) {
-    throw new Error('Test IDs must be positive numbers separated by commas, for example: 3, 4, 12.');
-  }
-  return Array.from(new Set(parts.map(Number)));
-}
-
 export default function ApiExplorerPage() {
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [showSecret, setShowSecret] = useState(false);
   const [verified, setVerified] = useState(false);
   const [testName, setTestName] = useState('');
-  const [testId, setTestId] = useState('');
   const [items, setItems] = useState<TestIndexItem[]>([]);
+  const [selectedTestIds, setSelectedTestIds] = useState<Set<number>>(new Set());
   const [knownTestNames, setKnownTestNames] = useState<string[]>([]);
   const [detail, setDetail] = useState<ApiResult | null>(null);
+  const [detailTitle, setDetailTitle] = useState('');
   const [lastResult, setLastResult] = useState<ApiResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [detailProgress, setDetailProgress] = useState('');
@@ -113,6 +104,7 @@ export default function ApiExplorerPage() {
       const indexResult = await request('/test-index');
       const records = Array.isArray(indexResult.data) ? indexResult.data as TestIndexItem[] : [];
       setItems(records);
+      setSelectedTestIds(new Set());
       setKnownTestNames(testNamesFrom(records));
       setDetail(null);
       setLastResult(indexResult);
@@ -125,33 +117,21 @@ export default function ApiExplorerPage() {
     }
   };
 
-  const runIndex = async (overrides?: { testName?: string; testId?: string }) => {
+  const runIndex = async (overrideTestName?: string) => {
     setError('');
-    const selectedTestName = overrides?.testName ?? testName;
-    const selectedTestId = overrides?.testId ?? testId;
-    let selectedIds: number[];
-    try {
-      selectedIds = parseTestIds(selectedTestId);
-    } catch (validationError) {
-      setError(messageFor(validationError));
-      return;
-    }
+    const selectedTestName = overrideTestName ?? testName;
     setBusy(true);
     const params = new URLSearchParams();
     if (selectedTestName) params.set('test_name', selectedTestName);
-    if (selectedIds.length === 1) params.set('test_id', String(selectedIds[0]));
     try {
       const result = await request(`/test-index${params.size ? `?${params}` : ''}`);
-      const returnedRecords = Array.isArray(result.data) ? result.data as TestIndexItem[] : [];
-      const selectedIdSet = new Set(selectedIds);
-      const records = selectedIds.length > 1
-        ? returnedRecords.filter((record) => selectedIdSet.has(record.test_id))
-        : returnedRecords;
+      const records = Array.isArray(result.data) ? result.data as TestIndexItem[] : [];
       setItems(records);
+      setSelectedTestIds(new Set());
       setDetail(null);
       setLastResult(result);
       setVerified(true);
-      if (!selectedTestName && !selectedTestId.trim()) {
+      if (!selectedTestName) {
         setKnownTestNames(testNamesFrom(records));
       }
     } catch (requestError) {
@@ -161,47 +141,18 @@ export default function ApiExplorerPage() {
     }
   };
 
-  const openTestDetails = async () => {
-    setError('');
-    let selectedIds: number[];
-    try {
-      selectedIds = parseTestIds(testId);
-    } catch (validationError) {
-      setError(messageFor(validationError));
-      return;
-    }
-    if (!selectedIds.length && !testName) {
-      setError('Select a test name or enter one or more test IDs first.');
-      return;
-    }
+  const loadDetails = async (ids: number[], title: string) => {
+    if (!ids.length) return;
     setBusy(true);
+    setError('');
     setDetail(null);
-    setDetailProgress('Finding matching tests…');
+    setDetailTitle(title);
     try {
-      let detailIds = selectedIds;
-      let matchingIndex: TestIndexItem[] = [];
-
-      if (testName) {
-        const params = new URLSearchParams({ test_name: testName });
-        const indexResult = await request(`/test-index?${params}`);
-        matchingIndex = Array.isArray(indexResult.data) ? indexResult.data as TestIndexItem[] : [];
-        if (selectedIds.length) {
-          const requestedIds = new Set(selectedIds);
-          matchingIndex = matchingIndex.filter((record) => requestedIds.has(record.test_id));
-        }
-        detailIds = matchingIndex.map((record) => record.test_id);
-        setItems(matchingIndex);
-      }
-
-      if (!detailIds.length) {
-        throw new Error('No tests match the selected test name and IDs.');
-      }
-
       const records: unknown[] = [];
       let totalDuration = 0;
       let lastRequestId: string | null = null;
-      for (const [index, id] of detailIds.entries()) {
-        setDetailProgress(`Loading complete test data ${index + 1} of ${detailIds.length}…`);
+      for (const [index, id] of ids.entries()) {
+        setDetailProgress(`Loading complete test data ${index + 1} of ${ids.length}…`);
         const result = await request(`/tests/${id}`);
         records.push(result.data);
         totalDuration += result.duration;
@@ -210,7 +161,7 @@ export default function ApiExplorerPage() {
 
       const combinedResult: ApiResult = {
         status: 200,
-        requestId: detailIds.length === 1 ? lastRequestId : null,
+        requestId: ids.length === 1 ? lastRequestId : null,
         duration: totalDuration,
         data: records,
       };
@@ -225,18 +176,79 @@ export default function ApiExplorerPage() {
     }
   };
 
+  const openTest = async (id: number) => {
+    setBusy(true);
+    setError('');
+    setDetail(null);
+    setDetailTitle(`Test ID ${id}`);
+    setDetailProgress(`Loading complete data for test ${id}…`);
+    try {
+      const result = await request(`/tests/${id}`);
+      setDetail(result);
+      setLastResult(result);
+      setVerified(true);
+    } catch (requestError) {
+      setError(messageFor(requestError));
+    } finally {
+      setDetailProgress('');
+      setBusy(false);
+    }
+  };
+
+  const loadSelectedTests = async () => {
+    await loadDetails(Array.from(selectedTestIds), `${selectedTestIds.size} selected tests`);
+  };
+
+  const loadTestName = async () => {
+    if (!testName) return;
+    setBusy(true);
+    setError('');
+    setDetailProgress('Finding matching tests…');
+    try {
+      const params = new URLSearchParams({ test_name: testName });
+      const indexResult = await request(`/test-index?${params}`);
+      const records = Array.isArray(indexResult.data) ? indexResult.data as TestIndexItem[] : [];
+      setItems(records);
+      setSelectedTestIds(new Set());
+      if (!records.length) throw new Error(`No tests found for ${testName}.`);
+      await loadDetails(records.map((record) => record.test_id), `All ${testName} tests`);
+    } catch (requestError) {
+      setError(messageFor(requestError));
+      setDetailProgress('');
+      setBusy(false);
+    }
+  };
+
   const clearCredentials = () => {
     setClientId('');
     setClientSecret('');
     setVerified(false);
     setItems([]);
+    setSelectedTestIds(new Set());
     setKnownTestNames([]);
     setTestName('');
-    setTestId('');
     setDetail(null);
+    setDetailTitle('');
     setDetailProgress('');
     setLastResult(null);
     setError('');
+  };
+
+  const toggleTest = (id: number) => {
+    setSelectedTestIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllTests = () => {
+    setSelectedTestIds((current) => (
+      current.size === items.length
+        ? new Set()
+        : new Set(items.map((item) => item.test_id))
+    ));
   };
 
   const copy = async (value: string, label: string) => {
@@ -258,16 +270,9 @@ export default function ApiExplorerPage() {
 
   const indexUrl = useMemo(() => {
     const params = new URLSearchParams();
-    let ids: number[] = [];
-    try {
-      ids = parseTestIds(testId);
-    } catch {
-      // Keep showing the name-only URL while the ID input is incomplete.
-    }
     if (testName) params.set('test_name', testName);
-    if (ids.length === 1) params.set('test_id', String(ids[0]));
     return `/api/v1/test-index${params.size ? `?${params}` : ''}`;
-  }, [testName, testId]);
+  }, [testName]);
 
   return (
     <main className="min-h-screen bg-gray-50 text-slate-900">
@@ -277,8 +282,8 @@ export default function ApiExplorerPage() {
             <p className="mb-1 text-sm font-medium uppercase tracking-wide text-blue-700">CheMatSustain Developer API</p>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">Explore test data without a website login</h1>
             <p className="mt-3 leading-relaxed text-slate-600">
-              Filter the live test index by test name or test ID, view the JSON response,
-              and open one complete test using your issued API credential.
+              Filter the live test index by test name, select one or more results,
+              and open complete test data using your issued API credential.
             </p>
           </div>
         </section>
@@ -292,12 +297,12 @@ export default function ApiExplorerPage() {
             </div>
             <div className="mt-5 space-y-4">
               <label className="block text-sm font-medium text-slate-700">Client ID
-                <input value={clientId} onChange={(event) => { setClientId(event.target.value); setVerified(false); setKnownTestNames([]); setItems([]); setTestName(''); setTestId(''); }} autoComplete="off" spellCheck={false}
+                <input value={clientId} onChange={(event) => { setClientId(event.target.value); setVerified(false); setKnownTestNames([]); setItems([]); setSelectedTestIds(new Set()); setTestName(''); setDetail(null); }} autoComplete="off" spellCheck={false}
                   placeholder="cms_..." className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 font-mono text-sm text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
               </label>
               <label className="block text-sm font-medium text-slate-700">Client secret
                 <span className="relative mt-1.5 block">
-                  <input type={showSecret ? 'text' : 'password'} value={clientSecret} onChange={(event) => { setClientSecret(event.target.value); setVerified(false); setKnownTestNames([]); setItems([]); setTestName(''); setTestId(''); }} autoComplete="new-password" spellCheck={false}
+                  <input type={showSecret ? 'text' : 'password'} value={clientSecret} onChange={(event) => { setClientSecret(event.target.value); setVerified(false); setKnownTestNames([]); setItems([]); setSelectedTestIds(new Set()); setTestName(''); setDetail(null); }} autoComplete="new-password" spellCheck={false}
                     placeholder="Enter the one-time secret" className="w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 pr-11 font-mono text-sm text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
                   <button type="button" onClick={() => setShowSecret((value) => !value)} aria-label={showSecret ? 'Hide secret' : 'Show secret'} className="absolute right-3 top-2.5 text-slate-400 hover:text-blue-700">
                     {showSecret ? <EyeOff size={19} /> : <Eye size={19} />}
@@ -319,19 +324,14 @@ export default function ApiExplorerPage() {
             <h2 className="flex items-center gap-2 font-semibold text-slate-900"><Search size={19} className="text-blue-700" /> Filter test index</h2>
             <div className="mt-4 space-y-4">
               <label className="block text-sm font-medium text-slate-700">Test name
-                <select value={testName} onChange={(event) => setTestName(event.target.value)} className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
+                <select value={testName} onChange={(event) => { setTestName(event.target.value); setSelectedTestIds(new Set()); setDetail(null); }} className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
                   <option value="">All test names</option>
                   {knownTestNames.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               </label>
-              <label className="block text-sm font-medium text-slate-700">Test IDs <span className="font-normal text-slate-500">(optional)</span>
-                <input value={testId} onChange={(event) => setTestId(event.target.value.replace(/[^\d,\s]/g, ''))} inputMode="text" placeholder="For example: 3, 4, 12"
-                  className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
-                <span className="mt-1 block text-xs font-normal text-slate-500">Separate multiple IDs with commas. Leave empty to load every complete record for the selected test name.</span>
-              </label>
               <code className="block break-all rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-blue-800">GET {indexUrl}</code>
               <button type="button" disabled={busy || !credentialsReady} onClick={() => runIndex()} className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"><Play size={17} /> Run index API</button>
-              <button type="button" disabled={busy || !credentialsReady || (!testId.trim() && !testName)} onClick={openTestDetails} className="flex w-full items-center justify-center gap-2 rounded-md border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40">{detailProgress || 'Load full test data'}</button>
+              <button type="button" disabled={busy || !credentialsReady || !testName} onClick={loadTestName} className="flex w-full items-center justify-center gap-2 rounded-md border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40">{detailProgress || (testName ? `Load all full data for ${testName}` : 'Select a test name for full data')}</button>
             </div>
           </section>
         </aside>
@@ -346,24 +346,39 @@ export default function ApiExplorerPage() {
             </div>
           )}
 
-          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
-              <div><h2 className="text-xl font-semibold text-blue-900">Test index JSON</h2><p className="mt-1 text-sm text-slate-500">{items.length} matching test{items.length === 1 ? '' : 's'} returned</p></div>
+              <div><h2 className="text-xl font-semibold text-blue-900">Test index</h2><p className="mt-1 text-sm text-slate-500">{items.length} matching test{items.length === 1 ? '' : 's'} · {selectedTestIds.size} selected</p></div>
               <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={busy || !selectedTestIds.size} onClick={loadSelectedTests} className="flex items-center gap-2 rounded-md border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40">{detailProgress || 'Load selected test data'}</button>
                 <button type="button" disabled={!items.length} onClick={() => copy(JSON.stringify(items, null, 2), 'index-json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><Clipboard size={16} /> {copied === 'index-json' ? 'Copied' : 'Copy JSON'}</button>
                 <button type="button" disabled={!items.length} onClick={() => download(items, testName ? `chematsustain_${testName}_test_index.json` : 'chematsustain_test_index.json')} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"><Download size={16} /> Download JSON</button>
               </div>
             </div>
-            {items.length ? (
-              <pre className="mt-4 max-h-[620px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-900 p-4 text-xs leading-6 text-slate-200">{JSON.stringify(items, null, 2)}</pre>
-            ) : (
-              <p className="px-5 py-16 text-center text-slate-500">Enter your API credential and run the index to see matching tests as JSON.</p>
-            )}
+            <div className="max-h-[620px] overflow-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="sticky top-0 bg-gray-100 text-xs uppercase tracking-wide text-blue-900">
+                  <tr>
+                    <th className="px-4 py-3"><input type="checkbox" aria-label="Select all displayed tests" checked={items.length > 0 && selectedTestIds.size === items.length} onChange={toggleAllTests} /></th>
+                    <th className="px-4 py-3">Test ID</th><th className="px-4 py-3">Test name</th><th className="px-4 py-3">Work Package</th><th className="px-4 py-3">Identifier</th><th className="px-4 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {items.map((item) => (
+                    <tr key={item.test_id} className="hover:bg-blue-50/50">
+                      <td className="px-4 py-3"><input type="checkbox" aria-label={`Select test ${item.test_id}`} checked={selectedTestIds.has(item.test_id)} onChange={() => toggleTest(item.test_id)} /></td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-700">{item.test_id}</td><td className="px-4 py-3 font-medium text-slate-900">{item.test_name || 'Unnamed test'}</td><td className="px-4 py-3">{item.work_package}</td><td className="px-4 py-3 font-mono text-xs text-slate-600">{item.identifier}</td><td className="px-4 py-3"><button type="button" disabled={busy} onClick={() => openTest(item.test_id)} className="rounded-md bg-blue-50 px-3 py-1.5 font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-40">Open</button></td>
+                    </tr>
+                  ))}
+                  {!items.length && <tr><td colSpan={6} className="px-5 py-16 text-center text-slate-500">Enter your API credential and run the index to see live tests.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           {detail && (
             <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Complete test data</p><h2 className="mt-1 text-xl font-semibold text-blue-900">{Array.isArray(detail.data) ? detail.data.length : 0} complete test record{Array.isArray(detail.data) && detail.data.length === 1 ? '' : 's'}</h2><p className="mt-1 text-sm text-slate-500">{testName ? `Test name: ${testName}` : `Test IDs: ${testId}`}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => copy(JSON.stringify(detail.data, null, 2), 'json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><Clipboard size={16} /> {copied === 'json' ? 'Copied' : 'Copy JSON'}</button><button type="button" onClick={() => download(detail.data, testName ? `chematsustain_${testName}_complete_tests.json` : 'chematsustain_complete_tests.json')} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Download size={16} /> Download JSON</button></div></div>
+              <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Complete test data</p><h2 className="mt-1 text-xl font-semibold text-blue-900">{Array.isArray(detail.data) ? `${detail.data.length} complete test records` : 'Single complete test record'}</h2><p className="mt-1 text-sm text-slate-500">{detailTitle}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => copy(JSON.stringify(detail.data, null, 2), 'json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><Clipboard size={16} /> {copied === 'json' ? 'Copied' : 'Copy JSON'}</button><button type="button" onClick={() => download(detail.data, Array.isArray(detail.data) ? 'chematsustain_complete_tests.json' : `chematsustain_${detailTitle.replace(/\s+/g, '_').toLowerCase()}.json`)} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Download size={16} /> Download JSON</button></div></div>
               <pre className="mt-4 max-h-[650px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-900 p-4 text-xs leading-6 text-slate-200">{JSON.stringify(detail.data, null, 2)}</pre>
             </section>
           )}

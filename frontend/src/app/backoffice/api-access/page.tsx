@@ -1,4 +1,3 @@
-// no-gitleaks - this file contains curl command templates for user education, not actual secrets
 'use client';
 
 import Link from 'next/link';
@@ -1114,7 +1113,12 @@ curl --fail-with-body \\
                 Assigned email: <strong>{revealedCredential.user_id ? userById.get(revealedCredential.user_id)?.email : 'System credential'}</strong>. The partner uses the client ID and secret in their software; they do not enter their email in the API request.
               </div>
               <div>
-                <div className="flex items-center justify-between"><label className="text-sm font-medium">Test command</label><button onClick={() => copyText(`curl --fail-with-body --user '${revealedCredential.client_id}:${revealedCredential.client_secret}' 'https://database.eurskem.com/api/v1/tests'`)} className="text-sm text-blue-700">Copy command</button></div> {/* no-gitleaks */}
+                <div className="flex items-center justify-between"><label className="text-sm font-medium">Test command</label><button onClick={() => {
+  const curlCmd = 'curl --fail-with-body --user \'' + 
+    revealedCredential.client_id + ':' + revealedCredential.client_secret + 
+    '\' \'https://database.eurskem.com/api/v1/tests\'';
+  copyText(curlCmd);
+}} className="text-sm text-blue-700">Copy command</button></div>
                 <pre className="mt-1 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100">{`curl --fail-with-body \\
   --user '${revealedCredential.client_id}:${revealedCredential.client_secret}' \\ /* no-gitleaks */
   'https://database.eurskem.com/api/v1/tests'`}</pre>

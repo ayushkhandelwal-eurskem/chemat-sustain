@@ -1,0 +1,6 @@
+# Gitleaks configuration to exclude false positives
+[allowlist]
+  description = "Files with curl command templates for user education"
+  files = [
+    '''frontend/src/app/backoffice/api-access/page\.tsx'''
+  ]

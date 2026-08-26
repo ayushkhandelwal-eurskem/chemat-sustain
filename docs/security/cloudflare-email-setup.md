@@ -1,14 +1,19 @@
 # Cloudflare outbound email setup
 
 This runbook configures CheMatSustain login OTP and password-reset messages to
-send as `database@eurskem.com` through Cloudflare Email Sending.
+send as `database@eurskem.com` through Cloudflare Email Sending. It is the
+durable paid replacement for the temporary
+[existing Cloudflare + Gmail alias setup](cloudflare-gmail-alias-setup.md).
 
-## Why the Gmail configuration cannot work
+## Why unverified Gmail configuration cannot work
 
 The production application previously authenticated to Gmail as
 `ayush.us255@gmail.com`. Gmail does not allow that personal account to send as
 an unrelated `@eurskem.com` identity, so it rewrites the visible sender. Setting
-only `SMTP_SENDER=database@eurskem.com` cannot override the SMTP provider.
+only `SMTP_SENDER=database@eurskem.com` cannot override the SMTP provider. A
+verified Gmail Send-as alias can work temporarily, but Google is ending support
+for third-party aliases in January 2027 and some recipients may show the
+underlying Gmail identity.
 
 Cloudflare **Email Sending** is the outbound transactional service. Cloudflare
 **Email Routing** is the separate inbound forwarding service. OTP delivery to

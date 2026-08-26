@@ -92,15 +92,19 @@ for name in "${required_env[@]}"; do
        docs/security/production-env-reference.md."
 done
 
-# Gmail authenticates the envelope sender and rewrites an unverified From
-# header to the personal account. Refuse the historical configuration rather
-# than deploying successfully while OTPs still appear to come from a developer.
-if grep -Eqi '^[[:space:]]*SMTP_HOST=[[:space:]]*smtp\.gmail\.com[[:space:]]*$' .env \
-   || grep -Eqi '^[[:space:]]*(SMTP_SENDER|SMTP_USERNAME)=[[:space:]]*ayush\.us255@gmail\.com[[:space:]]*$' .env; then
-  fail "personal Gmail SMTP is still configured in $REPO_DIR/.env.
-       Gmail rewrites From headers, so it cannot send as database@eurskem.com.
-       Onboard eurskem.com in Cloudflare Email Sending, create an API token with
-       Email Sending: Edit, then set the SMTP_* values from .env.example."
+# Gmail preserves a custom From address only after it is verified under Gmail's
+# "Send mail as" settings. Require an explicit acknowledgement for this legacy
+# path so a typo cannot silently restore the personal visible sender.
+if grep -Eqi '^[[:space:]]*SMTP_HOST=[[:space:]]*smtp\.gmail\.com[[:space:]]*$' .env; then
+  grep -Eqi '^[[:space:]]*SMTP_GMAIL_ALIAS_VERIFIED=[[:space:]]*true[[:space:]]*$' .env \
+    || fail "Gmail SMTP requires SMTP_GMAIL_ALIAS_VERIFIED=true.
+       First route database@eurskem.com to the existing Gmail inbox with
+       Cloudflare Email Routing, then verify that address in Gmail's
+       Settings > Accounts and Import > Send mail as."
+  grep -Eqi '^[[:space:]]*SMTP_SENDER=[[:space:]]*database@eurskem\.com[[:space:]]*$' .env \
+    || fail "Gmail alias mode requires SMTP_SENDER=database@eurskem.com."
+elif grep -Eqi '^[[:space:]]*SMTP_SENDER=[[:space:]]*ayush\.us255@gmail\.com[[:space:]]*$' .env; then
+  fail "SMTP_SENDER must be database@eurskem.com, not a personal mailbox."
 fi
 "${COMPOSE[@]}" config --quiet
 

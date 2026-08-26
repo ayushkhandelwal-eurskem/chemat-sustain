@@ -99,12 +99,21 @@ KEYCLOAK_ADMIN_BASE_URL=http://keycloak:8080
 # User-facing messages must come from the database service identity, not a
 # developer's personal mailbox. The SMTP provider must authorize/verify this
 # From address; otherwise it may reject or rewrite the sender.
+SMTP_HOST=smtp.mx.cloudflare.net
+SMTP_PORT=465
+SMTP_SECURITY=implicit_tls
 SMTP_SENDER=database@eurskem.com
-# Authentication identity may differ for a transactional provider. For Gmail,
-# this generally must be the same mailbox as SMTP_SENDER.
-SMTP_USERNAME=<SMTP account authorised to send as database@eurskem.com>
+# Cloudflare requires this literal username. SMTP_PASSWORD is an API token with
+# Email Sending: Edit permission, not a Cloudflare account password.
+SMTP_USERNAME=api_token
 SMTP_PASSWORD=<stored only in /home/chematsustain/.env>
 ```
+
+Do not use the old personal Gmail account. Gmail rewrites an unverified From
+header to the authenticated Gmail identity, which is why mail appeared from
+`ayush.us255@gmail.com` even when the application requested
+`database@eurskem.com`. Follow [Cloudflare outbound email setup](cloudflare-email-setup.md)
+to onboard the domain and create the restricted token.
 
 `KEYCLOAK_ADMIN_BASE_URL` must stay on the internal Docker address. The public
 `/admin` path is blocked at nginx, so an external URL would 403.

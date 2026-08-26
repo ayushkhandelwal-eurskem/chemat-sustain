@@ -55,7 +55,7 @@ export default function Header() {
   return (
     <header className="bg-sky-100 shadow-sm">
       {/* Main navigation */}
-      <nav className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between">
+      <nav className="w-full px-3 sm:px-4 py-3 flex flex-col md:flex-row items-center justify-between">
         {/* Logo and mobile menu button */}
         <div className="flex items-center justify-between w-full md:w-auto">
           <Link href="/" className="flex items-center shrink-0">

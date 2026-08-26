@@ -59,18 +59,13 @@ async def send_otp(db: AsyncSession, email: str, purpose: str = "sign-in"):
         sender_email = os.getenv("SMTP_SENDER", "database@eurskem.com")
         receiver_email = email
         password = os.getenv("SMTP_PASSWORD")
-        smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        # The SMTP account used to authenticate is not always the same address
-        # the mail is sent FROM. Gmail happens to require them to match, so this
-        # was previously hard-coded to sender_email - which silently rules out
-        # every transactional provider (Brevo, Mailgun, SES), where the login is
-        # an account identifier or API key name and the From address is a
-        # separately verified sender.
-        #
-        # Defaults to sender_email, so existing Gmail configuration keeps
-        # working with no change.
-        smtp_username = os.getenv("SMTP_USERNAME") or sender_email
+        smtp_host = os.getenv("SMTP_HOST", "smtp.mx.cloudflare.net")
+        smtp_port = int(os.getenv("SMTP_PORT", "465"))
+        smtp_security = os.getenv("SMTP_SECURITY", "implicit_tls").lower()
+        # Cloudflare authenticates with the literal username "api_token" and
+        # uses the scoped API token as the password. The From domain is verified
+        # separately when eurskem.com is onboarded in Email Sending.
+        smtp_username = os.getenv("SMTP_USERNAME", "api_token")
         if not sender_email or not password:
             logger.error("OTP delivery is unavailable because SMTP is not configured")
             return False, "OTP delivery is temporarily unavailable"
@@ -86,8 +81,17 @@ async def send_otp(db: AsyncSession, email: str, purpose: str = "sign-in"):
         )
         message.attach(MIMEText(body, "plain"))
 
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-            server.starttls()
+        if smtp_security == "implicit_tls":
+            smtp_connection = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10)
+        elif smtp_security == "starttls":
+            smtp_connection = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+        else:
+            logger.error("OTP delivery is unavailable because SMTP_SECURITY is invalid")
+            return False, "OTP delivery is temporarily unavailable"
+
+        with smtp_connection as server:
+            if smtp_security == "starttls":
+                server.starttls()
             server.login(smtp_username, password)
             server.sendmail(sender_email, receiver_email, message.as_string())
             logger.info("OTP email sent", extra={"recipient_domain": email.rsplit("@", 1)[-1]})

@@ -79,6 +79,7 @@ required_env=(
   POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB DATABASE_URL
   KEYCLOAK_DB_USER KEYCLOAK_DB_PASSWORD KEYCLOAK_DB_NAME
   KEYCLOAK_ADMIN_USERNAME KEYCLOAK_ADMIN_PASSWORD
+  SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_SENDER SMTP_USERNAME SMTP_PASSWORD
 )
 for name in "${required_env[@]}"; do
   grep -Eq "^[[:space:]]*${name}=.+" .env \
@@ -90,6 +91,17 @@ for name in "${required_env[@]}"; do
        variable the code actually reads, and see
        docs/security/production-env-reference.md."
 done
+
+# Gmail authenticates the envelope sender and rewrites an unverified From
+# header to the personal account. Refuse the historical configuration rather
+# than deploying successfully while OTPs still appear to come from a developer.
+if grep -Eqi '^[[:space:]]*SMTP_HOST=[[:space:]]*smtp\.gmail\.com[[:space:]]*$' .env \
+   || grep -Eqi '^[[:space:]]*(SMTP_SENDER|SMTP_USERNAME)=[[:space:]]*ayush\.us255@gmail\.com[[:space:]]*$' .env; then
+  fail "personal Gmail SMTP is still configured in $REPO_DIR/.env.
+       Gmail rewrites From headers, so it cannot send as database@eurskem.com.
+       Onboard eurskem.com in Cloudflare Email Sending, create an API token with
+       Email Sending: Edit, then set the SMTP_* values from .env.example."
+fi
 "${COMPOSE[@]}" config --quiet
 
 log "Checking persistent host directories"

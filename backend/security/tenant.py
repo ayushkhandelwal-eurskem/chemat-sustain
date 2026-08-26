@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from security.auth import Principal, get_principal
+from security.config import get_settings
 from utils.db import get_db
 
 
@@ -20,4 +21,12 @@ async def get_tenant_db(
         {"organisation_id": principal.organisation_id},
     )
     await db.execute(text("SELECT set_config('app.bypass_rls', 'false', true)"))
+    is_platform_tester = bool(
+        principal.client_id
+        and principal.client_id in get_settings().platform_tester_client_ids
+    )
+    await db.execute(
+        text("SELECT set_config('app.platform_governance', :enabled, true)"),
+        {"enabled": "on" if is_platform_tester else "off"},
+    )
     return db

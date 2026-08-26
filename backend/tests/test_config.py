@@ -36,3 +36,9 @@ def test_valid_keycloak_config(monkeypatch):
     monkeypatch.setenv("CORS_ORIGINS", "http://localhost:3000")
     clear_settings_cache()
     assert get_settings().auth_mode == "keycloak"
+
+
+def test_platform_tester_client_ids_are_parsed(monkeypatch):
+    monkeypatch.setenv("PLATFORM_TESTER_CLIENT_IDS", "cms_one, cms_two")
+    clear_settings_cache()
+    assert get_settings().platform_tester_client_ids == ("cms_one", "cms_two")

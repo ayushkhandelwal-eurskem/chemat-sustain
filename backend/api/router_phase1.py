@@ -65,7 +65,11 @@ async def _platform_operator_org(
     organisation matches it, so an unconfigured deployment keeps the strict
     tenant scope and partners are never widened.
     """
-    slug = get_settings().platform_operator_org_slug
+    settings = get_settings()
+    if principal.client_id in settings.platform_tester_client_ids:
+        return principal.organisation_id or "platform-tester"
+
+    slug = settings.platform_operator_org_slug
     if not slug or not principal.organisation_id:
         return None
     row = (
@@ -79,7 +83,7 @@ async def tests(
     principal: Principal = Depends(require_scopes("tests:read")),
     db: AsyncSession = Depends(get_tenant_db),
     platform_org: str | None = Depends(_platform_operator_org),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(10, ge=1, le=25),
     offset: int = Query(0, ge=0),
 ):
     query = select(Test)

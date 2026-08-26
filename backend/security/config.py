@@ -53,6 +53,10 @@ class Settings:
     # (see router_phase1). Empty by default: cross-tenant read is OFF unless
     # a deployment explicitly opts in.
     platform_operator_org_slug: str = ""
+    # Explicit API client IDs allowed to test the complete consortium API.
+    # Unlike platform_operator_org_slug, this does not widen every credential
+    # belonging to an organisation. Empty by default: no tester bypass.
+    platform_tester_client_ids: tuple[str, ...] = ()
 
     @property
     def is_production(self) -> bool:
@@ -136,6 +140,7 @@ def get_settings() -> Settings:
         audit_hmac_key=os.getenv("AUDIT_HMAC_KEY", ""),
         enable_api_docs=_bool("ENABLE_API_DOCS", False),
         platform_operator_org_slug=os.getenv("PLATFORM_OPERATOR_ORG_SLUG", ""),
+        platform_tester_client_ids=_csv("PLATFORM_TESTER_CLIENT_IDS"),
     )
     settings.validate()
     return settings

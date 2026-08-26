@@ -76,6 +76,8 @@ class _Settings:
 
     def __init__(self, root: Path):
         self.tenant_data_root = str(root)
+        self.platform_tester_client_ids = ()
+        self.platform_operator_org_slug = ""
 
 
 def _principal(organisation_id: str) -> Principal:

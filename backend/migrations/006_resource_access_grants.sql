@@ -82,7 +82,8 @@ DROP POLICY IF EXISTS tests_read ON tests;
 CREATE POLICY tests_read ON tests
     FOR SELECT
     USING (
-        organisation_id = current_access_organisation_id()
+        is_platform_governance()
+        OR organisation_id = current_access_organisation_id()
         OR is_public = true
         OR EXISTS (
             SELECT 1 FROM organisation_test_access access
@@ -98,7 +99,8 @@ DROP POLICY IF EXISTS protocols_write ON protocols;
 CREATE POLICY protocols_read ON protocols
     FOR SELECT
     USING (
-        organisation_id = current_access_organisation_id()
+        is_platform_governance()
+        OR organisation_id = current_access_organisation_id()
         OR EXISTS (
             SELECT 1 FROM organisation_protocol_access access
             WHERE access.protocol_id = protocols.id

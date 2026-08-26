@@ -1,0 +1,164 @@
+@page {
+  size: A4;
+  margin: 18mm 16mm 18mm 16mm;
+  @bottom-center {
+    content: "ProtoQSAR API Guide  •  Page " counter(page) " of " counter(pages);
+    color: #64748b;
+    font-size: 8pt;
+  }
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.48;
+  color: #172033;
+  background: #ffffff;
+}
+
+body {
+  max-width: none;
+  margin: 0;
+}
+
+h1 {
+  margin: 0 0 8mm;
+  padding: 0 0 5mm;
+  border-bottom: 3px solid #155e75;
+  color: #0f4c5c;
+  font-size: 25pt;
+  line-height: 1.15;
+}
+
+h1::after {
+  display: block;
+  margin-top: 3mm;
+  color: #475569;
+  content: "Beginner-friendly instructions for test and experimental-data access";
+  font-size: 11pt;
+  font-weight: normal;
+}
+
+h2 {
+  margin: 8mm 0 3mm;
+  break-after: avoid;
+  color: #155e75;
+  font-size: 16pt;
+  line-height: 1.25;
+}
+
+h3 {
+  margin: 6mm 0 2mm;
+  break-after: avoid;
+  color: #334155;
+  font-size: 12.5pt;
+}
+
+p {
+  margin: 0 0 3mm;
+  orphans: 3;
+  widows: 3;
+}
+
+ul,
+ol {
+  margin: 1.5mm 0 3.5mm;
+  padding-left: 7mm;
+}
+
+li {
+  margin: 1mm 0;
+}
+
+a {
+  color: #0369a1;
+  text-decoration: none;
+}
+
+code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 8.6pt;
+}
+
+pre {
+  margin: 3mm 0 4mm;
+  padding: 3.5mm;
+  break-inside: avoid;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+pre code {
+  color: #0f172a;
+}
+
+table {
+  width: 100%;
+  margin: 3mm 0 5mm;
+  border-collapse: collapse;
+  break-inside: avoid;
+  font-size: 9.2pt;
+}
+
+thead {
+  display: table-header-group;
+}
+
+th,
+td {
+  padding: 2.2mm 2.5mm;
+  border: 1px solid #cbd5e1;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: #ffffff;
+  background: #155e75;
+  font-weight: 700;
+}
+
+tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+blockquote {
+  margin: 4mm 0;
+  padding: 3mm 4mm;
+  break-inside: avoid;
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
+  color: #713f12;
+}
+
+hr {
+  margin: 7mm 0;
+  border: 0;
+  border-top: 1px solid #cbd5e1;
+}
+
+strong {
+  color: #0f172a;
+}
+
+@media print {
+  a[href]::after {
+    content: none;
+  }
+
+  h2,
+  h3,
+  pre,
+  table,
+  blockquote {
+    break-inside: avoid;
+  }
+}

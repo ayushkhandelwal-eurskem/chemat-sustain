@@ -24,6 +24,7 @@ from api.models.security import (
 from api.models.session import Session
 from api.models.test import Test
 from api.models.user import User
+from api.models.user_access import UserAccessProfile, UserProtocolAccess, UserTestAccess
 from api.models_tree import Category, Protocol, ProtocolTest
 from api.schemas.user import Role, UserOut
 from utils.auth import get_current_user, hash_password
@@ -66,6 +67,10 @@ class UserAdminUpdate(BaseModel):
 class ResourceAssignment(BaseModel):
     test_ids: list[int] = Field(default_factory=list)
     protocol_ids: list[int] = Field(default_factory=list)
+    all_tests: bool = False
+    all_protocols: bool = False
+    all_files: bool = False
+    is_platform_tester: bool = False
 
 
 def _require_admin(user: User) -> None:
@@ -334,24 +339,21 @@ async def list_resources(
         )
     ).all()
 
-    test_grants: dict[int, list[str]] = {}
-    for test_id, organisation_id in (
+    test_grants: dict[int, list[int]] = {}
+    for test_id, user_id in (
         await db.execute(
-            select(OrganisationTestAccess.test_id, OrganisationTestAccess.organisation_id)
+            select(UserTestAccess.test_id, UserTestAccess.user_id)
         )
     ).all():
-        test_grants.setdefault(test_id, []).append(organisation_id)
+        test_grants.setdefault(test_id, []).append(user_id)
 
-    protocol_grants: dict[int, list[str]] = {}
-    for protocol_id, organisation_id in (
+    protocol_grants: dict[int, list[int]] = {}
+    for protocol_id, user_id in (
         await db.execute(
-            select(
-                OrganisationProtocolAccess.protocol_id,
-                OrganisationProtocolAccess.organisation_id,
-            )
+            select(UserProtocolAccess.protocol_id, UserProtocolAccess.user_id)
         )
     ).all():
-        protocol_grants.setdefault(protocol_id, []).append(organisation_id)
+        protocol_grants.setdefault(protocol_id, []).append(user_id)
 
     return {
         "tests": [
@@ -363,7 +365,7 @@ async def list_resources(
                 "organisation_id": organisation_id,
                 "organisation_name": organisation_name,
                 "organisation_slug": organisation_slug,
-                "granted_organisation_ids": sorted(test_grants.get(test_id, [])),
+                "granted_user_ids": sorted(test_grants.get(test_id, [])),
             }
             for (
                 test_id,
@@ -384,7 +386,7 @@ async def list_resources(
                 "organisation_id": organisation_id,
                 "organisation_name": organisation_name,
                 "organisation_slug": organisation_slug,
-                "granted_organisation_ids": sorted(protocol_grants.get(protocol_id, [])),
+                "granted_user_ids": sorted(protocol_grants.get(protocol_id, [])),
             }
             for (
                 protocol_id,
@@ -397,6 +399,87 @@ async def list_resources(
             ) in protocol_rows
         ],
     }
+
+
+@router.get("/users/{user_id}/resources")
+async def get_user_resource_access(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    target = await db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    profile = await db.get(UserAccessProfile, user_id)
+    tests = (
+        await db.execute(select(UserTestAccess.test_id).where(UserTestAccess.user_id == user_id))
+    ).scalars().all()
+    protocols = (
+        await db.execute(
+            select(UserProtocolAccess.protocol_id).where(UserProtocolAccess.user_id == user_id)
+        )
+    ).scalars().all()
+    return {
+        "user_id": user_id,
+        "test_ids": sorted(tests),
+        "protocol_ids": sorted(protocols),
+        "all_tests": bool(profile and profile.all_tests),
+        "all_protocols": bool(profile and profile.all_protocols),
+        "all_files": bool(profile and profile.all_files),
+        "is_platform_tester": bool(profile and profile.is_platform_tester),
+    }
+
+
+@router.put("/users/{user_id}/resources")
+async def set_user_resource_access(
+    user_id: int,
+    payload: ResourceAssignment,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    target = await db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if not target.is_active:
+        raise HTTPException(status.HTTP_409_CONFLICT, "User is inactive")
+
+    test_ids = set(payload.test_ids)
+    protocol_ids = set(payload.protocol_ids)
+    existing_tests = set(
+        (
+            await db.execute(select(Test.id).where(Test.id.in_(test_ids)))
+        ).scalars().all()
+        if test_ids
+        else []
+    )
+    existing_protocols = set(
+        (
+            await db.execute(select(Protocol.id).where(Protocol.id.in_(protocol_ids)))
+        ).scalars().all()
+        if protocol_ids
+        else []
+    )
+    if existing_tests != test_ids or existing_protocols != protocol_ids:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "One or more selected resources do not exist")
+
+    await db.execute(delete(UserTestAccess).where(UserTestAccess.user_id == user_id))
+    await db.execute(delete(UserProtocolAccess).where(UserProtocolAccess.user_id == user_id))
+    db.add_all([UserTestAccess(user_id=user_id, test_id=value) for value in sorted(test_ids)])
+    db.add_all(
+        [UserProtocolAccess(user_id=user_id, protocol_id=value) for value in sorted(protocol_ids)]
+    )
+    profile = await db.get(UserAccessProfile, user_id)
+    if profile is None:
+        profile = UserAccessProfile(user_id=user_id)
+        db.add(profile)
+    profile.all_tests = payload.all_tests
+    profile.all_protocols = payload.all_protocols
+    profile.all_files = payload.all_files
+    profile.is_platform_tester = payload.is_platform_tester
+    await db.commit()
+    return await get_user_resource_access(user_id, db, current_user)
 
 
 @router.put("/organisations/{organisation_id}/resources")

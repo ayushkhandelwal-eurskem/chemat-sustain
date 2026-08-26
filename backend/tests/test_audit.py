@@ -73,3 +73,27 @@ async def test_append_audit_event_constructs_event():
     assert event.previous_hash == "GENESIS"
     assert event.event_hash and event.event_hash != "GENESIS"
     assert session.added is event
+
+
+async def test_append_audit_event_can_use_resource_owner_organisation():
+    principal = Principal(
+        subject="api-client:cms_platform",
+        email="tester@eurskem.com",
+        organisation_id="",
+        roles=frozenset({"service_account"}),
+        scopes=frozenset({"experimental-data:read"}),
+        client_id="cms_platform",
+        token_id=None,
+        user_id=22,
+        is_platform_tester=True,
+    )
+    event = await append_audit_event(
+        _FakeSession(),
+        principal,
+        "experimental_data.read",
+        "test",
+        "2",
+        "success",
+        organisation_id="resource-owner-org",
+    )
+    assert event.organisation_id == "resource-owner-org"

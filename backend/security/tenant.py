@@ -21,7 +21,7 @@ async def get_tenant_db(
         {"organisation_id": principal.organisation_id},
     )
     await db.execute(text("SELECT set_config('app.bypass_rls', 'false', true)"))
-    is_platform_tester = bool(
+    is_platform_tester = principal.is_platform_tester or bool(
         principal.client_id
         and principal.client_id in get_settings().platform_tester_client_ids
     )

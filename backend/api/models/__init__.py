@@ -1,5 +1,6 @@
 from .user import User
 from .session import Session
+from .user_access import UserAccessProfile, UserProtocolAccess, UserTestAccess
 from .security import (
     ActiveGrant,
     ApiDefinition,
@@ -16,6 +17,9 @@ from .security import (
 __all__ = [
     "User",
     "Session",
+    "UserAccessProfile",
+    "UserTestAccess",
+    "UserProtocolAccess",
     "Organisation",
     "OrganisationMembership",
     "OrganisationTestAccess",

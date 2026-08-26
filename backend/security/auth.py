@@ -52,6 +52,11 @@ class Principal:
     scopes: frozenset[str]
     client_id: str | None
     token_id: str | None
+    user_id: int | None = None
+    all_tests: bool = False
+    all_protocols: bool = False
+    all_files: bool = False
+    is_platform_tester: bool = False
 
     @property
     def is_machine(self) -> bool:

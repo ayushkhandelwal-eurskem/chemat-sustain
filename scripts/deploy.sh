@@ -147,13 +147,13 @@ docker run --rm \
   -v /etc/ssl/private/origin.key:/etc/ssl/private/origin.key:ro \
   "$NGINX_IMAGE" nginx -t
 
-log "Applying additive resource-access migration"
-"${COMPOSE[@]}" exec -T db psql \
-  -U "${POSTGRES_USER:-postgres}" \
-  -d "${POSTGRES_DB:-chematsustain}" \
-  -v ON_ERROR_STOP=1 \
-  -q \
-  -f - < backend/migrations/006_resource_access_grants.sql
+log "Applying additive resource-access migrations"
+for migration in backend/migrations/006_resource_access_grants.sql backend/migrations/007_user_resource_access.sql; do
+  "${COMPOSE[@]}" exec -T db psql \
+    -U "${POSTGRES_USER:-postgres}" \
+    -d "${POSTGRES_DB:-chematsustain}" \
+    -v ON_ERROR_STOP=1 -q -f - < "$migration"
+done
 
 log "Building application images"
 "${COMPOSE[@]}" build

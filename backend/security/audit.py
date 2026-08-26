@@ -33,11 +33,15 @@ async def append_audit_event(
     resource_id: str | None,
     outcome: str,
     metadata: dict[str, Any] | None = None,
+    organisation_id: str | None = None,
 ) -> AuditEvent:
+    audit_organisation_id = organisation_id or principal.organisation_id
+    if not audit_organisation_id:
+        raise ValueError("An organisation is required for an audit event")
     previous = (
         await db.execute(
             select(AuditEvent)
-            .where(AuditEvent.organisation_id == principal.organisation_id)
+            .where(AuditEvent.organisation_id == audit_organisation_id)
             .order_by(AuditEvent.sequence.desc())
             .limit(1)
             .with_for_update()
@@ -49,7 +53,7 @@ async def append_audit_event(
     event_id = str(uuid4())
     payload = {
         "event_id": event_id,
-        "organisation_id": principal.organisation_id,
+        "organisation_id": audit_organisation_id,
         "sequence": sequence,
         "actor_subject": principal.subject,
         "actor_client_id": principal.client_id,

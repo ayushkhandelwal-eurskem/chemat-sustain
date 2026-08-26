@@ -283,8 +283,8 @@ async def issue_for_user(
     _require_admin(current_user)
 
     target = await db.get(User, user_id)
-    if target is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if target is None or not target.is_active:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "User is missing or inactive")
 
     scopes = _validate_scopes(payload.scopes if payload else ["tests:read"])
     secret = generate_client_secret()
@@ -292,7 +292,7 @@ async def issue_for_user(
         client_id=generate_client_id(),
         client_secret_hash=hash_client_secret(secret),
         name=(payload.name if payload and payload.name else f"API access for {target.email}"),
-        organisation_id=(payload.organisation_id if payload else None),
+        organisation_id=None,
         user_id=user_id,
         scopes=scopes,
         note=(payload.note if payload else ""),

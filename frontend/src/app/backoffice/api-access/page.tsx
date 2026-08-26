@@ -53,7 +53,7 @@ type TestResource = {
   organisation_id: string | null;
   organisation_name: string | null;
   organisation_slug: string | null;
-  granted_organisation_ids: string[];
+  granted_user_ids: number[];
 };
 
 type ProtocolResource = {
@@ -64,7 +64,7 @@ type ProtocolResource = {
   organisation_id: string | null;
   organisation_name: string | null;
   organisation_slug: string | null;
-  granted_organisation_ids: string[];
+  granted_user_ids: number[];
 };
 
 type ResourceResponse = {
@@ -111,7 +111,6 @@ export default function ApiAccessPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [selectedUserId, setSelectedUserId] = useState<number | ''>('');
-  const [selectedOrganisationId, setSelectedOrganisationId] = useState('');
   const [credentialName, setCredentialName] = useState('');
   const [credentialNote, setCredentialNote] = useState('');
   const [selectedScopes, setSelectedScopes] = useState<string[]>([
@@ -128,7 +127,11 @@ export default function ApiAccessPage() {
     is_active: true,
   });
 
-  const [dataOrganisationId, setDataOrganisationId] = useState('');
+  const [accessUserId, setAccessUserId] = useState<number | ''>('');
+  const [allTests, setAllTests] = useState(false);
+  const [allProtocols, setAllProtocols] = useState(false);
+  const [allFiles, setAllFiles] = useState(false);
+  const [isPlatformTester, setIsPlatformTester] = useState(false);
   const [selectedTestIds, setSelectedTestIds] = useState<number[]>([]);
   const [selectedProtocolIds, setSelectedProtocolIds] = useState<number[]>([]);
   const [testSearch, setTestSearch] = useState('');
@@ -177,22 +180,24 @@ export default function ApiAccessPage() {
   }, []);
 
   useEffect(() => {
-    if (!dataOrganisationId) {
+    if (!accessUserId) {
       setSelectedTestIds([]);
       setSelectedProtocolIds([]);
+      setAllTests(false);
+      setAllProtocols(false);
+      setAllFiles(false);
+      setIsPlatformTester(false);
       return;
     }
-    setSelectedTestIds(
-      resources.tests
-        .filter((item) => item.granted_organisation_ids.includes(dataOrganisationId))
-        .map((item) => item.id),
-    );
-    setSelectedProtocolIds(
-      resources.protocols
-        .filter((item) => item.granted_organisation_ids.includes(dataOrganisationId))
-        .map((item) => item.id),
-    );
-  }, [dataOrganisationId, resources]);
+    api.get(`/admin/access/users/${accessUserId}/resources`).then(({ data }) => {
+      setSelectedTestIds(data.test_ids || []);
+      setSelectedProtocolIds(data.protocol_ids || []);
+      setAllTests(Boolean(data.all_tests));
+      setAllProtocols(Boolean(data.all_protocols));
+      setAllFiles(Boolean(data.all_files));
+      setIsPlatformTester(Boolean(data.is_platform_tester));
+    }).catch((requestError) => setError(errorMessage(requestError)));
+  }, [accessUserId, resources]);
 
   useEffect(() => {
     const user = users.find((item) => item.id === editingUserId);
@@ -327,8 +332,8 @@ export default function ApiAccessPage() {
   };
 
   const issueCredential = async () => {
-    if (!selectedUserId || !selectedOrganisationId) {
-      setError('Choose a user and an organisation first.');
+    if (!selectedUserId) {
+      setError('Choose a user first.');
       return;
     }
     if (!selectedScopes.length) {
@@ -341,10 +346,8 @@ export default function ApiAccessPage() {
     setNotice(null);
     try {
       const user = userById.get(selectedUserId);
-      const organisation = organisationById.get(selectedOrganisationId);
       const response = await api.post(`/admin/api-clients/for-user/${selectedUserId}`, {
         name: credentialName.trim() || `API access for ${user?.email}`,
-        organisation_id: selectedOrganisationId,
         user_id: selectedUserId,
         scopes: selectedScopes,
         note: credentialNote.trim(),
@@ -352,7 +355,7 @@ export default function ApiAccessPage() {
       setRevealedCredential(response.data);
       setCredentialName('');
       setCredentialNote('');
-      setNotice(`Credential issued for ${user?.email} under ${organisation?.name}.`);
+      setNotice(`Credential created for ${user?.email}. Copy the secret now.`);
       await refreshAll();
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -469,19 +472,23 @@ export default function ApiAccessPage() {
   };
 
   const saveResourceAccess = async () => {
-    if (!dataOrganisationId) {
-      setError('Choose an organisation first.');
+    if (!accessUserId) {
+      setError('Choose a user first.');
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      await api.put(`/admin/access/organisations/${dataOrganisationId}/resources`, {
+      await api.put(`/admin/access/users/${accessUserId}/resources`, {
         test_ids: selectedTestIds,
         protocol_ids: selectedProtocolIds,
+        all_tests: allTests,
+        all_protocols: allProtocols,
+        all_files: allFiles,
+        is_platform_tester: isPlatformTester,
       });
-      setNotice('Test and protocol access saved.');
+      setNotice('User test and protocol access saved.');
       await refreshAll();
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -599,21 +606,6 @@ export default function ApiAccessPage() {
                     <option value="">Choose user</option>
                     {users.filter((user) => user.is_active).map((user) => (
                       <option key={user.id} value={user.id}>{user.email}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-sm font-medium">
-                  Organisation
-                  <select
-                    value={selectedOrganisationId}
-                    onChange={(event) => setSelectedOrganisationId(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-                  >
-                    <option value="">Choose organisation</option>
-                    {organisations.filter((item) => item.is_active).map((organisation) => (
-                      <option key={organisation.id} value={organisation.id}>
-                        {organisation.name} ({organisation.slug})
-                      </option>
                     ))}
                   </select>
                 </label>
@@ -816,22 +808,25 @@ export default function ApiAccessPage() {
         <div className="space-y-6">
           <section className="rounded-xl bg-white p-6 shadow">
             <div className="flex flex-wrap items-end justify-between gap-4">
-              <label className="min-w-72 text-sm font-medium">
-                Organisation receiving access
-                <select value={dataOrganisationId} onChange={(event) => setDataOrganisationId(event.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
-                  <option value="">Choose organisation</option>
-                  {organisations.filter((item) => item.is_active).map((organisation) => (
-                    <option key={organisation.id} value={organisation.id}>{organisation.name}</option>
+              <label className="min-w-80 text-sm font-medium">
+                User / email receiving access
+                <select value={accessUserId} onChange={(event) => setAccessUserId(event.target.value ? Number(event.target.value) : '')} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
+                  <option value="">Choose user</option>
+                  {users.filter((item) => item.is_active).map((user) => (
+                    <option key={user.id} value={user.id}>{user.email}</option>
                   ))}
                 </select>
               </label>
-              <button disabled={busy || !dataOrganisationId} onClick={saveResourceAccess} className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white disabled:opacity-50">
+              <button disabled={busy || !accessUserId} onClick={saveResourceAccess} className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white disabled:opacity-50">
                 Save access
               </button>
             </div>
-            <p className="mt-3 text-sm text-gray-500">
-              Saving replaces this organisation&apos;s current test and protocol selection. Records owned by another partner stay locked unless reassignment is explicitly enabled.
-            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="flex gap-2 text-sm"><input type="checkbox" checked={allTests} onChange={(event) => setAllTests(event.target.checked)} />Access all tests</label>
+              <label className="flex gap-2 text-sm"><input type="checkbox" checked={allProtocols} onChange={(event) => setAllProtocols(event.target.checked)} />Access all protocols</label>
+              <label className="flex gap-2 text-sm"><input type="checkbox" checked={allFiles} onChange={(event) => setAllFiles(event.target.checked)} />Access all files</label>
+              <label className="flex gap-2 text-sm"><input type="checkbox" checked={isPlatformTester} onChange={(event) => setIsPlatformTester(event.target.checked)} />Platform API tester</label>
+            </div>
           </section>
 
           <div className="grid gap-6 xl:grid-cols-2">
@@ -870,7 +865,7 @@ export default function ApiAccessPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    disabled={!dataOrganisationId || !selectableFilteredTests.length}
+                    disabled={!accessUserId || allTests || !selectableFilteredTests.length}
                     onClick={selectAllFilteredTests}
                     className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
                   >
@@ -898,7 +893,7 @@ export default function ApiAccessPage() {
                     <label key={test.id} className="flex gap-3 rounded-lg border p-3 text-sm hover:bg-blue-50">
                       <input
                         type="checkbox"
-                        disabled={!dataOrganisationId}
+                        disabled={!accessUserId || allTests}
                         checked={selectedTestIds.includes(test.id)}
                         onChange={(event) => setSelectedTestIds((current) => event.target.checked ? [...current, test.id] : current.filter((id) => id !== test.id))}
                       />
@@ -938,7 +933,7 @@ export default function ApiAccessPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    disabled={!dataOrganisationId || !selectableFilteredProtocols.length}
+                    disabled={!accessUserId || allProtocols || !selectableFilteredProtocols.length}
                     onClick={selectAllFilteredProtocols}
                     className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
                   >
@@ -966,7 +961,7 @@ export default function ApiAccessPage() {
                     <label key={protocol.id} className="flex gap-3 rounded-lg border p-3 text-sm hover:bg-blue-50">
                       <input
                         type="checkbox"
-                        disabled={!dataOrganisationId}
+                        disabled={!accessUserId || allProtocols}
                         checked={selectedProtocolIds.includes(protocol.id)}
                         onChange={(event) => setSelectedProtocolIds((current) => event.target.checked ? [...current, protocol.id] : current.filter((id) => id !== protocol.id))}
                       />

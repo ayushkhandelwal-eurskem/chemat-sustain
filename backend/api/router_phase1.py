@@ -6,76 +6,53 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy import exists, or_, select
+from sqlalchemy import exists, false, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.models.security import (
-    Organisation,
-    OrganisationProtocolAccess,
-    OrganisationTestAccess,
-)
 from api.models.test import Test
 from api.models_tree import Category, Protocol
+from api.models.user_access import UserProtocolAccess, UserTestAccess
 from security.audit import append_audit_event
 from security.auth import Principal, get_principal, require_scopes
 from security.config import get_settings
 from security.files import resolve_beneath, safe_filename
 from security.tenant import get_tenant_db
-from utils.db import get_db
 
 
 router = APIRouter(prefix="/v1", tags=["Phase 1 Research APIs"])
 
 
 def _test_access(principal: Principal):
-    return or_(
-        Test.organisation_id == principal.organisation_id,
-        exists().where(
-            OrganisationTestAccess.test_id == Test.id,
-            OrganisationTestAccess.organisation_id == principal.organisation_id,
-        ),
+    if principal.all_tests or principal.is_platform_tester:
+        return true()
+    if principal.user_id is None:
+        return false()
+    return exists().where(
+        UserTestAccess.test_id == Test.id,
+        UserTestAccess.user_id == principal.user_id,
     )
 
 
 def _protocol_access(principal: Principal):
-    return or_(
-        Protocol.organisation_id == principal.organisation_id,
-        exists().where(
-            OrganisationProtocolAccess.protocol_id == Protocol.id,
-            OrganisationProtocolAccess.organisation_id == principal.organisation_id,
-        ),
+    if principal.all_protocols or principal.is_platform_tester:
+        return true()
+    if principal.user_id is None:
+        return false()
+    return exists().where(
+        UserProtocolAccess.protocol_id == Protocol.id,
+        UserProtocolAccess.user_id == principal.user_id,
     )
 
 
 async def _platform_operator_org(
     principal: Principal = Depends(get_principal),
-    db: AsyncSession = Depends(get_db),
 ) -> str | None:
-    """Organisation id of the platform operator, when the caller belongs to it.
-
-    PLATFORM_OPERATOR_ORG_SLUG names the organisation that operates the
-    platform itself. Its credentials may READ research data across every
-    tenant - a deliberate, explicitly configured deviation from the
-    least-privilege data-plane stance documented in
-    migrations/sql/004_enforce_tenancy.sql ("even a platform administrator
-    does not read partner research data through the application").
-
-    Returns None unless the setting is configured AND the caller's
-    organisation matches it, so an unconfigured deployment keeps the strict
-    tenant scope and partners are never widened.
-    """
+    """Return a marker only for an explicitly approved user/client tester."""
     settings = get_settings()
-    if principal.client_id in settings.platform_tester_client_ids:
-        return principal.organisation_id or "platform-tester"
-
-    slug = settings.platform_operator_org_slug
-    if not slug or not principal.organisation_id:
-        return None
-    row = (
-        await db.execute(select(Organisation.id).where(Organisation.slug == slug))
-    ).first()
-    return row[0] if row is not None and row[0] == principal.organisation_id else None
+    if principal.is_platform_tester or principal.client_id in settings.platform_tester_client_ids:
+        return "platform-tester"
+    return None
 
 
 @router.get("/tests")
@@ -126,7 +103,15 @@ async def experimental_data(
     ).scalar_one_or_none()
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Resource not found")
-    await append_audit_event(db, principal, "experimental_data.read", "test", str(test_id), "success")
+    await append_audit_event(
+        db,
+        principal,
+        "experimental_data.read",
+        "test",
+        str(test_id),
+        "success",
+        organisation_id=record.organisation_id,
+    )
     await db.commit()
     return {
         "id": record.id,
@@ -201,7 +186,15 @@ async def download_protocol(
         path = resolve_beneath(protocol_root, *relative_path.parts)
     else:
         path = resolve_beneath(tenant_root, *relative_path.parts)
-    await append_audit_event(db, principal, "protocol.download", "protocol", str(protocol_id), "success")
+    await append_audit_event(
+        db,
+        principal,
+        "protocol.download",
+        "protocol",
+        str(protocol_id),
+        "success",
+        organisation_id=record.organisation_id,
+    )
     await db.commit()
     return FileResponse(
         path,
@@ -217,17 +210,10 @@ async def navigate_files(
     principal: Principal = Depends(require_scopes("files:navigate")),
     platform_org: str | None = Depends(_platform_operator_org),
 ):
-    if not principal.organisation_id:
-        # An organisation-less credential has no tenant file area. Falling
-        # through would resolve the root to the SHARED data directory and
-        # expose every tenant's files, so deny instead. DB-backed endpoints
-        # are safe by scoping ("" matches no rows); this one is pure
-        # filesystem and needs the explicit guard. (The platform operator
-        # below is the one deliberate exception, and only via the
-        # PLATFORM_OPERATOR_ORG_SLUG opt-in.)
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Credential is not bound to an organisation")
     root = Path(get_settings().tenant_data_root)
-    if platform_org is None:
+    if not principal.all_files and not principal.is_platform_tester and platform_org is None:
+        if not principal.organisation_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "User does not have file access")
         root = root / principal.organisation_id
     # else: the platform operator's file area is the whole tenant tree, so
     # every organisation's directory is visible and navigable.

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy import exists, false, select, true
+from sqlalchemy import exists, false, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -43,6 +43,66 @@ def _protocol_access(principal: Principal):
         UserProtocolAccess.protocol_id == Protocol.id,
         UserProtocolAccess.user_id == principal.user_id,
     )
+
+
+def _test_index_query(
+    principal: Principal,
+    test_name: str | None = None,
+    test_id: int | None = None,
+    unrestricted: bool = False,
+):
+    """Build the unlimited lightweight test-index query.
+
+    Only four small columns are selected. Full JSON fields are deliberately
+    reserved for the one-test detail endpoint: production currently contains
+    tens of megabytes of those fields, including multi-megabyte individual
+    rows, so an unlimited full-row endpoint would be unsafe.
+    """
+    query = select(
+        Test.id.label("test_id"),
+        Test.test_name.label("test_name"),
+        Test.work_package_name.label("work_package"),
+        Test.element_cms_id.label("identifier"),
+    )
+    if not unrestricted:
+        query = query.where(_test_access(principal))
+    if test_name and test_name.strip():
+        query = query.where(
+            func.upper(Test.test_name) == test_name.strip().upper()
+        )
+    if test_id is not None:
+        query = query.where(Test.id == test_id)
+    return query.order_by(Test.work_package_name, Test.id)
+
+
+def _test_detail_payload(record: Test) -> dict:
+    return {
+        "test_id": record.id,
+        "test_name": record.test_name,
+        "work_package": record.work_package_name,
+        "identifier": record.element_cms_id,
+        "test_details": record.test_details,
+        "raw_data": record.raw_data,
+        "processed_data": record.processed_data,
+        "final_results": record.final_results,
+        "statistical_analysis": record.statistical_analysis,
+        "created_at": record.created_at,
+        "updated_at": record.updated_at,
+    }
+
+
+async def _accessible_test(
+    db: AsyncSession,
+    principal: Principal,
+    test_id: int,
+    unrestricted: bool,
+) -> Test | None:
+    conditions = [Test.id == test_id]
+    if not unrestricted:
+        conditions.append(_test_access(principal))
+    return (
+        await db.execute(select(Test).where(*conditions))
+    ).scalar_one_or_none()
 
 
 async def _platform_operator_org(
@@ -88,6 +148,60 @@ async def tests(
     ]
 
 
+@router.get("/test-index")
+async def test_index(
+    principal: Principal = Depends(require_scopes("tests:read")),
+    db: AsyncSession = Depends(get_tenant_db),
+    platform_org: str | None = Depends(_platform_operator_org),
+    test_name: str | None = Query(default=None, max_length=160),
+    test_id: int | None = Query(default=None, ge=1),
+):
+    """Return every accessible test's lightweight lookup fields.
+
+    There is intentionally no pagination limit: this endpoint excludes all
+    heavy JSON data and exists specifically to drive filters and ID lookup.
+    """
+    records = (
+        await db.execute(
+            _test_index_query(
+                principal,
+                test_name=test_name,
+                test_id=test_id,
+                unrestricted=platform_org is not None,
+            )
+        )
+    ).mappings().all()
+    return [dict(record) for record in records]
+
+
+@router.get("/tests/{test_id}")
+async def test_detail(
+    test_id: int,
+    principal: Principal = Depends(
+        require_scopes("tests:read", "experimental-data:read")
+    ),
+    db: AsyncSession = Depends(get_tenant_db),
+    platform_org: str | None = Depends(_platform_operator_org),
+):
+    """Return the complete data for one authorized test ID."""
+    record = await _accessible_test(
+        db, principal, test_id, unrestricted=platform_org is not None
+    )
+    if record is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resource not found")
+    await append_audit_event(
+        db,
+        principal,
+        "test.read",
+        "test",
+        str(test_id),
+        "success",
+        organisation_id=record.organisation_id,
+    )
+    await db.commit()
+    return _test_detail_payload(record)
+
+
 @router.get("/experimental-data/{test_id}")
 async def experimental_data(
     test_id: int,
@@ -95,12 +209,9 @@ async def experimental_data(
     db: AsyncSession = Depends(get_tenant_db),
     platform_org: str | None = Depends(_platform_operator_org),
 ):
-    conditions = [Test.id == test_id]
-    if platform_org is None:
-        conditions.append(_test_access(principal))
-    record = (
-        await db.execute(select(Test).where(*conditions))
-    ).scalar_one_or_none()
+    record = await _accessible_test(
+        db, principal, test_id, unrestricted=platform_org is not None
+    )
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Resource not found")
     await append_audit_event(

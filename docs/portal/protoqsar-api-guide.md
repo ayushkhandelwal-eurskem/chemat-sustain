@@ -27,6 +27,17 @@ Your credential can read:
 
 It does not grant protocol or shared-file access.
 
+You can also use the browser-based API Explorer without signing into the main
+website:
+
+```text
+https://database.eurskem.com/api-explorer
+```
+
+The Explorer still asks for your issued API client ID and client secret. It
+keeps them only in the current page's memory and removes them when the page is
+refreshed or closed.
+
 ## 2. The API address
 
 The base address is:
@@ -124,7 +135,11 @@ requests do not create, update, or delete test records.
 | Method and endpoint | Purpose |
 |---|---|
 | `GET /portal/me` | Check that the credential works |
+| `GET /test-index` | Return every accessible test's ID, name, Work Package and identifier; no pagination limit |
+| `GET /test-index?test_name=MTT` | Return every accessible test with one test name |
+| `GET /test-index?test_id=3` | Look up the lightweight identity fields for one test ID |
 | `GET /tests?limit=25&offset=0` | Read one page of test summaries |
+| `GET /tests/{test_id}` | Read the complete data and identity fields for one test |
 | `GET /experimental-data/{test_id}` | Read detailed data for one test |
 
 Replace `{test_id}` with the numeric `id` returned by `/tests`. For example:
@@ -132,6 +147,43 @@ Replace `{test_id}` with the numeric `id` returned by `/tests`. For example:
 ```bash
 curl --fail-with-body --user "$CHEMAT_CLIENT_ID:$CHEMAT_CLIENT_SECRET" \
   'https://database.eurskem.com/api/v1/experimental-data/3'
+```
+
+For new integrations, use the complete single-test endpoint because it includes
+the ID, test name, Work Package and identifier alongside the data:
+
+```bash
+curl --fail-with-body --user "$CHEMAT_CLIENT_ID:$CHEMAT_CLIENT_SECRET" \
+  'https://database.eurskem.com/api/v1/tests/3'
+```
+
+### Unlimited live index
+
+Unlike `/tests`, the lightweight `/test-index` endpoint has no pagination
+limit. It is the authoritative live list and automatically includes tests added
+after this PDF was generated:
+
+```bash
+curl --fail-with-body --user "$CHEMAT_CLIENT_ID:$CHEMAT_CLIENT_SECRET" \
+  'https://database.eurskem.com/api/v1/test-index'
+```
+
+Filter it by test name:
+
+```bash
+curl --fail-with-body --user "$CHEMAT_CLIENT_ID:$CHEMAT_CLIENT_SECRET" \
+  'https://database.eurskem.com/api/v1/test-index?test_name=MTT'
+```
+
+Each index item contains:
+
+```json
+{
+  "test_id": 3,
+  "test_name": "MTT",
+  "work_package": "WP3",
+  "identifier": "CMS_4a_AuNP"
+}
 ```
 
 ## 5. Understanding the test response
@@ -172,7 +224,7 @@ curl --fail-with-body --user "$CHEMAT_CLIENT_ID:$CHEMAT_CLIENT_SECRET" \
 
 Do not set `limit` above 25; the API will reject it.
 
-## 7. Python: download all tests
+## 7. Python: download the unlimited live test index
 
 Install Python 3, then install the `requests` package once:
 
@@ -180,7 +232,7 @@ Install Python 3, then install the `requests` package once:
 python3 -m pip install requests
 ```
 
-Create a file named `download_tests.py` with this complete program:
+Create a file named `download_test_index.py` with this complete program:
 
 ```python
 import json
@@ -192,38 +244,29 @@ BASE_URL = "https://database.eurskem.com/api/v1"
 CLIENT_ID = os.environ["CHEMAT_CLIENT_ID"]
 CLIENT_SECRET = os.environ["CHEMAT_CLIENT_SECRET"]
 
-all_tests = []
-offset = 0
+response = requests.get(
+    f"{BASE_URL}/test-index",
+    auth=(CLIENT_ID, CLIENT_SECRET),
+    timeout=30,
+)
+response.raise_for_status()
+tests = response.json()
 
-while True:
-    response = requests.get(
-        f"{BASE_URL}/tests",
-        params={"limit": 25, "offset": offset},
-        auth=(CLIENT_ID, CLIENT_SECRET),
-        timeout=30,
-    )
-    response.raise_for_status()
-    page = response.json()
-    all_tests.extend(page)
+with open("chematsustain_test_index.json", "w", encoding="utf-8") as output:
+    json.dump(tests, output, indent=2, ensure_ascii=False)
 
-    if len(page) < 25:
-        break
-    offset += 25
-
-with open("chematsustain_tests.json", "w", encoding="utf-8") as output:
-    json.dump(all_tests, output, indent=2, ensure_ascii=False)
-
-print(f"Saved {len(all_tests)} tests to chematsustain_tests.json")
+print(f"Saved {len(tests)} tests to chematsustain_test_index.json")
 ```
 
 Set the environment variables as shown in section 3, then run:
 
 ```bash
-python3 download_tests.py
+python3 download_test_index.py
 ```
 
-The program creates `chematsustain_tests.json` in the current directory. It
-does not write your secret into that output file.
+The program creates `chematsustain_test_index.json` in the current directory.
+There is no pagination loop or result limit. It does not write your secret into
+that output file.
 
 ## 8. Python: retrieve experimental data
 
@@ -249,26 +292,21 @@ with open(f"experimental_data_{TEST_ID}.json", "w", encoding="utf-8") as output:
 
 ## 9. Optional: save basic test fields as CSV
 
-After downloading `chematsustain_tests.json`, this program creates a spreadsheet-
+After downloading `chematsustain_test_index.json`, this program creates a spreadsheet-
 friendly CSV file:
 
 ```python
 import csv
 import json
 
-with open("chematsustain_tests.json", encoding="utf-8") as source:
+with open("chematsustain_test_index.json", encoding="utf-8") as source:
     tests = json.load(source)
 
 columns = [
-    "id",
-    "work_package_name",
-    "element_cms_id",
+    "test_id",
     "test_name",
-    "test_details",
-    "final_results",
-    "statistical_analysis",
-    "created_at",
-    "updated_at",
+    "work_package",
+    "identifier",
 ]
 
 with open("chematsustain_tests.csv", "w", newline="", encoding="utf-8-sig") as output:
@@ -373,8 +411,10 @@ Python method from section 8.
 ## 14. Complete test ID and test-name list
 
 This list was exported from the production CheMatSustain database. It contains
-all 327 tests available when this guide was generated. Test IDs are permanent
-record identifiers but are not consecutive. Repeated test names are expected.
+all 327 tests available when this guide was generated. It is a dated reference,
+not the live source. Use `/api/v1/test-index` or the API Explorer to see tests
+added later. Test IDs are permanent record identifiers but are not consecutive.
+Repeated test names are expected.
 
 | Test ID | Test name |
 |---:|---|

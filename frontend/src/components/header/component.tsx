@@ -94,6 +94,7 @@ export default function Header() {
           <NavLink href="/prediction">Prediction model (QSAR)</NavLink>
 
           <NavLink href="/help">Help</NavLink>
+          <NavLink href="/api-explorer">API Explorer</NavLink>
           {user && <NavLink href="/developer">Developer Portal</NavLink>}
 
           {/* Search Form */}

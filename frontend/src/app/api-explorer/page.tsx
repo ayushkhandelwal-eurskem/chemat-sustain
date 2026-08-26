@@ -3,7 +3,6 @@
 import {
   CheckCircle2,
   Clipboard,
-  Code2,
   Download,
   Eye,
   EyeOff,
@@ -40,39 +39,6 @@ function testNamesFrom(records: TestIndexItem[]): string[] {
   return Array.from(
     new Set(records.map((item) => item.test_name).filter(Boolean) as string[]),
   ).sort((left, right) => left.localeCompare(right));
-}
-
-function pythonScript(testName: string, testId: string): string {
-  const params = testName
-    ? `params={"test_name": ${JSON.stringify(testName)}}`
-    : 'params={}'
-  const chosenId = testId.trim() || '3';
-  return `import os
-import requests
-
-BASE_URL = "https://database.eurskem.com/api/v1"
-CLIENT_ID = os.environ["CHEMAT_CLIENT_ID"]
-CLIENT_SECRET = os.environ["CHEMAT_CLIENT_SECRET"]
-
-index_response = requests.get(
-    f"{BASE_URL}/test-index",
-    ${params},
-    auth=(CLIENT_ID, CLIENT_SECRET),
-    timeout=30,
-)
-index_response.raise_for_status()
-tests = index_response.json()
-print(f"Found {len(tests)} tests")
-
-test_id = ${chosenId}
-detail_response = requests.get(
-    f"{BASE_URL}/tests/{test_id}",
-    auth=(CLIENT_ID, CLIENT_SECRET),
-    timeout=30,
-)
-detail_response.raise_for_status()
-print(detail_response.json())
-`;
 }
 
 export default function ApiExplorerPage() {
@@ -137,6 +103,7 @@ export default function ApiExplorerPage() {
       const records = Array.isArray(indexResult.data) ? indexResult.data as TestIndexItem[] : [];
       setItems(records);
       setKnownTestNames(testNamesFrom(records));
+      setDetail(null);
       setLastResult(indexResult);
       setVerified(true);
     } catch (requestError) {
@@ -159,6 +126,7 @@ export default function ApiExplorerPage() {
       const result = await request(`/test-index${params.size ? `?${params}` : ''}`);
       const records = Array.isArray(result.data) ? result.data as TestIndexItem[] : [];
       setItems(records);
+      setDetail(null);
       setLastResult(result);
       setVerified(true);
       if (!selectedTestName && !selectedTestId.trim()) {
@@ -222,7 +190,6 @@ export default function ApiExplorerPage() {
     URL.revokeObjectURL(url);
   };
 
-  const script = useMemo(() => pythonScript(testName, testId), [testName, testId]);
   const indexUrl = useMemo(() => {
     const params = new URLSearchParams();
     if (testName) params.set('test_name', testName);
@@ -238,8 +205,8 @@ export default function ApiExplorerPage() {
             <p className="mb-1 text-sm font-medium uppercase tracking-wide text-blue-700">CheMatSustain Developer API</p>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">Explore test data without a website login</h1>
             <p className="mt-3 leading-relaxed text-slate-600">
-              Filter the live test index by test name or test ID, open one complete test,
-              and generate a ready-to-run Python example using your issued API credential.
+              Filter the live test index by test name or test ID, view the JSON response,
+              and open one complete test using your issued API credential.
             </p>
           </div>
         </section>
@@ -306,20 +273,19 @@ export default function ApiExplorerPage() {
             </div>
           )}
 
-          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
-              <div><h2 className="text-xl font-semibold text-blue-900">Test index</h2><p className="mt-1 text-sm text-slate-500">Unlimited lightweight results · {items.length} tests returned</p></div>
-              <button type="button" disabled={!items.length} onClick={() => download(items, 'chematsustain_test_index.json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><Download size={16} /> JSON</button>
+              <div><h2 className="text-xl font-semibold text-blue-900">Test index JSON</h2><p className="mt-1 text-sm text-slate-500">{items.length} matching test{items.length === 1 ? '' : 's'} returned</p></div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={!items.length} onClick={() => copy(JSON.stringify(items, null, 2), 'index-json')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><Clipboard size={16} /> {copied === 'index-json' ? 'Copied' : 'Copy JSON'}</button>
+                <button type="button" disabled={!items.length} onClick={() => download(items, testName ? `chematsustain_${testName}_test_index.json` : 'chematsustain_test_index.json')} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"><Download size={16} /> Download JSON</button>
+              </div>
             </div>
-            <div className="max-h-[620px] overflow-auto">
-              <table className="w-full min-w-[680px] text-left text-sm">
-                <thead className="sticky top-0 bg-gray-100 text-xs uppercase tracking-wide text-blue-900"><tr><th className="px-4 py-3">Test ID</th><th className="px-4 py-3">Test name</th><th className="px-4 py-3">Work Package</th><th className="px-4 py-3">Identifier</th><th className="px-4 py-3">Action</th></tr></thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {items.map((item) => <tr key={item.test_id} className="hover:bg-blue-50/50"><td className="px-4 py-3 font-mono font-medium text-blue-700">{item.test_id}</td><td className="px-4 py-3 font-medium text-slate-900">{item.test_name || 'Unnamed test'}</td><td className="px-4 py-3">{item.work_package}</td><td className="px-4 py-3 font-mono text-xs text-slate-600">{item.identifier}</td><td className="px-4 py-3"><button type="button" onClick={() => openTest(item.test_id)} className="rounded-md bg-blue-50 px-3 py-1.5 font-medium text-blue-700 transition-colors hover:bg-blue-100">Open</button></td></tr>)}
-                  {!items.length && <tr><td colSpan={5} className="px-5 py-16 text-center text-slate-500">Enter your API credential and run the index to see live tests.</td></tr>}
-                </tbody>
-              </table>
-            </div>
+            {items.length ? (
+              <pre className="mt-4 max-h-[620px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-900 p-4 text-xs leading-6 text-slate-200">{JSON.stringify(items, null, 2)}</pre>
+            ) : (
+              <p className="px-5 py-16 text-center text-slate-500">Enter your API credential and run the index to see matching tests as JSON.</p>
+            )}
           </section>
 
           {detail && (
@@ -328,11 +294,6 @@ export default function ApiExplorerPage() {
               <pre className="mt-4 max-h-[650px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-900 p-4 text-xs leading-6 text-slate-200">{JSON.stringify(detail.data, null, 2)}</pre>
             </section>
           )}
-
-          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-xl font-semibold text-blue-900"><Code2 size={20} className="text-blue-700" /> Python test</h2><p className="mt-1 text-sm text-slate-500">Uses environment variables—your actual secret is never inserted.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => copy(script, 'python')} className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><Clipboard size={16} /> {copied === 'python' ? 'Copied' : 'Copy'}</button><button type="button" onClick={() => download(script, 'chematsustain_api_test.py')} className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Download size={16} /> Download .py</button></div></div>
-            <pre className="mt-4 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-900 p-4 text-xs leading-6 text-slate-200">{script}</pre>
-          </section>
         </div>
         </div>
       </div>

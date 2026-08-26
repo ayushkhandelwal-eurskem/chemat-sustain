@@ -21,6 +21,14 @@ async def get_tenant_db(
         {"organisation_id": principal.organisation_id},
     )
     await db.execute(text("SELECT set_config('app.bypass_rls', 'false', true)"))
+    # all_tests means every current and future test, including non-public rows
+    # owned by another organisation. Keep this separate from platform_governance
+    # so it broadens only the tests SELECT policy—not protocols, files, grant
+    # tables, or any write policy.
+    await db.execute(
+        text("SELECT set_config('app.all_tests_access', :enabled, true)"),
+        {"enabled": "on" if principal.all_tests else "off"},
+    )
     is_platform_tester = principal.is_platform_tester or bool(
         principal.client_id
         and principal.client_id in get_settings().platform_tester_client_ids

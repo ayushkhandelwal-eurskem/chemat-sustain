@@ -148,7 +148,10 @@ docker run --rm \
   "$NGINX_IMAGE" nginx -t
 
 log "Applying additive resource-access migrations"
-for migration in backend/migrations/006_resource_access_grants.sql backend/migrations/007_user_resource_access.sql; do
+for migration in \
+  backend/migrations/006_resource_access_grants.sql \
+  backend/migrations/007_user_resource_access.sql \
+  backend/migrations/008_dynamic_all_tests_rls.sql; do
   "${COMPOSE[@]}" exec -T db psql \
     -U "${POSTGRES_USER:-postgres}" \
     -d "${POSTGRES_DB:-chematsustain}" \

@@ -35,6 +35,16 @@ def test_test_access_uses_explicit_user_grant():
     assert "user_test_access.user_id = 42" in sql
 
 
+def test_all_tests_access_does_not_materialise_current_test_ids():
+    principal = _principal()
+    principal = Principal(
+        **{**principal.__dict__, "all_tests": True}
+    )
+    # SQL true means every row selected from the live tests table passes the
+    # application filter—including rows inserted after this profile was set.
+    assert _sql(_test_access(principal)) == "true"
+
+
 def test_protocol_access_uses_explicit_user_grant():
     sql = _sql(_protocol_access(_principal()))
     assert "user_protocol_access.protocol_id = protocols.id" in sql

@@ -132,6 +132,10 @@ export default function ApiAccessPage() {
   const [allProtocols, setAllProtocols] = useState(false);
   const [allFiles, setAllFiles] = useState(false);
   const [isPlatformTester, setIsPlatformTester] = useState(false);
+  // Attributes audit events for records with no owning organisation (e.g.
+  // legacy tests) to the chosen organisation. Required whenever any access
+  // below is granted, since audit_events.organisation_id cannot be null.
+  const [auditOrganisationId, setAuditOrganisationId] = useState('');
   const [selectedTestIds, setSelectedTestIds] = useState<number[]>([]);
   const [selectedProtocolIds, setSelectedProtocolIds] = useState<number[]>([]);
   const [testSearch, setTestSearch] = useState('');
@@ -187,6 +191,7 @@ export default function ApiAccessPage() {
       setAllProtocols(false);
       setAllFiles(false);
       setIsPlatformTester(false);
+      setAuditOrganisationId('');
       return;
     }
     api.get(`/admin/access/users/${accessUserId}/resources`).then(({ data }) => {
@@ -196,6 +201,7 @@ export default function ApiAccessPage() {
       setAllProtocols(Boolean(data.all_protocols));
       setAllFiles(Boolean(data.all_files));
       setIsPlatformTester(Boolean(data.is_platform_tester));
+      setAuditOrganisationId(data.audit_organisation_id || '');
     }).catch((requestError) => setError(errorMessage(requestError)));
   }, [accessUserId, resources]);
 
@@ -471,9 +477,24 @@ export default function ApiAccessPage() {
     }
   };
 
+  const grantsAnyAccess =
+    selectedTestIds.length > 0 ||
+    selectedProtocolIds.length > 0 ||
+    allTests ||
+    allProtocols ||
+    allFiles ||
+    isPlatformTester;
+
   const saveResourceAccess = async () => {
     if (!accessUserId) {
       setError('Choose a user first.');
+      return;
+    }
+    if (grantsAnyAccess && !auditOrganisationId) {
+      setError(
+        'Choose the audit organisation. It is required whenever any test/protocol access is granted, ' +
+          'because some records have no owning organisation of their own.',
+      );
       return;
     }
 
@@ -487,6 +508,7 @@ export default function ApiAccessPage() {
         all_protocols: allProtocols,
         all_files: allFiles,
         is_platform_tester: isPlatformTester,
+        audit_organisation_id: grantsAnyAccess ? auditOrganisationId : null,
       });
       setNotice('User test and protocol access saved.');
       await refreshAll();
@@ -817,7 +839,11 @@ export default function ApiAccessPage() {
                   ))}
                 </select>
               </label>
-              <button disabled={busy || !accessUserId} onClick={saveResourceAccess} className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white disabled:opacity-50">
+              <button
+                disabled={busy || !accessUserId || (grantsAnyAccess && !auditOrganisationId)}
+                onClick={saveResourceAccess}
+                className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white disabled:opacity-50"
+              >
                 Save access
               </button>
             </div>
@@ -827,6 +853,26 @@ export default function ApiAccessPage() {
               <label className="flex gap-2 text-sm"><input type="checkbox" checked={allFiles} onChange={(event) => setAllFiles(event.target.checked)} />Access all files</label>
               <label className="flex gap-2 text-sm"><input type="checkbox" checked={isPlatformTester} onChange={(event) => setIsPlatformTester(event.target.checked)} />Platform API tester</label>
             </div>
+            {grantsAnyAccess && (
+              <label className="mt-4 block max-w-md text-sm font-medium">
+                Audit organisation
+                <select
+                  value={auditOrganisationId}
+                  onChange={(event) => setAuditOrganisationId(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                >
+                  <option value="">Choose organisation</option>
+                  {organisations.map((organisation) => (
+                    <option key={organisation.id} value={organisation.id}>{organisation.name}</option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs font-normal text-gray-500">
+                  Some records (e.g. legacy tests) have no owner of their own, so every access
+                  grant needs an organisation to attribute this user&apos;s audit trail to.
+                  Choose the requesting partner&apos;s organisation, not necessarily Eurskem.
+                </span>
+              </label>
+            )}
           </section>
 
           <div className="grid gap-6 xl:grid-cols-2">

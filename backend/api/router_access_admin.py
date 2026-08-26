@@ -71,6 +71,21 @@ class ResourceAssignment(BaseModel):
     all_protocols: bool = False
     all_files: bool = False
     is_platform_tester: bool = False
+    # Attribution for audit events on records with no owning organisation
+    # (e.g. legacy tests). Required whenever this payload grants any access,
+    # because production data may have no organisation_id to fall back on.
+    audit_organisation_id: str | None = None
+
+
+def _grants_any_access(payload: ResourceAssignment) -> bool:
+    return bool(
+        payload.test_ids
+        or payload.protocol_ids
+        or payload.all_tests
+        or payload.all_protocols
+        or payload.all_files
+        or payload.is_platform_tester
+    )
 
 
 def _require_admin(user: User) -> None:
@@ -428,6 +443,7 @@ async def get_user_resource_access(
         "all_protocols": bool(profile and profile.all_protocols),
         "all_files": bool(profile and profile.all_files),
         "is_platform_tester": bool(profile and profile.is_platform_tester),
+        "audit_organisation_id": profile.audit_organisation_id if profile else None,
     }
 
 
@@ -478,15 +494,20 @@ async def set_user_resource_access(
     profile.all_protocols = payload.all_protocols
     profile.all_files = payload.all_files
     profile.is_platform_tester = payload.is_platform_tester
-    if payload.is_platform_tester:
-        profile.audit_organisation_id = await db.scalar(
-            select(Organisation.id).where(Organisation.slug == "eurskem")
-        )
-        if profile.audit_organisation_id is None:
+
+    if _grants_any_access(payload):
+        # Production tests/protocols may have no owning organisation (legacy
+        # rows), and audit_events.organisation_id is NOT NULL - so any grant
+        # needs an explicit attribution target to avoid a 500 on first read.
+        if not payload.audit_organisation_id:
             raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "The Eurskem audit organisation is not configured",
+                status.HTTP_400_BAD_REQUEST,
+                "audit_organisation_id is required when granting any test/protocol access",
             )
+        organisation = await db.get(Organisation, payload.audit_organisation_id)
+        if organisation is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Audit organisation not found")
+        profile.audit_organisation_id = organisation.id
     else:
         profile.audit_organisation_id = None
     await db.commit()

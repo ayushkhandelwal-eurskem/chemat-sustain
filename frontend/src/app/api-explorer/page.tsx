@@ -36,6 +36,12 @@ function messageFor(error: unknown): string {
   return 'The request could not be completed.';
 }
 
+function testNamesFrom(records: TestIndexItem[]): string[] {
+  return Array.from(
+    new Set(records.map((item) => item.test_name).filter(Boolean) as string[]),
+  ).sort((left, right) => left.localeCompare(right));
+}
+
 function pythonScript(testName: string, testId: string): string {
   const params = testName
     ? `params={"test_name": ${JSON.stringify(testName)}}`
@@ -127,8 +133,11 @@ export default function ApiExplorerPage() {
     setBusy(true);
     setError('');
     try {
-      const result = await request('/portal/me');
-      setLastResult(result);
+      const indexResult = await request('/test-index');
+      const records = Array.isArray(indexResult.data) ? indexResult.data as TestIndexItem[] : [];
+      setItems(records);
+      setKnownTestNames(testNamesFrom(records));
+      setLastResult(indexResult);
       setVerified(true);
     } catch (requestError) {
       setVerified(false);
@@ -153,9 +162,7 @@ export default function ApiExplorerPage() {
       setLastResult(result);
       setVerified(true);
       if (!selectedTestName && !selectedTestId.trim()) {
-        setKnownTestNames(
-          Array.from(new Set(records.map((item) => item.test_name).filter(Boolean) as string[])).sort(),
-        );
+        setKnownTestNames(testNamesFrom(records));
       }
     } catch (requestError) {
       setError(messageFor(requestError));
@@ -190,6 +197,9 @@ export default function ApiExplorerPage() {
     setClientSecret('');
     setVerified(false);
     setItems([]);
+    setKnownTestNames([]);
+    setTestName('');
+    setTestId('');
     setDetail(null);
     setLastResult(null);
     setError('');
@@ -243,12 +253,12 @@ export default function ApiExplorerPage() {
             </div>
             <div className="mt-5 space-y-4">
               <label className="block text-sm font-medium text-slate-700">Client ID
-                <input value={clientId} onChange={(event) => { setClientId(event.target.value); setVerified(false); }} autoComplete="off" spellCheck={false}
+                <input value={clientId} onChange={(event) => { setClientId(event.target.value); setVerified(false); setKnownTestNames([]); setItems([]); setTestName(''); setTestId(''); }} autoComplete="off" spellCheck={false}
                   placeholder="cms_..." className="mt-1.5 w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 font-mono text-sm text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
               </label>
               <label className="block text-sm font-medium text-slate-700">Client secret
                 <span className="relative mt-1.5 block">
-                  <input type={showSecret ? 'text' : 'password'} value={clientSecret} onChange={(event) => { setClientSecret(event.target.value); setVerified(false); }} autoComplete="new-password" spellCheck={false}
+                  <input type={showSecret ? 'text' : 'password'} value={clientSecret} onChange={(event) => { setClientSecret(event.target.value); setVerified(false); setKnownTestNames([]); setItems([]); setTestName(''); setTestId(''); }} autoComplete="new-password" spellCheck={false}
                     placeholder="Enter the one-time secret" className="w-full rounded-md border border-blue-900/30 bg-white px-3 py-2.5 pr-11 font-mono text-sm text-blue-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />
                   <button type="button" onClick={() => setShowSecret((value) => !value)} aria-label={showSecret ? 'Hide secret' : 'Show secret'} className="absolute right-3 top-2.5 text-slate-400 hover:text-blue-700">
                     {showSecret ? <EyeOff size={19} /> : <Eye size={19} />}

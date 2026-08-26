@@ -49,12 +49,14 @@ data without writing code:
    main CheMatSustain website first.
 3. In the **API credential** card, enter your issued **Client ID** and **Client
    secret**. These are not your website email address and password.
-4. Select **Test credentials**. A green **Credential accepted** message confirms
-   that the values work. If you receive `401 Unauthorized`, copy both values
-   again and make sure there are no leading or trailing spaces.
-5. Select **Run index API** with **All test names** selected and the Test ID
-   empty. This loads the complete live lightweight index and fills the test-name
-   selector with the names currently in the database.
+4. Select **Test credentials**. A successful check loads the complete live
+   lightweight index, fills the test-name selector with the names currently in
+   the database, and displays a green **Credential accepted** message. If you
+   receive `401 Unauthorized`, copy both values again and make sure there are no
+   leading or trailing spaces.
+5. Leave **All test names** selected and the Test ID empty to keep the complete
+   index visible. Select **Run index API** whenever you want to rerun the current
+   filter.
 6. To filter by name, choose a value such as `MTT` and select **Run index API**
    again. Name matching is exact but is not case-sensitive.
 7. To look up a numeric ID, enter it in **Test ID** and select **Run index API**.

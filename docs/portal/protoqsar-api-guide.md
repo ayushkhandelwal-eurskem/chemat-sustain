@@ -38,6 +38,42 @@ The Explorer still asks for your issued API client ID and client secret. It
 keeps them only in the current page's memory and removes them when the page is
 refreshed or closed.
 
+### Accessing the new API Explorer UI
+
+The API Explorer is the easiest option when you want to inspect or download
+data without writing code:
+
+1. Open a current version of Chrome, Edge, Firefox, or Safari.
+2. Go to
+   `https://database.eurskem.com/api-explorer`. You do not need to sign into the
+   main CheMatSustain website first.
+3. In the **API credential** card, enter your issued **Client ID** and **Client
+   secret**. These are not your website email address and password.
+4. Select **Test credentials**. A green **Credential accepted** message confirms
+   that the values work. If you receive `401 Unauthorized`, copy both values
+   again and make sure there are no leading or trailing spaces.
+5. Select **Run index API** with **All test names** selected and the Test ID
+   empty. This loads the complete live lightweight index and fills the test-name
+   selector with the names currently in the database.
+6. To filter by name, choose a value such as `MTT` and select **Run index API**
+   again. Name matching is exact but is not case-sensitive.
+7. To look up a numeric ID, enter it in **Test ID** and select **Run index API**.
+   You may combine a test name and ID; both conditions must match.
+8. Select **Open** on a result row, or enter an ID and select **Open test ID**, to
+   retrieve the complete record for that one test.
+9. Use **JSON** to download the index or complete record. In the complete-record
+   panel, **Copy** places the displayed JSON on the clipboard.
+10. In **Python test**, use **Copy** or **Download .py** to obtain a script based
+    on the selected filters. The generated script reads credentials from
+    environment variables and never contains the secret entered in the page.
+
+Select the bin icon to clear the credentials and results immediately. Closing
+or refreshing the tab also removes the credentials. The browser does not put
+them in cookies, browser storage, URLs, generated scripts, or downloaded JSON.
+
+> Do not use the Explorer on a shared or public computer. Do not take a
+> screenshot while the client secret is visible.
+
 ## 2. The API address
 
 The base address is:
@@ -63,16 +99,17 @@ in PowerShell or Windows Terminal.
 
 ### macOS or Linux
 
-Open Terminal and enter these commands. Replace the example values with your
-own credential:
+Open Terminal and enter these commands. The second command hides the secret as
+you type, and neither credential value is written literally into shell history:
 
 ```bash
-export CHEMAT_CLIENT_ID='cms_your_client_id_here'
-export CHEMAT_CLIENT_SECRET='your_client_secret_here'
+read -r -p 'Client ID: ' CHEMAT_CLIENT_ID
+read -r -s -p 'Client secret: ' CHEMAT_CLIENT_SECRET; echo
+export CHEMAT_CLIENT_ID CHEMAT_CLIENT_SECRET
 ```
 
-The single quotation marks are important. They prevent the shell from treating
-characters in the secret as commands.
+Paste each issued value at its prompt and press Enter. Nothing is displayed
+while you paste the client secret.
 
 Check your credential:
 
@@ -81,11 +118,11 @@ curl --fail-with-body --user "$CHEMAT_CLIENT_ID:$CHEMAT_CLIENT_SECRET" \
   'https://database.eurskem.com/api/v1/portal/me'
 ```
 
-Then request the first 25 tests:
+Then request the complete lightweight live test index:
 
 ```bash
 curl --fail-with-body --user "$CHEMAT_CLIENT_ID:$CHEMAT_CLIENT_SECRET" \
-  'https://database.eurskem.com/api/v1/tests?limit=25&offset=0'
+  'https://database.eurskem.com/api/v1/test-index'
 ```
 
 You should receive JSON: structured text beginning with `[` for a list or `{`
@@ -113,11 +150,11 @@ curl.exe --fail-with-body --user "$($env:CHEMAT_CLIENT_ID):$($env:CHEMAT_CLIENT_
   "https://database.eurskem.com/api/v1/portal/me"
 ```
 
-Request the first 25 tests:
+Request the complete lightweight live test index:
 
 ```powershell
 curl.exe --fail-with-body --user "$($env:CHEMAT_CLIENT_ID):$($env:CHEMAT_CLIENT_SECRET)" `
-  "https://database.eurskem.com/api/v1/tests?limit=25&offset=0"
+  "https://database.eurskem.com/api/v1/test-index"
 ```
 
 When finished:
@@ -125,6 +162,80 @@ When finished:
 ```powershell
 Remove-Item Env:CHEMAT_CLIENT_ID
 Remove-Item Env:CHEMAT_CLIENT_SECRET
+```
+
+### Production backend terminal (administrators only)
+
+This subsection is only for an authorised administrator who already has shell
+access to the CheMatSustain production host. ProtoQSAR users should use the
+public HTTPS commands above; they do not need server access.
+
+On the production host, change to the deployment directory:
+
+```bash
+cd /home/chematsustain
+```
+
+Read the client ID normally and the client secret without displaying it on the
+screen. Neither value is written literally into the shell history:
+
+```bash
+read -r -p 'Client ID: ' CHEMAT_CLIENT_ID
+read -r -s -p 'Client secret: ' CHEMAT_CLIENT_SECRET; echo
+export CHEMAT_CLIENT_ID CHEMAT_CLIENT_SECRET
+```
+
+The hardened backend container does not include `curl`. Use its installed
+Python `requests` library to check the credential against the backend process
+inside that same container:
+
+```bash
+docker compose exec -T \
+  -e CHEMAT_CLIENT_ID -e CHEMAT_CLIENT_SECRET \
+  backend python -c '
+import os
+import requests
+
+response = requests.get(
+    "http://127.0.0.1:8000/v1/portal/me",
+    auth=(os.environ["CHEMAT_CLIENT_ID"], os.environ["CHEMAT_CLIENT_SECRET"]),
+    timeout=30,
+)
+response.raise_for_status()
+print(response.json())
+'
+```
+
+Retrieve the unlimited lightweight index from the backend terminal:
+
+```bash
+docker compose exec -T \
+  -e CHEMAT_CLIENT_ID -e CHEMAT_CLIENT_SECRET \
+  backend python -c '
+import os
+import requests
+
+response = requests.get(
+    "http://127.0.0.1:8000/v1/test-index",
+    auth=(os.environ["CHEMAT_CLIENT_ID"], os.environ["CHEMAT_CLIENT_SECRET"]),
+    timeout=30,
+)
+response.raise_for_status()
+tests = response.json()
+print(f"Returned {len(tests)} tests")
+print(tests[:3])
+'
+```
+
+The `http://127.0.0.1:8000` address is appropriate only inside the backend
+container because the traffic never leaves that container. All partner and
+internet access must continue to use
+`https://database.eurskem.com/api/v1`; never expose port 8000 publicly.
+
+When finished, remove the credential from the host shell:
+
+```bash
+unset CHEMAT_CLIENT_ID CHEMAT_CLIENT_SECRET
 ```
 
 ## 4. Available methods

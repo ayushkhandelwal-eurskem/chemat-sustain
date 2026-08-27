@@ -25,8 +25,8 @@ on_error() {
   local exit_code=$?
   printf '\nDEPLOY FAILED (exit %s). Current service state:\n' "$exit_code" >&2
   "${COMPOSE[@]}" ps >&2 || true
-  printf '\nRecent backend/frontend/nginx logs:\n' >&2
-  "${COMPOSE[@]}" logs --tail=60 backend frontend nginx >&2 || true
+  printf '\nRecent backend/frontend/keycloak/keycloak-db/nginx logs:\n' >&2
+  "${COMPOSE[@]}" logs --tail=60 backend frontend keycloak keycloak-db nginx >&2 || true
   exit "$exit_code"
 }
 trap on_error ERR
@@ -198,11 +198,37 @@ wait_for_url() {
   return 1
 }
 
+
+# Keycloak is the OIDC trust root, but older versions of this script never
+# checked it. The public auth host consequently served Cloudflare 502 responses
+# while deployments still reported success. First give the existing container a
+# chance to answer. If it does not, recreate ONLY the Keycloak application
+# container: the keycloak_pgdata database volume and keycloak-db remain intact.
+#
+# Read the non-secret realm name from .env without sourcing arbitrary shell
+# content. The production realm is "chematsustain"; retaining that as the
+# fallback preserves the realm imported by keycloak/realm-export.json.
+keycloak_realm="$(sed -n 's/^[[:space:]]*KEYCLOAK_REALM=[[:space:]]*//p' .env | tail -1 | tr -d '\r')"
+keycloak_realm="${keycloak_realm:-chematsustain}"
+keycloak_discovery="http://127.0.0.1:8081/realms/${keycloak_realm}/.well-known/openid-configuration"
+
+if ! curl -fsS --max-time 5 "$keycloak_discovery" >/dev/null 2>&1; then
+  log "Keycloak is unhealthy; recreating its application container"
+  "${COMPOSE[@]}" up -d keycloak-db
+  "${COMPOSE[@]}" up -d --force-recreate --no-deps keycloak
+fi
+
 log "Waiting for direct service health checks"
 wait_for_url "backend" "http://127.0.0.1:8000/health" \
   || fail "backend health check failed"
 wait_for_url "frontend" "http://127.0.0.1:3000/" \
   || fail "frontend health check failed"
+wait_for_url "Keycloak OIDC discovery" "$keycloak_discovery" \
+  || {
+    "${COMPOSE[@]}" ps keycloak keycloak-db >&2 || true
+    "${COMPOSE[@]}" logs --tail=120 keycloak keycloak-db >&2 || true
+    fail "Keycloak OIDC discovery failed for realm ${keycloak_realm}"
+  }
 
 log "Checking persistent mounts from the backend container"
 # `timeout` guards against a hung exec. `docker compose exec` was observed

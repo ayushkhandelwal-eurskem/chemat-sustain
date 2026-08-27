@@ -2,6 +2,9 @@
 certs/
 .env
 
+# Local-only documentation and operational runbooks.
+/docs/
+
 # Local data and uploads - never committed.
 #
 # On the production host these live INSIDE the repository directory

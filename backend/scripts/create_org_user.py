@@ -13,7 +13,7 @@ Run inside the backend container:
 
 The password is generated server-side and shown exactly once, like an API
 client secret. Have the user change it at first login (legacy flow) or before
-the Keycloak cutover.
+the local session and API-client access model.
 """
 
 from __future__ import annotations

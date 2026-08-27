@@ -1,10 +1,8 @@
 """Self-contained API credentials for partner machine access.
 
-Deliberately independent of Keycloak. The Keycloak path (developer_applications
--> access_requests -> three-role approval -> active_grants) is the target design,
-but it needs the OIDC cutover, a Keycloak client per partner, and an approval UI
-that does not exist yet. This table is the interim: an administrator issues a
-client_id/client_secret pair directly, and partners use it immediately.
+An administrator issues a separate client_id/client_secret pair for each partner
+integration. Scope, user and organisation assignments are enforced on every
+request.
 
 Only a HASH of the secret is stored. The plaintext is returned exactly once, at
 creation, and cannot be recovered afterwards - if a partner loses it, issue a new
@@ -41,7 +39,7 @@ class ApiClient(Base):
 
     # Tenant this credential acts for. Every request it makes is scoped to this
     # organisation, and it is what lands in Principal.organisation_id, so it
-    # drives row-level security exactly as a Keycloak token's claim would.
+    # drives tenant context and row-level security.
     #
     # Nullable only because organisations may not be populated yet; a client
     # without one can authenticate but sees no tenant-scoped rows.

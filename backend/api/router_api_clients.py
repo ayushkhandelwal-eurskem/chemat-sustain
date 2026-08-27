@@ -1,7 +1,6 @@
 """Administrator management of partner API credentials.
 
-Authenticated with the existing admin session, so it works from the current
-back-office without waiting for the OIDC cutover.
+Authenticated with the admin session used by the current back-office.
 
 The secret is returned exactly ONCE, in the create and rotate responses, and is
 never retrievable afterwards - only a bcrypt hash is stored. If a partner loses

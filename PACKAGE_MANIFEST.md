@@ -8,13 +8,13 @@ It intentionally excludes `.git`, `node_modules`, scientific data, uploaded file
 
 ## Included areas
 
-- Root: environment example, secure Compose override, CI/security configuration, `CLAUDE.md`, handoff/readme files.
-- Backend security: Keycloak JWT validation, tenant DB context, safe files, audit chain and Keycloak client provisioning.
-- Backend domain: organisations, memberships, API definitions, applications, access requests, approvals, grants and audit models.
-- Secure APIs: Phase 1 research endpoints and Developer Portal endpoints.
+- Root: environment example, CI/security configuration and operational readmes.
+- Backend security: local sessions with email OTP, hashed API-client credentials,
+  tenant DB context, safe files and audit chaining.
+- Backend domain: organisations, explicit user/resource grants and API clients.
+- Secure APIs: scoped Phase 1 research endpoints and API-client verification.
 - Database: additive RLS migration, tenant NOT NULL gate and RLS verification SQL.
-- Frontend: OIDC/PKCE flow, callback, token attachment, Developer Portal page and dependency security updates.
-- Keycloak: secret-free realm import with MFA, roles, scopes, audience and tenant mapper.
+- Frontend: local session login, password reset, API explorer and dependency security updates.
 - Tests and documentation: security unit tests, threat model, control mapping, migration/recovery/incident runbooks and release checklist.
 
 ## Recommended Claude Code instruction

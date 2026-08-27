@@ -1,4 +1,4 @@
-"""Keycloak-free compatibility endpoints for existing API clients."""
+"""Local compatibility endpoints for existing API clients."""
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select

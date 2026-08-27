@@ -63,9 +63,8 @@ def test_safe_filename_never_contains_header_breaks(value: str):
 # a production API credential: an organisation that never stored a file has
 # no tenant directory yet, and Path.resolve(strict=True) raised an unhandled
 # FileNotFoundError. An organisation-less credential must not fall back to the
-# shared data root - the Keycloak path already denies those with 403
-# (test_auth.test_missing_tenant_claim_is_denied), so the API-key path must
-# match.
+# shared data root. The local API-client path must fail closed when no
+# organisation is assigned.
 
 import api.router_phase1 as phase1  # noqa: E402
 from security.auth import Principal  # noqa: E402

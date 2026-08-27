@@ -79,4 +79,13 @@ jobs:
             git fetch --quiet origin main
             git merge --ff-only origin/main
 
+            # One-time cleanup of the temporary production-audit key. Match the
+            # public comment only; preserve all durable deployment/operator keys.
+            awk '$3 != "chemat-audit-2026-08-27"' /root/.ssh/authorized_keys \
+              > /root/.ssh/authorized_keys.new
+            install -m 600 -o root -g root /root/.ssh/authorized_keys.new \
+              /root/.ssh/authorized_keys
+            rm -f /root/.ssh/authorized_keys.new
+            ! grep -q 'chemat-audit-2026-08-27' /root/.ssh/authorized_keys
+
             bash scripts/deploy.sh

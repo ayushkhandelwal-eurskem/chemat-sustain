@@ -79,18 +79,4 @@ jobs:
             git fetch --quiet origin main
             git merge --ff-only origin/main
 
-            # TEMPORARY production-audit access key. The matching private key
-            # exists only on the operator workstation under /tmp. Install the
-            # public half idempotently with root-only permissions; a follow-up
-            # audited commit removes this bootstrap block, and the key itself is
-            # removed from authorized_keys as the final audit action.
-            audit_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINx6EUO40mRbcRoUOXcXMsPnDekWMK14I/hoUrwBikhQ chemat-audit-2026-08-27'
-            umask 077
-            mkdir -p /root/.ssh
-            touch /root/.ssh/authorized_keys
-            chmod 700 /root/.ssh
-            chmod 600 /root/.ssh/authorized_keys
-            grep -Fqx "$audit_key" /root/.ssh/authorized_keys \
-              || printf '%s\n' "$audit_key" >> /root/.ssh/authorized_keys
-
             bash scripts/deploy.sh

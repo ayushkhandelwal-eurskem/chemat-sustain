@@ -98,15 +98,15 @@ async def test_otp_sender_defaults_to_database_address(monkeypatch):
     smtp.__enter__.return_value = smtp
 
     with patch("api.services.user.get_user_by_email", new=AsyncMock(return_value=user)), patch(
-        "api.services.user.smtplib.SMTP_SSL", return_value=smtp
-    ) as smtp_ssl:
+        "api.services.user.smtplib.SMTP", return_value=smtp
+    ) as starttls_connection:
         success, _message = await send_otp(db, "user@example.org")
 
     assert success
     assert user.otp_secret.startswith("sign-in:")
-    smtp_ssl.assert_called_once_with("smtp.mx.cloudflare.net", 465, timeout=10)
-    smtp.login.assert_called_once_with("api_token", "test-password")
-    smtp.starttls.assert_not_called()
+    starttls_connection.assert_called_once_with("smtp.gmail.com", 587, timeout=10)
+    smtp.login.assert_called_once_with("database@eurskem.com", "test-password")
+    smtp.starttls.assert_called_once_with()
     sent_message = smtp.sendmail.call_args.args[2]
     assert "From: database@eurskem.com" in sent_message
 

@@ -1,63 +1,58 @@
-# Existing Cloudflare + Gmail sender setup
+# Recovered Cloudflare DNS + Google sender setup
 
-This setup reuses the existing Cloudflare account and Gmail mailbox so OTPs use
-`database@eurskem.com` as the visible From address. It does not require
-Cloudflare Email Sending or Workers Paid.
+This runbook restores CheMatSustain OTP delivery using the infrastructure that
+previously sent successfully as `database@eurskem.com`.
 
-## Important limitations
+## What the evidence proves
 
-- An A record controls website traffic only. The existing
-  `database.eurskem.com` A record remains unchanged but cannot receive or send
-  email.
-- Cloudflare Email Routing handles incoming verification mail; Gmail handles
-  outbound SMTP.
-- Google states that Gmail support for third-party **Send mail as** addresses
-  ends in January 2027. This is a temporary existing-services solution.
-- Some receiving clients may show
-  `database@eurskem.com on behalf of ayush.us255@gmail.com`.
-- Personal Gmail cannot DKIM-sign as `eurskem.com`, so this has weaker domain
-  authentication and deliverability than Cloudflare Email Sending or Google
-  Workspace.
+The Cloudflare zone and public DNS contain Google MX records, SPF authorization
+for Google (`include:_spf.google.com`), and a Google Workspace DKIM key at
+`google._domainkey.eurskem.com`.
 
-## 1. Create the receiving alias in Cloudflare
+A successfully delivered OTP from February 15, 2026 contains:
 
-1. Keep the current `database.eurskem.com` A record exactly as it is.
-2. In Cloudflare, go to **Compute → Email Service → Email Routing**.
-3. Select **Onboard Domain** and choose `eurskem.com` if routing is not enabled.
-4. Allow Cloudflare to add the proposed root-domain MX, SPF, and DKIM records.
-   Review existing mail records carefully; enabling routing changes where
-   incoming `@eurskem.com` messages are delivered.
-5. Open **Destination Addresses** and add `ayush.us255@gmail.com`.
-6. Open the verification email in Gmail and verify the destination.
-7. Under `eurskem.com` → **Routing Rules**, create:
-   - Custom address: `database@eurskem.com`
-   - Action: Send to an email
-   - Destination: `ayush.us255@gmail.com`
-8. Send a test message from another account to `database@eurskem.com` and
-   confirm that it reaches Gmail.
+```text
+Received: from [172.18.0.3] ([217.154.65.136])
+  by smtp.gmail.com with ESMTPSA
+Return-Path: <database@eurskem.com>
+From: database@eurskem.com
+SPF: PASS
+```
 
-## 2. Verify the From alias in Gmail
+The source code at the time logged in using `sender_email`, which was
+`database@eurskem.com`. The working path was therefore:
 
-1. In desktop Gmail, open **Settings → See all settings**.
-2. Open **Accounts and Import**.
-3. Under **Send mail as**, select **Add another email address**.
-4. Enter the desired display name and `database@eurskem.com`.
-5. Keep **Treat as an alias** enabled.
-6. If Gmail requests SMTP details, use:
-   - Server: `smtp.gmail.com`
-   - Port: `587`
-   - Username: `ayush.us255@gmail.com`
-   - Password: the Gmail app password, not the normal account password
-   - Secured connection using TLS
-7. Gmail sends a confirmation to `database@eurskem.com`. Cloudflare routes it
-   to the existing inbox. Open it and confirm the alias.
-8. Back in **Send mail as**, confirm `database@eurskem.com` is listed as a
-   verified address. Optionally make it the default From address.
+```text
+CheMatSustain backend on 217.154.65.136
+  -> smtp.gmail.com:587 with STARTTLS
+  -> authenticated as database@eurskem.com
+  -> arbitrary OTP recipient
+```
 
-Do not set `SMTP_GMAIL_ALIAS_VERIFIED=true` until this verification is complete.
-Without it, Gmail rewrites or rejects the custom sender.
+Cloudflare hosts DNS but does not send or receive these messages. Do not enable
+Cloudflare Email Routing or replace the Google MX records.
 
-## 3. Configure production
+## 1. Recover the Google identity
+
+The historical Google credential was committed to Git and must be considered
+compromised. Never retrieve or reuse it.
+
+1. Sign in to Google as `database@eurskem.com`.
+2. If sign-in is unavailable, ask the `eurskem.com` Google Workspace
+   administrator to reset the account or confirm whether it became an alias.
+   This cannot be repaired in Cloudflare DNS.
+3. Enable 2-Step Verification for the account if required.
+4. Create a new app password named `CheMatSustain production SMTP`.
+5. Store it only in `/home/chematsustain/.env`. Do not place it in source
+   control, documentation, shell history, tickets, or chat.
+
+If `database@eurskem.com` is now only an alias, its owning Workspace user can be
+used as `SMTP_USERNAME` only after that user can manually send as
+`database@eurskem.com`. In that fallback case set
+`SMTP_GMAIL_ALIAS_VERIFIED=true`. A personal `@gmail.com` login is less
+desirable because some recipients may expose it as the underlying sender.
+
+## 2. Configure production
 
 Edit `/home/chematsustain/.env`:
 
@@ -66,9 +61,16 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURITY=starttls
 SMTP_SENDER=database@eurskem.com
-SMTP_USERNAME=ayush.us255@gmail.com
-SMTP_PASSWORD=<existing Gmail app password>
-SMTP_GMAIL_ALIAS_VERIFIED=true
+SMTP_USERNAME=database@eurskem.com
+SMTP_PASSWORD=<new Google app password>
+```
+
+Confirm the settings without printing the password:
+
+```bash
+cd /home/chematsustain
+grep -E '^SMTP_(HOST|PORT|SECURITY|SENDER|USERNAME)=' .env
+grep -Eq '^SMTP_PASSWORD=.+$' .env && echo 'SMTP_PASSWORD is populated'
 ```
 
 Deploy:
@@ -76,15 +78,67 @@ Deploy:
 ```bash
 cd /home/chematsustain
 git pull --ff-only origin main
-sudo bash scripts/deploy.sh
+bash scripts/deploy.sh
 ```
 
-Request an OTP and inspect the actual message headers. The `From` header should
-be `database@eurskem.com`; the underlying Gmail account may still appear in a
-`Sender` header or as “on behalf of” in some clients.
+If delivery fails, inspect only filtered logs:
 
-## Official references
+```bash
+docker compose logs --tail=300 backend 2>&1 \
+  | grep -Ei 'SMTP|OTP delivery|authentication|BadCredentials|535|sender denied'
+```
 
-- Gmail Send mail as: <https://support.google.com/mail/answer/22370>
-- Cloudflare Email Routing: <https://developers.cloudflare.com/email-service/get-started/route-emails/>
-- Cloudflare routing addresses: <https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/>
+`535 BadCredentials` means Google rejected the login credential. It is not an
+MX, SPF, DKIM, DMARC, Cloudflare proxy, or recipient problem.
+
+## 3. Verify delivery
+
+Request an OTP to an external mailbox and use **Show original** to confirm:
+
+```text
+From: database@eurskem.com
+Return-Path: database@eurskem.com
+SPF: PASS
+DKIM: PASS
+DMARC: PASS
+```
+
+Also confirm the `Received` chain shows authenticated submission through
+`smtp.gmail.com` from the production server.
+
+## 4. Repair domain authentication
+
+The February sample passed SPF but failed DMARC because Google signed with the
+fallback domain `eurskem-com.20230601.gappssmtp.com`, which did not align with
+the visible `eurskem.com` From domain.
+
+In Google Admin, open **Apps -> Google Workspace -> Gmail -> Authenticate
+email**, select `eurskem.com`, and ensure DKIM authentication is started using
+the selector published in Cloudflare (currently `google`). A new OTP should then
+be signed with an aligned `eurskem.com` domain.
+
+The Cloudflare zone also contains two TXT records at `_dmarc.eurskem.com`:
+
+```text
+v=DMARC1; p=none; pct=50;
+v=DMARC1; p=none
+```
+
+Multiple DMARC records are invalid. After coordinating with all systems that
+send as `eurskem.com`, replace them with exactly one monitoring record, for
+example:
+
+```text
+v=DMARC1; p=none; pct=100
+```
+
+Verify aligned SPF or DKIM for all legitimate senders before progressing to
+`p=quarantine` and then `p=reject`.
+
+## Unrelated/stale DNS records
+
+The zone contains Hostinger autoconfiguration and DKIM CNAME records, but no
+Hostinger MX record and no Hostinger SPF authorization. They are not part of the
+proven OTP path. Do not switch SMTP to Hostinger without confirming a mailbox
+exists and correcting SPF/DKIM. Mail-related records should ordinarily be
+DNS-only rather than Cloudflare-proxied.

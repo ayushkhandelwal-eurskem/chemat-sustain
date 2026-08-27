@@ -96,24 +96,20 @@ ENABLE_KEYCLOAK_PROVISIONING=false
 KEYCLOAK_ADMIN_BASE_URL=http://keycloak:8080
 
 # --- Legacy OTP and password-reset email ---------------------------------
-# Existing-services configuration: Cloudflare Email Routing forwards the
-# database@eurskem.com verification address to Gmail, where that From alias
-# must be verified under Accounts and Import > Send mail as.
+# Recovered existing-services configuration: Cloudflare publishes Google MX,
+# SPF, and DKIM; database@eurskem.com authenticates directly to Google SMTP.
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURITY=starttls
 SMTP_SENDER=database@eurskem.com
-SMTP_USERNAME=ayush.us255@gmail.com
+SMTP_USERNAME=database@eurskem.com
 SMTP_PASSWORD=<stored only in /home/chematsustain/.env>
-SMTP_GMAIL_ALIAS_VERIFIED=true
 ```
 
-`SMTP_GMAIL_ALIAS_VERIFIED=true` is an operator assertion, not a switch that
-creates the alias. Set it only after completing
-[Existing Cloudflare + Gmail sender setup](cloudflare-gmail-alias-setup.md).
-Without Gmail verification, the provider rewrites or rejects the From address.
-Google says third-party Send-as support ends in January 2027; migrate to the
-durable [Cloudflare outbound email setup](cloudflare-email-setup.md) before then.
+`SMTP_PASSWORD` must be a newly generated Google app password for
+`database@eurskem.com`, not its normal password and not the historical app
+password exposed in Git. See
+[Recovered Cloudflare DNS + Google sender setup](cloudflare-gmail-alias-setup.md).
 
 `KEYCLOAK_ADMIN_BASE_URL` must stay on the internal Docker address. The public
 `/admin` path is blocked at nginx, so an external URL would 403.

@@ -92,17 +92,19 @@ for name in "${required_env[@]}"; do
        docs/security/production-env-reference.md."
 done
 
-# Gmail preserves a custom From address only after it is verified under Gmail's
-# "Send mail as" settings. Require an explicit acknowledgement for this legacy
-# path so a typo cannot silently restore the personal visible sender.
+# The recovered production setup authenticates directly as
+# database@eurskem.com. If a different Gmail identity is deliberately used,
+# require explicit confirmation that database@eurskem.com is a verified
+# "Send mail as" alias so Gmail does not rewrite the visible sender.
 if grep -Eqi '^[[:space:]]*SMTP_HOST=[[:space:]]*smtp\.gmail\.com[[:space:]]*$' .env; then
-  grep -Eqi '^[[:space:]]*SMTP_GMAIL_ALIAS_VERIFIED=[[:space:]]*true[[:space:]]*$' .env \
-    || fail "Gmail SMTP requires SMTP_GMAIL_ALIAS_VERIFIED=true.
-       First route database@eurskem.com to the existing Gmail inbox with
-       Cloudflare Email Routing, then verify that address in Gmail's
-       Settings > Accounts and Import > Send mail as."
   grep -Eqi '^[[:space:]]*SMTP_SENDER=[[:space:]]*database@eurskem\.com[[:space:]]*$' .env \
-    || fail "Gmail alias mode requires SMTP_SENDER=database@eurskem.com."
+    || fail "Google SMTP requires SMTP_SENDER=database@eurskem.com."
+  if ! grep -Eqi '^[[:space:]]*SMTP_USERNAME=[[:space:]]*database@eurskem\.com[[:space:]]*$' .env; then
+    grep -Eqi '^[[:space:]]*SMTP_GMAIL_ALIAS_VERIFIED=[[:space:]]*true[[:space:]]*$' .env \
+      || fail "A Gmail login other than database@eurskem.com requires
+       SMTP_GMAIL_ALIAS_VERIFIED=true after database@eurskem.com is verified in
+       that account's Settings > Accounts and Import > Send mail as."
+  fi
 elif grep -Eqi '^[[:space:]]*SMTP_SENDER=[[:space:]]*ayush\.us255@gmail\.com[[:space:]]*$' .env; then
   fail "SMTP_SENDER must be database@eurskem.com, not a personal mailbox."
 fi

@@ -1,9 +1,9 @@
 # Cloudflare outbound email setup
 
 This runbook configures CheMatSustain login OTP and password-reset messages to
-send as `database@eurskem.com` through Cloudflare Email Sending. It is the
-durable paid replacement for the temporary
-[existing Cloudflare + Gmail alias setup](cloudflare-gmail-alias-setup.md).
+send as `database@eurskem.com` through Cloudflare Email Sending. It is an
+alternative to the recovered
+[Cloudflare DNS + Google sender setup](cloudflare-gmail-alias-setup.md).
 
 ## Why unverified Gmail configuration cannot work
 

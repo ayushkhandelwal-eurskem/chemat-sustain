@@ -6,6 +6,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Install the structured redacting handler before application modules create or
+# use loggers.  The filter is defence in depth; callers must still avoid logging
+# credentials, OTPs and session identifiers in the first place.
+from utils.logging_config import configure_logging
+
+configure_logging()
+
 from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from utils.db import Base, engine

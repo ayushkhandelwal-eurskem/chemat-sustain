@@ -10,7 +10,9 @@ os.environ.setdefault("KEYCLOAK_ISSUER", "https://identity.example/realms/chemat
 os.environ.setdefault("KEYCLOAK_JWKS_URL", "https://identity.example/realms/chemat-sustain/protocol/openid-connect/certs")
 os.environ.setdefault("KEYCLOAK_AUDIENCE", "chemat-api")
 os.environ.setdefault("KEYCLOAK_ALLOWED_AZP", "chemat-portal,approved-machine")
+os.environ.setdefault("KEYCLOAK_MACHINE_AZP_PREFIX", "chemat-app-")
 os.environ.setdefault("AUDIT_HMAC_KEY", "test-only-key-that-is-never-used-in-production")
+os.environ.setdefault("PROTOCOL_FILE_DIR", "/tmp/chemat-sustain-test-protocols")
 
 
 @pytest.fixture(autouse=True)

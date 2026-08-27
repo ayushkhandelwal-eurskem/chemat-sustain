@@ -377,8 +377,9 @@ async def get_listings(
 async def create_test_json(
     test_data: TestCreate,
     service: TestService = Depends(get_test_service),
+    admin: Role = Depends(get_user_by_role(Role.admin)),
 ):
-    """Create a new test using JSON payload (alternative endpoint)."""
+    """Create a new test using JSON payload as an authenticated administrator."""
     return await service.create_test(test_data)
 
 
@@ -387,8 +388,9 @@ async def update_test_json(
     test_id: int,
     test_data: TestUpdate,
     service: TestService = Depends(get_test_service),
+    admin: Role = Depends(get_user_by_role(Role.admin)),
 ):
-    """Update a test using JSON payload (alternative endpoint)."""
+    """Update a test using JSON payload as an authenticated administrator."""
     return await service.update_test(test_id, test_data)
 
 
@@ -413,6 +415,7 @@ async def bulk_update_release_flags(
     release_final_results: Optional[bool] = None,
     release_statistical_analysis: Optional[bool] = None,
     service: TestService = Depends(get_test_service),
+    admin: Role = Depends(get_user_by_role(Role.admin)),
 ):
     """Bulk update release flags for multiple tests."""
     flags = {
@@ -437,6 +440,7 @@ async def bulk_update_release_flags(
 async def publish_test(
     test_id: int,
     service: TestService = Depends(get_test_service),
+    admin: Role = Depends(get_user_by_role(Role.admin)),
 ):
     """Publish a test (make it public and release all data)."""
     return await service.update_test(
@@ -456,6 +460,7 @@ async def publish_test(
 async def unpublish_test(
     test_id: int,
     service: TestService = Depends(get_test_service),
+    admin: Role = Depends(get_user_by_role(Role.admin)),
 ):
     """Unpublish a test (make it private and hide all data)."""
     return await service.update_test(

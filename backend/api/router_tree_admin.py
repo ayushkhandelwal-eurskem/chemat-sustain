@@ -1,8 +1,8 @@
 """CRUD endpoints for managing the tree structure.
 
 Optional: you can populate the tree by hand in SQL instead. Use these if you
-want UI-driven creation/renaming. All write endpoints should be gated behind
-your write-auth dependency before going public.
+want UI-driven creation/renaming. Every endpoint in this router mutates shared
+navigation data and therefore requires an authenticated legacy administrator.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -10,10 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.schemas.user import Role
+from utils.auth import get_user_by_role
 from utils.db import get_db
 from .models_tree import Category, Protocol, ProtocolTest
 
-router = APIRouter(tags=["tree-admin"])
+router = APIRouter(
+    tags=["tree-admin"],
+    dependencies=[Depends(get_user_by_role(Role.admin))],
+)
 
 
 # --------------------------- request schemas --------------------------------

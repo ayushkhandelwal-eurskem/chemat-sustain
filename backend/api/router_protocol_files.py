@@ -19,6 +19,9 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.schemas.user import Role
+from security.files import resolve_beneath, safe_filename
+from utils.auth import get_current_user, get_user_by_role
 from utils.db import get_db
 from .models_tree import Protocol
 
@@ -44,14 +47,45 @@ async def _get_protocol(protocol_id: int, session: AsyncSession) -> Protocol:
     return proto
 
 
+def _stored_file_path(value: str, *, must_exist: bool = True) -> Path:
+    """Resolve a database-stored path without permitting an upload-root escape.
+
+    Existing rows store absolute paths, while older development rows may contain
+    a path relative to ``UPLOAD_DIR``.  Both forms are accepted, but symlinks,
+    ``..`` components and corrupted absolute paths outside the configured root
+    fail closed.
+    """
+    root = UPLOAD_DIR.resolve(strict=True)
+    candidate = Path(value)
+    try:
+        if candidate.is_absolute():
+            relative = candidate.relative_to(root)
+        else:
+            try:
+                relative = candidate.relative_to(UPLOAD_DIR)
+            except ValueError:
+                relative = candidate
+    except ValueError:
+        raise HTTPException(404, "No file attached to this protocol.")
+    return resolve_beneath(root, *relative.parts, must_exist=must_exist)
+
+
 @router.post("/{protocol_id}/file")
 async def upload_protocol_file(
     protocol_id: int,
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
+    admin=Depends(get_user_by_role(Role.admin)),
 ):
-    # TODO: gate this behind your write-auth dependency before going public.
     proto = await _get_protocol(protocol_id, session)
+
+    # Validate the old database path before writing a replacement. A corrupted
+    # row must not turn this endpoint into an arbitrary-file deletion primitive.
+    previous_path = (
+        _stored_file_path(proto.file_path, must_exist=False)
+        if proto.file_path
+        else None
+    )
 
     ext = ALLOWED_MIME.get(file.content_type)
     if ext is None:
@@ -82,8 +116,8 @@ async def upload_protocol_file(
         raise HTTPException(415, "File content does not match its type.")
 
     # Replace any previously attached file.
-    if proto.file_path:
-        Path(proto.file_path).unlink(missing_ok=True)
+    if previous_path:
+        previous_path.unlink(missing_ok=True)
 
     proto.file_path = str(dest)
     proto.file_name = file.filename
@@ -103,19 +137,25 @@ async def upload_protocol_file(
 async def download_protocol_file(
     protocol_id: int,
     session: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     proto = await _get_protocol(protocol_id, session)
-    if not proto.file_path or not Path(proto.file_path).exists():
+    if not proto.file_path:
         raise HTTPException(404, "No file attached to this protocol.")
+    path = _stored_file_path(proto.file_path)
     # Content-Disposition: inline lets the browser render PDFs in-page (the
     # frontend embeds this URL in an <object>). Passing filename= would force
     # `attachment` and trigger a download instead. The filename is still set
     # via the header so a manual download keeps the original name.
-    safe_name = (proto.file_name or "protocol").replace('"', "")
+    safe_name = safe_filename(proto.file_name or "protocol")
     return FileResponse(
-        path=proto.file_path,
+        path=path,
         media_type=proto.file_mime or "application/octet-stream",
-        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
+        headers={
+            "Content-Disposition": f'inline; filename="{safe_name}"',
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
@@ -123,11 +163,11 @@ async def download_protocol_file(
 async def delete_protocol_file(
     protocol_id: int,
     session: AsyncSession = Depends(get_db),
+    admin=Depends(get_user_by_role(Role.admin)),
 ):
-    # TODO: gate this behind your write-auth dependency before going public.
     proto = await _get_protocol(protocol_id, session)
     if proto.file_path:
-        Path(proto.file_path).unlink(missing_ok=True)
+        _stored_file_path(proto.file_path, must_exist=False).unlink(missing_ok=True)
     proto.file_path = None
     proto.file_name = None
     proto.file_mime = None

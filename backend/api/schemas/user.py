@@ -18,7 +18,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(min_length=12, max_length=72)
 
 
 class UserOut(UserBase):
@@ -34,12 +34,13 @@ class UserOut(UserBase):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    # Bound request work and bcrypt input length without changing existing hashes.
+    password: str = Field(min_length=1, max_length=72)
 
 
 class VerifyOTPRequest(BaseModel):
     email: EmailStr
-    otp_code: str
+    otp_code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -49,12 +50,12 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
     otp_code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
-    new_password: str = Field(min_length=12, max_length=256)
+    new_password: str = Field(min_length=12, max_length=72)
 
 
 class ChangePasswordRequest(BaseModel):
     email: EmailStr
-    new_password: str
+    new_password: str = Field(min_length=12, max_length=72)
 
 
 class TokenResponse(BaseModel):

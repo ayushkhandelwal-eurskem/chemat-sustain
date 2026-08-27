@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { isKeycloakMode } from '@/lib/oidc';
 import { api } from '@/lib/axios';
 
 const LoginPage: React.FC = () => {
@@ -121,20 +120,6 @@ const LoginPage: React.FC = () => {
     forgot: 'Enter your account email to receive a five-minute reset code.',
     reset: `Enter the code sent to ${email} and choose a new password.`,
   }[step];
-
-  if (isKeycloakMode) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-sky-100 px-4">
-        <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-md">
-          <Image src="https://chematsustain.eu/wp-content/uploads/2024/03/CMS-Logo-horizontal-color-transp.png" alt="CheMatSustain" width={240} height={72} className="mx-auto h-auto w-56" priority />
-          <h1 className="mt-8 text-2xl font-bold text-blue-900">Secure consortium sign-in</h1>
-          <p className="mt-2 text-sm text-slate-600">Continue to Keycloak. Multi-factor authentication is required by your organisation.</p>
-          <button onClick={() => void login()} className="mt-6 w-full rounded-md bg-blue-900 px-4 py-3 font-semibold text-white hover:bg-blue-800">Continue to sign in</button>
-          <Link href="/api-explorer" className="mt-3 block w-full rounded-md border border-blue-900/30 px-4 py-3 font-semibold text-blue-900 hover:bg-blue-50">Open API Explorer</Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <ProtectedRoute requireAuth={false}>

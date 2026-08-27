@@ -29,7 +29,6 @@ def _clear_settings_cache():
 
 def _base_env(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@localhost/db")
-    monkeypatch.setenv("AUTH_MODE", "legacy")
     monkeypatch.delenv("ENABLE_API_DOCS", raising=False)
 
 
@@ -65,11 +64,7 @@ def test_docs_cannot_be_enabled_in_production(monkeypatch):
     """Defence in depth: refuse to start rather than publish the schema."""
     _base_env(monkeypatch)
     monkeypatch.setenv("APP_ENV", "production")
-    monkeypatch.setenv("AUTH_MODE", "keycloak")
-    monkeypatch.setenv("KEYCLOAK_ISSUER", "https://auth.example.test/realms/r")
-    monkeypatch.setenv("KEYCLOAK_AUDIENCE", "api")
     monkeypatch.setenv("AUDIT_HMAC_KEY", "x" * 32)
-    monkeypatch.setenv("ENABLE_LEGACY_API", "false")
     monkeypatch.setenv("ENABLE_API_DOCS", "true")
 
     with pytest.raises(RuntimeError, match="ENABLE_API_DOCS"):
@@ -82,15 +77,8 @@ def test_app_exposes_no_schema_routes_by_default(tmp_path):
     Runs in a SUBPROCESS deliberately. The first version of this test called
     importlib.reload(app) inside the pytest process, which re-executed app.py's
     module-level `settings = get_settings()` under a monkeypatched environment
-    and left that in the lru_cache and in sys.modules. security/auth.py calls
-    get_settings() per request (line 79), so every later test read the polluted
-    settings: test_auth.py::test_machine_principal_has_no_email then failed with
-    403 "Token client is not authorised" because keycloak_allowed_azp and
-    keycloak_machine_azp_prefix were no longer the values conftest had set.
-
-    The failure only appeared when the whole suite ran - the file passed in
-    isolation - and it was mistaken for a dependency-upgrade regression until
-    the same failure reproduced on the old pinned versions.
+    and left that in the lru_cache and in sys.modules. A child process cannot
+    corrupt this process's environment or cached Settings instance.
 
     A child process cannot corrupt this process's caches, so the check keeps its
     end-to-end value without the coupling.
@@ -104,7 +92,6 @@ def test_app_exposes_no_schema_routes_by_default(tmp_path):
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "DATABASE_URL": "postgresql+asyncpg://u:p@localhost/db",
-        "AUTH_MODE": "legacy",
         # APP_ENV deliberately absent - the exact production misconfiguration.
         "PROTOCOL_FILE_DIR": str(tmp_path / "protocols"),
         "TENANT_DATA_ROOT": str(tmp_path / "tenants"),

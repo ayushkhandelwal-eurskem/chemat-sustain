@@ -25,8 +25,8 @@ on_error() {
   local exit_code=$?
   printf '\nDEPLOY FAILED (exit %s). Current service state:\n' "$exit_code" >&2
   "${COMPOSE[@]}" ps >&2 || true
-  printf '\nRecent backend/frontend/keycloak/keycloak-db/nginx logs:\n' >&2
-  "${COMPOSE[@]}" logs --tail=60 backend frontend keycloak keycloak-db nginx >&2 || true
+  printf '\nRecent backend/frontend/db/nginx logs:\n' >&2
+  "${COMPOSE[@]}" logs --tail=60 backend frontend db nginx >&2 || true
   exit "$exit_code"
 }
 trap on_error ERR
@@ -77,8 +77,6 @@ cd "$REPO_DIR"
 log "Validating environment and Compose configuration"
 required_env=(
   POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB DATABASE_URL
-  KEYCLOAK_DB_USER KEYCLOAK_DB_PASSWORD KEYCLOAK_DB_NAME
-  KEYCLOAK_ADMIN_USERNAME KEYCLOAK_ADMIN_PASSWORD
   SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_SENDER SMTP_USERNAME SMTP_PASSWORD
 )
 for name in "${required_env[@]}"; do
@@ -199,55 +197,11 @@ wait_for_url() {
 }
 
 
-# Keycloak is the OIDC trust root, but older versions of this script never
-# checked it. The public auth host consequently served Cloudflare 502 responses
-# while deployments still reported success. First give the existing container a
-# chance to answer. If it does not, recreate ONLY the Keycloak application
-# container: the keycloak_pgdata database volume and keycloak-db remain intact.
-#
-# Read the non-secret realm name from .env without sourcing arbitrary shell
-# content. The production realm is "chematsustain"; retaining that as the
-# fallback preserves the realm imported by keycloak/realm-export.json.
-keycloak_realm="$(sed -n 's/^[[:space:]]*KEYCLOAK_REALM=[[:space:]]*//p' .env | tail -1 | tr -d '\r')"
-keycloak_realm="${keycloak_realm:-chematsustain}"
-keycloak_discovery="http://127.0.0.1:8081/realms/${keycloak_realm}/.well-known/openid-configuration"
-
-if ! curl -fsS --max-time 5 "$keycloak_discovery" >/dev/null 2>&1; then
-  log "Keycloak is unhealthy; reconciling its database credential"
-  "${COMPOSE[@]}" up -d keycloak-db
-
-  # POSTGRES_PASSWORD initializes a role only when the named volume is first
-  # created. Changing .env later does NOT update that role, which left Keycloak
-  # in a restart loop with "password authentication failed" while keycloak-db
-  # itself remained healthy. Synchronize the existing role to the current
-  # Compose environment before restarting Keycloak.
-  #
-  # The password is never expanded by the host shell, passed as a command-line
-  # argument or printed. PostgreSQL 14's psql reads both values by running
-  # printenv inside the database container; format() then quotes the identifier
-  # and literal safely, including punctuation in generated passwords.
-  "${COMPOSE[@]}" exec -T keycloak-db sh -c \
-    'psql -X -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
-\set role_name `printenv POSTGRES_USER`
-\set role_password `printenv POSTGRES_PASSWORD`
-SELECT format('ALTER ROLE %I WITH PASSWORD %L', :'role_name', :'role_password') \gexec
-SQL
-
-  log "Recreating the Keycloak application container"
-  "${COMPOSE[@]}" up -d --force-recreate --no-deps keycloak
-fi
-
 log "Waiting for direct service health checks"
 wait_for_url "backend" "http://127.0.0.1:8000/health" \
   || fail "backend health check failed"
 wait_for_url "frontend" "http://127.0.0.1:3000/" \
   || fail "frontend health check failed"
-wait_for_url "Keycloak OIDC discovery" "$keycloak_discovery" \
-  || {
-    "${COMPOSE[@]}" ps keycloak keycloak-db >&2 || true
-    "${COMPOSE[@]}" logs --tail=120 keycloak keycloak-db >&2 || true
-    fail "Keycloak OIDC discovery failed for realm ${keycloak_realm}"
-  }
 
 log "Checking persistent mounts from the backend container"
 # `timeout` guards against a hung exec. `docker compose exec` was observed

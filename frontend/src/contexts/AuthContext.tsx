@@ -2,7 +2,6 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api } from '@/lib/axios';
-import { getOidcManager, isKeycloakMode, setAccessToken } from '@/lib/oidc';
 
 interface User {
   id?: number;
@@ -42,29 +41,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode; skipInit
   const checkAuth = useCallback(async () => {
     setLoading(true);
     try {
-      if (isKeycloakMode) {
-        const oidcUser = await getOidcManager().getUser();
-        if (!oidcUser || oidcUser.expired) {
-          setAccessToken(null);
-          setUser(null);
-          return;
-        }
-        setAccessToken(oidcUser.access_token);
-        const response = await api.get('/v1/portal/me');
-        const roles: string[] = response.data.roles || [];
-        setUser({
-          ...response.data,
-          email: response.data.email || oidcUser.profile.preferred_username || 'service-account',
-          roles,
-          role: roles.includes('platform_admin') ? 'admin' : 'user',
-          is_active: true,
-        });
-      } else {
-        const response = await api.get('/users/me');
-        setUser(response.data);
-      }
+      const response = await api.get('/users/me');
+      setUser(response.data);
     } catch {
-      setAccessToken(null);
       setUser(null);
     } finally {
       setLoading(false);
@@ -72,10 +51,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode; skipInit
   }, []);
 
   const login = async (email?: string, password?: string) => {
-    if (isKeycloakMode) {
-      await getOidcManager().signinRedirect();
-      return { success: true, message: 'Redirecting to secure sign-in' };
-    }
     try {
       const response = await api.post('/users/login', { email, password });
       return { success: true, message: response.data.msg };
@@ -85,7 +60,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode; skipInit
   };
 
   const verifyOTP = async (email: string, otpCode: string) => {
-    if (isKeycloakMode) return { success: false, message: 'MFA is handled by Keycloak' };
     try {
       const response = await api.post('/users/verify-otp', { email, otp_code: otpCode });
       await checkAuth();
@@ -97,12 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode; skipInit
 
   const logout = async () => {
     setUser(null);
-    setAccessToken(null);
-    if (isKeycloakMode) {
-      await getOidcManager().signoutRedirect();
-    } else {
-      await api.post('/users/logout').catch(() => undefined);
-    }
+    await api.post('/users/logout').catch(() => undefined);
   };
 
   useEffect(() => { void checkAuth(); }, [checkAuth]);

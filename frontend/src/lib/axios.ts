@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { getAccessToken } from './oidc';
 
 const stripTrailingSlash = (url: string): string => url.replace(/\/+$/, '');
 
@@ -42,8 +41,6 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
   config.headers['X-Request-ID'] = crypto.randomUUID();
   return config;
 });

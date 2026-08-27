@@ -99,28 +99,23 @@ from api.router_portal import router as portal_router
 app.include_router(phase1_router)
 app.include_router(portal_router)
 
-# Interim partner API credentials, managed from the existing admin session.
-# Mounted unconditionally: it is how partners get access before the Keycloak
-# cutover, and it is admin-only regardless of AUTH_MODE.
+# Partner API credentials, managed from the authenticated admin session.
 from api.router_api_clients import router as api_clients_router
 from api.router_access_admin import router as access_admin_router
 
 app.include_router(api_clients_router)
 app.include_router(access_admin_router)
 
-# Compatibility mode is explicitly unavailable in production. It exists only
-# to support a controlled migration of the current UI and old integrations.
-if settings.enable_legacy_api:
-    from api.controllers.file_navigator import router as file_navigator_router
-    from api.controllers.test import router as test_router
-    from api.controllers.user import router as user_router
-    from api.router_protocol_files import router as protocol_files_router
-    from api.router_tree import router as tree_router
-    from api.router_tree_admin import router as tree_admin_router
+from api.controllers.file_navigator import router as file_navigator_router
+from api.controllers.test import router as test_router
+from api.controllers.user import router as user_router
+from api.router_protocol_files import router as protocol_files_router
+from api.router_tree import router as tree_router
+from api.router_tree_admin import router as tree_admin_router
 
-    app.include_router(test_router, prefix="/tests", tags=["Legacy Tests"])
-    app.include_router(file_navigator_router, prefix="/files", tags=["Legacy File Navigator"])
-    app.include_router(user_router, prefix="/users", tags=["Legacy User Management"])
-    app.include_router(tree_router, tags=["Legacy Tree"])
-    app.include_router(protocol_files_router, tags=["Legacy Protocol Files"])
-    app.include_router(tree_admin_router, tags=["Legacy Tree Admin"])
+app.include_router(test_router, prefix="/tests", tags=["Tests"])
+app.include_router(file_navigator_router, prefix="/files", tags=["File Navigator"])
+app.include_router(user_router, prefix="/users", tags=["User Management"])
+app.include_router(tree_router, tags=["Tree"])
+app.include_router(protocol_files_router, tags=["Protocol Files"])
+app.include_router(tree_admin_router, tags=["Tree Admin"])

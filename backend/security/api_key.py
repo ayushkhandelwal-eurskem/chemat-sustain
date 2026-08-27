@@ -1,10 +1,7 @@
 """HTTP Basic authentication for partner API credentials.
 
-Resolves a client_id/client_secret pair to the SAME Principal object that a
-Keycloak bearer token produces. That is the whole design: every endpoint already
-depends on `require_scopes(...)` -> `Principal`, so nothing downstream changes.
-Scope checks, tenant scoping and row-level security all behave identically
-whichever credential was presented.
+Resolves a locally issued client_id/client_secret pair to the Principal used by
+scope checks and tenant scoping throughout the partner API.
 
 Partners use ordinary HTTP Basic, which every HTTP client supports:
 

@@ -56,15 +56,15 @@ async def send_otp(db: AsyncSession, email: str, purpose: str = "sign-in"):
         
         # Send OTP via email
         otp_code = otp.now()
-        sender_email = os.getenv("SMTP_SENDER", "database@eurskem.com")
+        sender_email = os.getenv("SMTP_SENDER", "ayush.khandelwal@eurskem.com")
         receiver_email = email
         password = os.getenv("SMTP_PASSWORD")
         smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
         smtp_security = os.getenv("SMTP_SECURITY", "starttls").lower()
-        # database@eurskem.com historically authenticated directly to Google
-        # Workspace. Keep the login separately configurable for providers whose
-        # SMTP username differs from the verified From address.
+        # Use the accessible Google Workspace identity for both authentication
+        # and the visible From address. Keep the login separately configurable
+        # for providers whose SMTP username differs from their verified sender.
         smtp_username = os.getenv("SMTP_USERNAME", sender_email)
         if not sender_email or not password:
             logger.error("OTP delivery is unavailable because SMTP is not configured")

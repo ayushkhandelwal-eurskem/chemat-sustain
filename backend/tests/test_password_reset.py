@@ -85,7 +85,7 @@ async def test_otp_cannot_be_reused_for_a_different_purpose():
 
 
 @pytest.mark.asyncio
-async def test_otp_sender_defaults_to_database_address(monkeypatch):
+async def test_otp_sender_defaults_to_accessible_workspace_address(monkeypatch):
     monkeypatch.delenv("SMTP_SENDER", raising=False)
     monkeypatch.delenv("SMTP_HOST", raising=False)
     monkeypatch.delenv("SMTP_PORT", raising=False)
@@ -105,10 +105,10 @@ async def test_otp_sender_defaults_to_database_address(monkeypatch):
     assert success
     assert user.otp_secret.startswith("sign-in:")
     starttls_connection.assert_called_once_with("smtp.gmail.com", 587, timeout=10)
-    smtp.login.assert_called_once_with("database@eurskem.com", "test-password")
+    smtp.login.assert_called_once_with("ayush.khandelwal@eurskem.com", "test-password")
     smtp.starttls.assert_called_once_with()
     sent_message = smtp.sendmail.call_args.args[2]
-    assert "From: database@eurskem.com" in sent_message
+    assert "From: ayush.khandelwal@eurskem.com" in sent_message
 
 
 @pytest.mark.asyncio

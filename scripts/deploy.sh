@@ -92,21 +92,16 @@ for name in "${required_env[@]}"; do
        docs/security/production-env-reference.md."
 done
 
-# The recovered production setup authenticates directly as
-# database@eurskem.com. If a different Gmail identity is deliberately used,
-# require explicit confirmation that database@eurskem.com is a verified
-# "Send mail as" alias so Gmail does not rewrite the visible sender.
+# Keep the Gmail login and visible From address on the same accessible Workspace
+# identity. This avoids sender rewriting and any dependency on the inaccessible
+# database@eurskem.com account or a separately verified Send-as alias.
 if grep -Eqi '^[[:space:]]*SMTP_HOST=[[:space:]]*smtp\.gmail\.com[[:space:]]*$' .env; then
-  grep -Eqi '^[[:space:]]*SMTP_SENDER=[[:space:]]*database@eurskem\.com[[:space:]]*$' .env \
-    || fail "Google SMTP requires SMTP_SENDER=database@eurskem.com."
-  if ! grep -Eqi '^[[:space:]]*SMTP_USERNAME=[[:space:]]*database@eurskem\.com[[:space:]]*$' .env; then
-    grep -Eqi '^[[:space:]]*SMTP_GMAIL_ALIAS_VERIFIED=[[:space:]]*true[[:space:]]*$' .env \
-      || fail "A Gmail login other than database@eurskem.com requires
-       SMTP_GMAIL_ALIAS_VERIFIED=true after database@eurskem.com is verified in
-       that account's Settings > Accounts and Import > Send mail as."
-  fi
+  grep -Eqi '^[[:space:]]*SMTP_SENDER=[[:space:]]*ayush\.khandelwal@eurskem\.com[[:space:]]*$' .env \
+    || fail "Google SMTP requires SMTP_SENDER=ayush.khandelwal@eurskem.com."
+  grep -Eqi '^[[:space:]]*SMTP_USERNAME=[[:space:]]*ayush\.khandelwal@eurskem\.com[[:space:]]*$' .env \
+    || fail "Google SMTP requires SMTP_USERNAME=ayush.khandelwal@eurskem.com."
 elif grep -Eqi '^[[:space:]]*SMTP_SENDER=[[:space:]]*ayush\.us255@gmail\.com[[:space:]]*$' .env; then
-  fail "SMTP_SENDER must be database@eurskem.com, not a personal mailbox."
+  fail "SMTP_SENDER must use the eurskem.com Workspace identity, not a personal mailbox."
 fi
 "${COMPOSE[@]}" config --quiet
 

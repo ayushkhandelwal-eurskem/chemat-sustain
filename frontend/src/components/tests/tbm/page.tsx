@@ -214,7 +214,7 @@ interface TBData {
     dispersion: DispersionData;
     cell_line: CellLineData;
     treatment: TreatmentData;
-  };
+  } | null;
   replication_metadata?: {
     test_identifier_number: string | null;
     test_start_date: string | null;
@@ -223,9 +223,9 @@ interface TBData {
     raw_sheet_name: string | null;
     processed_sheet_name: string | null;
   }[];
-  raw_data: TBRawDataBlock[];
-  processed_data: TBProcessedDataBlock[];
-  final_results: TBFinalResults;
+  raw_data: TBRawDataBlock[] | null;
+  processed_data: TBProcessedDataBlock[] | null;
+  final_results: TBFinalResults | null;
   statistical_analysis: TBStatisticalAnalysis | null;
 }
 
@@ -375,6 +375,24 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     () => (Array.isArray(data?.processed_data) ? data.processed_data : []),
     [data?.processed_data]
   );
+  const finalResults = data?.final_results;
+
+  const availableTabs = useMemo(
+    () => TABS.filter((tab) => {
+      if (tab.key === "test-conditions") return data?.test_details != null;
+      if (tab.key === "raw-data") return data?.raw_data != null;
+      if (tab.key === "processed-data") return data?.processed_data != null;
+      if (tab.key === "statistical-analysis") return data?.statistical_analysis != null;
+      return data?.final_results != null;
+    }),
+    [data]
+  );
+
+  useEffect(() => {
+    if (availableTabs.length && !availableTabs.some((tab) => tab.key === activeTab)) {
+      setActiveTab(availableTabs[0].key);
+    }
+  }, [activeTab, availableTabs]);
 
   const currentRawRun = useMemo(() => {
     if (!safeRawData.length) return null;
@@ -403,23 +421,23 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   }, [currentProcessedRun]);
 
   const finalMeanChartData = useMemo(() => {
-    if (!data?.final_results?.mean_row?.values) return [];
-    return data.final_results.condition_labels.map((condition) => ({
+    if (!finalResults?.mean_row?.values) return [];
+    return finalResults.condition_labels.map((condition) => ({
       condition,
-      mean: data.final_results.mean_row.values?.[condition] ?? 0,
-      sd: data.final_results.sd_row?.values?.[condition] ?? 0,
+      mean: finalResults.mean_row.values?.[condition] ?? 0,
+      sd: finalResults.sd_row?.values?.[condition] ?? 0,
     }));
-  }, [data?.final_results]);
+  }, [finalResults]);
 
   const finalReplicateSeries = useMemo(() => {
-    if (!data?.final_results?.replicate_rows?.length) return [];
-    return data.final_results.replicate_rows.map((row, index) => ({
+    if (!finalResults?.replicate_rows?.length) return [];
+    return finalResults.replicate_rows.map((row, index) => ({
       replicate: row.replicate,
       key: `replicate_${index}`,
       color: COLORS[index % COLORS.length],
       values: row.values ?? {},
     }));
-  }, [data?.final_results?.replicate_rows]);
+  }, [finalResults]);
 
   const finalMeanChartChunks = useMemo(() => {
     if (!finalMeanChartData.length) return [];
@@ -472,6 +490,10 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     );
   }
 
+  const details = data.test_details;
+  const workPackageDetails = details?.work_package;
+  const material = details?.material;
+
   return (
     <div className="bg-gray-50 min-h-screen py-8 text-black">
       <div className="container mx-auto px-4">
@@ -488,7 +510,7 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   <span className="font-semibold">CMS Internal Identifier:</span> {element || "N/A"}
                 </p>
                 <p className="mb-2">
-                  <span className="font-semibold">ERM Identifier:</span> {data.test_details.material.erm_id ?? "N/A"}
+                  <span className="font-semibold">ERM Identifier:</span> {material?.erm_id ?? "N/A"}
                 </p>
               </div>
             </div>
@@ -498,26 +520,26 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="bg-blue-50 p-4 rounded-md">
                 <p className="mb-2">
                   <span className="font-semibold">Full Test Name:</span>{" "}
-                  {data.test_details.work_package.full_test_name ?? "N/A"}
+                  {workPackageDetails?.full_test_name ?? "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Test Acronym:</span>{" "}
-                  {data.test_details.work_package.test_acronym ?? "N/A"}
+                  {workPackageDetails?.test_acronym ?? "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Test Type:</span>{" "}
-                  {data.test_details.work_package.test_type ?? "N/A"}
+                  {workPackageDetails?.test_type ?? "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Endpoint:</span>{" "}
-                  {data.test_details.work_package.endpoint ?? "N/A"}
+                  {workPackageDetails?.endpoint ?? "N/A"}
                 </p>
                 <p className="mb-2">
                   <span className="font-semibold">Endpoint Outcome:</span>{" "}
-                  {data.test_details.work_package.endpoint_outcome ?? "N/A"}
+                  {workPackageDetails?.endpoint_outcome ?? "N/A"}
                 </p>
                 <p>
-                  <span className="font-semibold">SOP:</span> {data.test_details.work_package.sop ?? "N/A"}
+                  <span className="font-semibold">SOP:</span> {workPackageDetails?.sop ?? "N/A"}
                 </p>
               </div>
             </div>
@@ -526,7 +548,7 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
 
         <div className="w-full mb-8">
           <ul className="relative flex flex-wrap p-1.5 list-none rounded-md bg-slate-100" role="tablist">
-            {TABS.map((tab) => (
+            {availableTabs.map((tab) => (
               <li key={tab.key} className="z-30 flex-auto text-center" role="presentation">
                 <button
                   className={`z-30 flex items-center justify-center w-full px-0 py-2 text-sm mb-0 transition-all ease-in-out border-0 rounded-md cursor-pointer ${
@@ -543,7 +565,7 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </ul>
         </div>
 
-        {activeTab === "test-conditions" && (
+        {activeTab === "test-conditions" && details && (
           <>
             <div className="bg-white rounded-lg shadow-md p-6 mb-8">
               <div className="flex justify-between items-center mb-4">
@@ -565,22 +587,22 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td className="py-2 px-4 border font-medium">Material Identifier</td><td className="py-2 px-4 border">{data.test_details.material.material_identifier ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">ERM Identifier</td><td className="py-2 px-4 border">{data.test_details.material.erm_id ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Material Name</td><td className="py-2 px-4 border">{data.test_details.material.material_name ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Core Chemistry</td><td className="py-2 px-4 border">{data.test_details.material.core_chemistry ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">CAS No</td><td className="py-2 px-4 border">{data.test_details.material.cas_no ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">CAS for Core</td><td className="py-2 px-4 border">{data.test_details.material.cas_for_core ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Supplier</td><td className="py-2 px-4 border">{data.test_details.material.material_supplier ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Material State</td><td className="py-2 px-4 border">{data.test_details.material.material_state ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Batch</td><td className="py-2 px-4 border">{data.test_details.material.batch ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Vial</td><td className="py-2 px-4 border">{data.test_details.material.vial ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Preparation Date</td><td className="py-2 px-4 border">{data.test_details.material.preparation_date ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Endotoxin Status</td><td className="py-2 px-4 border">{data.test_details.material.endotoxin_status ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Stock Concentration</td><td className="py-2 px-4 border">{data.test_details.material.stock_concentration ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Secondary Concentration</td><td className="py-2 px-4 border">{data.test_details.material.stock_concentration_secondary ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Molecular Weight</td><td className="py-2 px-4 border">{data.test_details.material.molecular_weight ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Particles in Stock</td><td className="py-2 px-4 border">{data.test_details.material.particles_stock ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Material Identifier</td><td className="py-2 px-4 border">{details.material.material_identifier ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">ERM Identifier</td><td className="py-2 px-4 border">{details.material.erm_id ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Material Name</td><td className="py-2 px-4 border">{details.material.material_name ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Core Chemistry</td><td className="py-2 px-4 border">{details.material.core_chemistry ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">CAS No</td><td className="py-2 px-4 border">{details.material.cas_no ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">CAS for Core</td><td className="py-2 px-4 border">{details.material.cas_for_core ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Supplier</td><td className="py-2 px-4 border">{details.material.material_supplier ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Material State</td><td className="py-2 px-4 border">{details.material.material_state ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Batch</td><td className="py-2 px-4 border">{details.material.batch ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Vial</td><td className="py-2 px-4 border">{details.material.vial ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Preparation Date</td><td className="py-2 px-4 border">{details.material.preparation_date ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Endotoxin Status</td><td className="py-2 px-4 border">{details.material.endotoxin_status ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Stock Concentration</td><td className="py-2 px-4 border">{details.material.stock_concentration ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Secondary Concentration</td><td className="py-2 px-4 border">{details.material.stock_concentration_secondary ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Molecular Weight</td><td className="py-2 px-4 border">{details.material.molecular_weight ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Particles in Stock</td><td className="py-2 px-4 border">{details.material.particles_stock ?? "N/A"}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -591,17 +613,17 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
                   <tbody>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersion Protocol</td><td className="py-2 px-4 border">{data.test_details.dispersion.dispersion_protocol ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersion Technique</td><td className="py-2 px-4 border">{data.test_details.dispersion.dispersion_technique ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersion Agent</td><td className="py-2 px-4 border">{data.test_details.dispersion.dispersion_agent ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Agent Concentration</td><td className="py-2 px-4 border">{data.test_details.dispersion.agent_concentration ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Additives</td><td className="py-2 px-4 border">{data.test_details.dispersion.additives ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Dispersed in Culture Medium</td><td className="py-2 px-4 border">{data.test_details.dispersion.dispersed_in_culture_medium ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Aids Used to Disperse</td><td className="py-2 px-4 border">{data.test_details.dispersion.aids_used_to_disperse ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Sonication Bath</td><td className="py-2 px-4 border">{data.test_details.dispersion.sonication_bath ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Sonication Tip</td><td className="py-2 px-4 border">{data.test_details.dispersion.sonication_tip ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Time / Duration</td><td className="py-2 px-4 border">{data.test_details.dispersion.time_duration ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Energy</td><td className="py-2 px-4 border">{data.test_details.dispersion.energy ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Dispersion Protocol</td><td className="py-2 px-4 border">{details.dispersion.dispersion_protocol ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Dispersion Technique</td><td className="py-2 px-4 border">{details.dispersion.dispersion_technique ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Dispersion Agent</td><td className="py-2 px-4 border">{details.dispersion.dispersion_agent ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Agent Concentration</td><td className="py-2 px-4 border">{details.dispersion.agent_concentration ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Additives</td><td className="py-2 px-4 border">{details.dispersion.additives ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Dispersed in Culture Medium</td><td className="py-2 px-4 border">{details.dispersion.dispersed_in_culture_medium ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Aids Used to Disperse</td><td className="py-2 px-4 border">{details.dispersion.aids_used_to_disperse ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Sonication Bath</td><td className="py-2 px-4 border">{details.dispersion.sonication_bath ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Sonication Tip</td><td className="py-2 px-4 border">{details.dispersion.sonication_tip ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Time / Duration</td><td className="py-2 px-4 border">{details.dispersion.time_duration ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Energy</td><td className="py-2 px-4 border">{details.dispersion.energy ?? "N/A"}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -612,24 +634,24 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
                   <tbody>
-                    <tr><td className="py-2 px-4 border font-medium">Cell Type</td><td className="py-2 px-4 border">{data.test_details.cell_line.cell_type ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Cell Line Short Name</td><td className="py-2 px-4 border">{data.test_details.cell_line.cell_line_short_name ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Supplier</td><td className="py-2 px-4 border">{data.test_details.cell_line.supplier ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Passage Numbers</td><td className="py-2 px-4 border">{fmtPassageNumbers(data.test_details.cell_line.passage_numbers)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Plate Details</td><td className="py-2 px-4 border">{data.test_details.cell_line.plate_details ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Cells per Chamber</td><td className="py-2 px-4 border">{fmt(data.test_details.cell_line.number_of_cells_per_chamber)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Total Volume per Chamber</td><td className="py-2 px-4 border">{data.test_details.cell_line.total_volume_per_chamber ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Medium</td><td className="py-2 px-4 border">{data.test_details.cell_line.medium ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Serum</td><td className="py-2 px-4 border">{data.test_details.cell_line.serum ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Serum Concentration (Culture Medium)</td><td className="py-2 px-4 border">{fmt(data.test_details.cell_line.serum_concentration_culture_medium)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Serum Concentration (Treatment Medium)</td><td className="py-2 px-4 border">{fmt(data.test_details.cell_line.serum_concentration_treatment_medium)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Heat Inactivated</td><td className="py-2 px-4 border">{data.test_details.cell_line.serum_heat_inactivated ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Antibiotics</td><td className="py-2 px-4 border">{data.test_details.cell_line.antibiotics ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Complete Growth Medium</td><td className="py-2 px-4 border">{data.test_details.cell_line.complete_growth_medium ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Culture Conditions</td><td className="py-2 px-4 border">{data.test_details.cell_line.cell_culture_conditions ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Trypan Blue Solution</td><td className="py-2 px-4 border">{data.test_details.cell_line.trypan_blue_solution ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Incubation Time with TB</td><td className="py-2 px-4 border">{data.test_details.cell_line.incubation_time_with_tb ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">TB Volume</td><td className="py-2 px-4 border">{data.test_details.cell_line.tb_volume ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Cell Type</td><td className="py-2 px-4 border">{details.cell_line.cell_type ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Cell Line Short Name</td><td className="py-2 px-4 border">{details.cell_line.cell_line_short_name ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Supplier</td><td className="py-2 px-4 border">{details.cell_line.supplier ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Passage Numbers</td><td className="py-2 px-4 border">{fmtPassageNumbers(details.cell_line.passage_numbers)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Plate Details</td><td className="py-2 px-4 border">{details.cell_line.plate_details ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Cells per Chamber</td><td className="py-2 px-4 border">{fmt(details.cell_line.number_of_cells_per_chamber)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Total Volume per Chamber</td><td className="py-2 px-4 border">{details.cell_line.total_volume_per_chamber ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Medium</td><td className="py-2 px-4 border">{details.cell_line.medium ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Serum</td><td className="py-2 px-4 border">{details.cell_line.serum ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Serum Concentration (Culture Medium)</td><td className="py-2 px-4 border">{fmt(details.cell_line.serum_concentration_culture_medium)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Serum Concentration (Treatment Medium)</td><td className="py-2 px-4 border">{fmt(details.cell_line.serum_concentration_treatment_medium)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Heat Inactivated</td><td className="py-2 px-4 border">{details.cell_line.serum_heat_inactivated ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Antibiotics</td><td className="py-2 px-4 border">{details.cell_line.antibiotics ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Complete Growth Medium</td><td className="py-2 px-4 border">{details.cell_line.complete_growth_medium ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Culture Conditions</td><td className="py-2 px-4 border">{details.cell_line.cell_culture_conditions ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Trypan Blue Solution</td><td className="py-2 px-4 border">{details.cell_line.trypan_blue_solution ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Incubation Time with TB</td><td className="py-2 px-4 border">{details.cell_line.incubation_time_with_tb ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">TB Volume</td><td className="py-2 px-4 border">{details.cell_line.tb_volume ?? "N/A"}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -640,19 +662,19 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
                   <tbody>
-                    <tr><td className="py-2 px-4 border font-medium">Time Point Unit</td><td className="py-2 px-4 border">{data.test_details.treatment.time_point_unit ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Time Point Labels</td><td className="py-2 px-4 border">{data.test_details.treatment.time_point_labels.join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Time Points</td><td className="py-2 px-4 border">{data.test_details.treatment.time_points.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Concentration Unit</td><td className="py-2 px-4 border">{data.test_details.treatment.concentration_unit ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Concentration Labels</td><td className="py-2 px-4 border">{data.test_details.treatment.concentration_labels.join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Concentrations (μg/mL)</td><td className="py-2 px-4 border">{data.test_details.treatment.concentrations_ug_ml.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Concentrations (Particles)</td><td className="py-2 px-4 border">{data.test_details.treatment.concentrations_particles.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Control Abbreviations</td><td className="py-2 px-4 border">{data.test_details.treatment.controls_abbreviations.join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Control Description</td><td className="py-2 px-4 border">{data.test_details.treatment.controls_description.join(", ") || "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Number of Experiments</td><td className="py-2 px-4 border">{fmt(data.test_details.treatment.number_of_experiments)}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Notes A</td><td className="py-2 px-4 border">{data.test_details.treatment.notes_a ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Notes B</td><td className="py-2 px-4 border">{data.test_details.treatment.notes_b ?? "N/A"}</td></tr>
-                    <tr><td className="py-2 px-4 border font-medium">Notes C</td><td className="py-2 px-4 border">{data.test_details.treatment.notes_c ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Time Point Unit</td><td className="py-2 px-4 border">{details.treatment.time_point_unit ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Time Point Labels</td><td className="py-2 px-4 border">{details.treatment.time_point_labels.join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Time Points</td><td className="py-2 px-4 border">{details.treatment.time_points.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Concentration Unit</td><td className="py-2 px-4 border">{details.treatment.concentration_unit ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Concentration Labels</td><td className="py-2 px-4 border">{details.treatment.concentration_labels.join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Concentrations (μg/mL)</td><td className="py-2 px-4 border">{details.treatment.concentrations_ug_ml.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Concentrations (Particles)</td><td className="py-2 px-4 border">{details.treatment.concentrations_particles.filter((v) => v !== null && v !== undefined && v !== "").join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Control Abbreviations</td><td className="py-2 px-4 border">{details.treatment.controls_abbreviations.join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Control Description</td><td className="py-2 px-4 border">{details.treatment.controls_description.join(", ") || "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Number of Experiments</td><td className="py-2 px-4 border">{fmt(details.treatment.number_of_experiments)}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Notes A</td><td className="py-2 px-4 border">{details.treatment.notes_a ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Notes B</td><td className="py-2 px-4 border">{details.treatment.notes_b ?? "N/A"}</td></tr>
+                    <tr><td className="py-2 px-4 border font-medium">Notes C</td><td className="py-2 px-4 border">{details.treatment.notes_c ?? "N/A"}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -670,8 +692,8 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {(data.test_details.work_package.lead_scientists?.length ?? 0) > 0 ? (
-                        data.test_details.work_package.lead_scientists.map((scientist, index) => (
+                      {(details.work_package.lead_scientists?.length ?? 0) > 0 ? (
+                        details.work_package.lead_scientists.map((scientist, index) => (
                           <tr key={index}>
                             <td className="py-2 px-4 border">{scientist.name ?? "N/A"}</td>
                             <td className="py-2 px-4 border">{scientist.email ?? "N/A"}</td>
@@ -696,8 +718,8 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {(data.test_details.work_package.assay_scientists?.length ?? 0) > 0 ? (
-                        data.test_details.work_package.assay_scientists.map((scientist, index) => (
+                      {(details.work_package.assay_scientists?.length ?? 0) > 0 ? (
+                        details.work_package.assay_scientists.map((scientist, index) => (
                           <tr key={index}>
                             <td className="py-2 px-4 border">{scientist.name ?? "N/A"}</td>
                             <td className="py-2 px-4 border">{scientist.email ?? "N/A"}</td>
@@ -1072,7 +1094,7 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </div>
         )}
 
-        {activeTab === "results" && (
+        {activeTab === "results" && finalResults && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-blue-800">Trypan Blue exclusion assay</h2>
@@ -1129,35 +1151,35 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="py-2 px-4 border text-left">Row</th>
-                    {data.final_results.condition_labels.map((label, idx) => (
+                    {finalResults.condition_labels.map((label, idx) => (
                       <th key={idx} className="py-2 px-4 border text-left">{label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {data.final_results.replicate_rows.map((row, idx) => (
+                  {finalResults.replicate_rows.map((row, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : ""}>
                       <td className="py-2 px-4 border">{row.replicate}</td>
-                      {data.final_results.condition_labels.map((label, j) => (
+                      {finalResults.condition_labels.map((label, j) => (
                         <td key={j} className="py-2 px-4 border">{fmt(row.values?.[label])}</td>
                       ))}
                     </tr>
                   ))}
 
                   <tr className="bg-blue-50">
-                    <td className="py-2 px-4 border font-semibold">{data.final_results.mean_row?.label ?? "MEAN"}</td>
-                    {data.final_results.condition_labels.map((label, idx) => (
+                    <td className="py-2 px-4 border font-semibold">{finalResults.mean_row?.label ?? "MEAN"}</td>
+                    {finalResults.condition_labels.map((label, idx) => (
                       <td key={idx} className="py-2 px-4 border font-semibold">
-                        {fmt(data.final_results.mean_row?.values?.[label], 3)}
+                        {fmt(finalResults.mean_row?.values?.[label], 3)}
                       </td>
                     ))}
                   </tr>
 
                   <tr className="bg-orange-50">
-                    <td className="py-2 px-4 border font-semibold">{data.final_results.sd_row?.label ?? "SD"}</td>
-                    {data.final_results.condition_labels.map((label, idx) => (
+                    <td className="py-2 px-4 border font-semibold">{finalResults.sd_row?.label ?? "SD"}</td>
+                    {finalResults.condition_labels.map((label, idx) => (
                       <td key={idx} className="py-2 px-4 border font-semibold">
-                        {fmt(data.final_results.sd_row?.values?.[label], 3)}
+                        {fmt(finalResults.sd_row?.values?.[label], 3)}
                       </td>
                     ))}
                   </tr>

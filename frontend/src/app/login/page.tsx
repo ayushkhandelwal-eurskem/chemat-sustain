@@ -235,21 +235,6 @@ export default function LoginPage() {
                     onClick={() => selectAudience('team')}
                   />
                 </div>
-                {audience === 'team' && (
-                  <Link
-                    href="/api-explorer"
-                    className="mt-3 flex items-center justify-between gap-3 rounded-md border border-blue-900/20 bg-blue-50 px-4 py-3 text-blue-900 transition-colors hover:bg-blue-100"
-                  >
-                    <span className="flex items-center gap-3">
-                      <KeyRound size={18} />
-                      <span>
-                        <span className="block text-sm font-semibold">Open API Explorer</span>
-                        <span className="block text-xs font-normal text-blue-800/70">For authorized API client credentials</span>
-                      </span>
-                    </span>
-                    <ArrowRight size={17} />
-                  </Link>
-                )}
               </div>
             )}
 
@@ -287,17 +272,27 @@ export default function LoginPage() {
                   {loading ? 'Signing in…' : audience === 'public' ? 'Sign in to public data' : 'Continue securely'}
                   {!loading && <ArrowRight size={17} />}
                 </button>
+                {audience === 'team' && (
+                  <Link
+                    href="/api-explorer"
+                    className="flex items-center justify-between gap-3 rounded-md border border-blue-900/20 bg-blue-50 px-4 py-3 text-blue-900 transition-colors hover:bg-blue-100"
+                  >
+                    <span className="flex items-center gap-3">
+                      <KeyRound size={18} />
+                      <span>
+                        <span className="block text-sm font-semibold">Open API Explorer</span>
+                        <span className="block text-xs font-normal text-blue-800/70">For authorized API client credentials</span>
+                      </span>
+                    </span>
+                    <ArrowRight size={17} />
+                  </Link>
+                )}
                 {audience === 'public' && (
                   <p className="text-center text-sm text-slate-600">
                     New public viewer?{' '}
                     <button type="button" onClick={() => goTo('register')} className="font-semibold text-blue-800 hover:text-blue-950">
                       Create an account
                     </button>
-                  </p>
-                )}
-                {audience === 'team' && (
-                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
-                    Team and administrator accounts are issued internally. Contact your project administrator if you need access.
                   </p>
                 )}
               </form>

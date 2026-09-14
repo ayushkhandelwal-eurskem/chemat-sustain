@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, useEffect, useMemo, useState } from "react";
+import { ComponentType, FC, useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { api } from "@/lib/axios";
 
@@ -9,6 +9,10 @@ interface ViewerProps {
   element: string;
   test: string;
   file?: string;
+}
+
+interface PublicReleasedDataViewerProps extends ViewerProps {
+  specialisedViewer?: ComponentType<Required<ViewerProps>>;
 }
 
 type SectionKey =
@@ -60,6 +64,31 @@ const SECTIONS: readonly SectionDefinition[] = [
 ] as const;
 
 const MAX_ARRAY_PREVIEW = 100;
+
+const SPECIALISED_SECTION_REQUIREMENTS: Record<string, SectionKey[]> = {
+  algae: ["test_details", "raw_data", "processed_data", "final_results"],
+  waterflea: ["test_details", "raw_data", "final_results"],
+  "uv-vis": ["test_details", "raw_data", "final_results"],
+};
+
+const SPECIALISED_STATISTICS_VIEWERS = new Set(["mnt", "ros", "tb", "tb-microfludic"]);
+
+const canUseSpecialisedViewer = (data: PublicTestResponse) => {
+  const testKey = data.test_name.toLowerCase();
+  if (
+    data.release_statistical_analysis &&
+    !SPECIALISED_STATISTICS_VIEWERS.has(testKey)
+  ) {
+    return false;
+  }
+  const requirements = SPECIALISED_SECTION_REQUIREMENTS[testKey] ?? [
+    "test_details",
+    "raw_data",
+    "processed_data",
+    "final_results",
+  ];
+  return requirements.every((section) => data[section] !== null && data[section] !== undefined);
+};
 
 export const getReleasedSections = (
   data: PublicTestResponse | null
@@ -161,7 +190,13 @@ const ReleasedValue: FC<{ value: unknown; depth?: number }> = ({ value, depth = 
   return <span>{formatPrimitive(value)}</span>;
 };
 
-const PublicReleasedDataViewer: FC<ViewerProps> = ({ work_package, element, test }) => {
+const PublicReleasedDataViewer: FC<PublicReleasedDataViewerProps> = ({
+  work_package,
+  element,
+  test,
+  file = "",
+  specialisedViewer: SpecialisedViewer,
+}) => {
   const [data, setData] = useState<PublicTestResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -232,6 +267,17 @@ const PublicReleasedDataViewer: FC<ViewerProps> = ({ work_package, element, test
 
   if (error || !data) {
     return <div className="flex min-h-screen items-center justify-center"><div className="rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700">{error || "No data available."}</div></div>;
+  }
+
+  if (SpecialisedViewer && canUseSpecialisedViewer(data)) {
+    return (
+      <SpecialisedViewer
+        work_package={work_package}
+        element={element}
+        test={test}
+        file={file}
+      />
+    );
   }
 
   return (

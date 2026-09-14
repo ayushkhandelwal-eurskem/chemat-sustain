@@ -54,7 +54,8 @@ const SPECIALISED_VIEWERS: Record<string, ComponentType<ViewerProps>> = {
 
 const RoleAwareTestViewer: FC<ViewerProps> = (props) => {
   const { user } = useAuth();
-  const SpecialisedViewer = SPECIALISED_VIEWERS[props.test.toLowerCase()];
+  const testKey = props.test.toLowerCase();
+  const SpecialisedViewer = SPECIALISED_VIEWERS[testKey];
 
   if (!SpecialisedViewer) {
     return (
@@ -67,8 +68,10 @@ const RoleAwareTestViewer: FC<ViewerProps> = (props) => {
     );
   }
 
-  if (user?.role === "public_viewer") {
-    return <PublicReleasedDataViewer {...props} />;
+  const releaseSafeSpecialisedViewer = testKey === "tb" || testKey === "tb-microfludic";
+
+  if (user?.role === "public_viewer" && !releaseSafeSpecialisedViewer) {
+    return <PublicReleasedDataViewer {...props} specialisedViewer={SpecialisedViewer} />;
   }
 
   return <SpecialisedViewer {...props} />;

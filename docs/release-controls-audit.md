@@ -66,12 +66,17 @@ In particular, each parser's `replications` output is stored as `raw_data`.
 - Create and update forms submit all five booleans independently.
 - Partial JSON updates use Pydantic's `exclude_unset=True`, so changing one flag
   preserves the other four.
-- The public frontend uses `PublicReleasedDataViewer` for all test types. Tabs
-  are generated strictly from the five response flags, the first released tab
-  is selected automatically, and each section renders without reading another
-  section.
-- Team/admin accounts retain the specialized scientific viewers through
-  `RoleAwareTestViewer`.
+- Public, team, and administrator accounts use the same specialized scientific
+  viewer whenever that viewer supports every section present in the authorized
+  response. This keeps charts, tables, and downloads consistent across roles.
+- `PublicReleasedDataViewer` performs a release-aware precheck for public
+  accounts. It uses the specialized viewer for complete compatible responses
+  and remains a fail-safe for partial combinations that a legacy specialized
+  viewer cannot yet render safely. TB and TB-Microfluidic are partial-release
+  safe and always use their specialized viewers.
+- When the fail-safe is needed, tabs are generated strictly from the five
+  response flags, the first released tab is selected automatically, and each
+  section renders without reading another section.
 
 ## Regression coverage
 

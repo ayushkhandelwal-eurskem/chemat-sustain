@@ -11,9 +11,10 @@ interface CreateUserModalProps {
 
 export default function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserModalProps) {
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
     password: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'user' as 'admin' | 'user' | 'public_viewer',
     is_active: true,
   });
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,7 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
       await api.post('/users/', formData);
       onUserCreated();
       setFormData({
+        name: '',
         email: '',
         password: '',
         role: 'user',
@@ -42,6 +44,7 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
 
   const handleClose = () => {
     setFormData({
+      name: '',
       email: '',
       password: '',
       role: 'user',
@@ -76,6 +79,22 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              required
+              minLength={2}
+              maxLength={200}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Full name"
+            />
+          </div>
+          <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email Address
             </label>
@@ -102,7 +121,8 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter password"
-              minLength={6}
+              minLength={12}
+              maxLength={72}
             />
           </div>
 
@@ -113,10 +133,11 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
             <select
               id="role"
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' | 'public_viewer' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="user">User</option>
+              <option value="public_viewer">Public viewer</option>
               <option value="admin">Admin</option>
             </select>
           </div>

@@ -9,7 +9,8 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { api } from '@/lib/axios';
 
 const LoginPage: React.FC = () => {
-  const [step, setStep] = useState<'login' | 'otp' | 'forgot' | 'reset'>('login');
+  const [step, setStep] = useState<'login' | 'register' | 'otp' | 'forgot' | 'reset'>('login');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -39,6 +40,31 @@ const LoginPage: React.FC = () => {
       setError(result.message);
     }
     setLoading(false);
+  };
+
+  const handleRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (password.length < 12) {
+      setError('Password must be at least 12 characters long.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await api.post('/users/register', { name, email, password });
+      setMessage(response.data.msg);
+      setOtpCode('');
+      setStep('otp');
+    } catch (requestError: any) {
+      setError(requestError.response?.data?.detail || 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOTPVerification = async (e: React.FormEvent) => {
@@ -109,6 +135,7 @@ const LoginPage: React.FC = () => {
 
   const heading = {
     login: 'Sign in',
+    register: 'Create an account',
     otp: 'Verify it’s you',
     forgot: 'Forgot password',
     reset: 'Set a new password',
@@ -116,6 +143,7 @@ const LoginPage: React.FC = () => {
 
   const description = {
     login: 'Sign in to access the CheMatSustain database.',
+    register: 'Register to view test data that has been released publicly.',
     otp: `We sent a 6-digit code to ${email}.`,
     forgot: 'Enter your account email to receive a five-minute reset code.',
     reset: `Enter the code sent to ${email} and choose a new password.`,
@@ -217,6 +245,37 @@ const LoginPage: React.FC = () => {
                   )}
                   {loading ? 'Signing in\u2026' : 'Sign in'}
                 </button>
+                <div className="text-center text-sm text-blue-900/70">
+                  Don&apos;t have an account?{' '}
+                  <button type="button" onClick={() => { setStep('register'); setError(''); setMessage(''); setConfirmPassword(''); }} className="font-semibold text-blue-700 hover:underline">
+                    Register to view public data
+                  </button>
+                </div>
+              </form>
+            ) : step === 'register' ? (
+              <form className="space-y-4" onSubmit={handleRegistration}>
+                <div>
+                  <label htmlFor="register-name" className="block text-sm font-medium text-blue-900 mb-1.5">Full name</label>
+                  <input id="register-name" type="text" autoComplete="name" required minLength={2} maxLength={200} value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2.5 border border-blue-900/30 rounded-md text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label htmlFor="register-email" className="block text-sm font-medium text-blue-900 mb-1.5">Email address</label>
+                  <input id="register-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 border border-blue-900/30 rounded-md text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label htmlFor="register-password" className="block text-sm font-medium text-blue-900 mb-1.5">Password</label>
+                  <input id="register-password" type="password" autoComplete="new-password" required minLength={12} maxLength={72} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 12 characters" className="w-full px-3 py-2.5 border border-blue-900/30 rounded-md text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label htmlFor="register-confirm-password" className="block text-sm font-medium text-blue-900 mb-1.5">Confirm password</label>
+                  <input id="register-confirm-password" type="password" autoComplete="new-password" required minLength={12} maxLength={72} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-3 py-2.5 border border-blue-900/30 rounded-md text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <p className="text-xs text-blue-900/60">This account can view only tests marked public and only the sections explicitly released by the data owner.</p>
+                {error && <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{error}</div>}
+                <div className="flex gap-3">
+                  <button type="button" onClick={handleBackToLogin} className="flex-1 py-2.5 px-4 rounded-md text-sm font-medium text-blue-900 bg-white border border-blue-900/30 hover:bg-blue-50">Back</button>
+                  <button type="submit" disabled={loading} className="flex-1 py-2.5 px-4 rounded-md text-sm font-semibold text-white bg-blue-900 hover:bg-blue-800 disabled:opacity-60">{loading ? 'Registering…' : 'Register'}</button>
+                </div>
               </form>
             ) : step === 'otp' ? (
               <form className="space-y-5" onSubmit={handleOTPVerification}>

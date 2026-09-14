@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import Depends, HTTPException, status, Query, Request
 from utils.custom_router import APIRouter
 import logging
 import math
@@ -10,7 +10,7 @@ from typing import List, Optional, Callable, Any, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils.db import get_db
-from utils.auth import get_user_by_role, check_if_private_user
+from utils.auth import get_current_user, get_user_by_role
 from utils.file import save_uploaded_file, delete_file
 
 from ..services.test import TestService
@@ -23,6 +23,8 @@ from ..schemas.test import (
     TestListings,
 )
 from ..schemas.user import Role
+from ..models.user import User
+from ..services.public_access import record_test_access
 
 # Parser imports
 from parsers.mtt import parse_excel_mtt
@@ -49,6 +51,10 @@ logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["tests"])
+
+
+def has_private_test_access(user: User) -> bool:
+    return user.role in (Role.user, Role.admin)
 
 
 # ============================ Parser registry ============================
@@ -206,14 +212,14 @@ async def create_test(
 @router.get("/catalog")
 async def get_catalog(
     service: TestService = Depends(get_test_service),
-    is_private_user: bool = Depends(check_if_private_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Lightweight index of all test records for the Experimental Data catalog
     page. Returns only work_package_name, element_cms_id, test_name and
     material_name — never the heavy data columns.
     """
-    return await service.get_catalog(is_private_user)
+    return await service.get_catalog(is_private_user=has_private_test_access(current_user))
 
 @router.put("/{test_id}")
 async def update_test(
@@ -295,6 +301,7 @@ async def get_public_tests(
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=100),
     service: TestService = Depends(get_test_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Get only public tests."""
     skip = (page - 1) * per_page
@@ -311,27 +318,50 @@ async def get_public_tests(
 @router.get("/{test_id}", response_model=TestResponse)
 async def get_test(
     test_id: int,
+    request: Request,
     service: TestService = Depends(get_test_service),
-    is_private_user: bool = Depends(check_if_private_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a test by ID.
 
-    Anonymous callers get public records only, with unreleased fields masked.
+    Public viewers get public records only, with unreleased fields masked.
     Previously this endpoint had no privacy check at all and returned every
     field of every record - including raw_data and processed_data for records
     explicitly marked is_public = false.
     """
-    return await service.get_test_by_id(test_id, is_private_user)
+    is_private_user = has_private_test_access(current_user)
+    response = await service.get_test_by_id(test_id, is_private_user)
+    record = await service.get_test_record_by_id(test_id)
+    if record:
+        await record_test_access(
+            service.db,
+            current_user,
+            record,
+            private_access=is_private_user,
+            request_id=getattr(request.state, "request_id", None),
+            source_endpoint=f"/tests/{test_id}",
+        )
+    return response
 
 
 @router.get("/name/{test_name}", response_model=TestResponse)
 async def get_test_by_name(
     test_name: str,
+    request: Request,
     service: TestService = Depends(get_test_service),
-    is_private_user: bool = Depends(check_if_private_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a test by name. Same privacy semantics as get_test."""
-    return await service.get_test_by_name(test_name, is_private_user)
+    is_private_user = has_private_test_access(current_user)
+    response = await service.get_test_by_name(test_name, is_private_user)
+    record = await service.get_test_record_by_id(response.id)
+    if record:
+        await record_test_access(
+            service.db, current_user, record, private_access=is_private_user,
+            request_id=getattr(request.state, "request_id", None),
+            source_endpoint=f"/tests/name/{test_name}",
+        )
+    return response
 
 
 @router.get("/", response_model=TestListResponse)
@@ -367,10 +397,21 @@ async def get_tests(
 @router.post("/listings")
 async def get_listings(
     request: TestListings,
+    http_request: Request,
     service: TestService = Depends(get_test_service),
-    is_private_user: bool = Depends(check_if_private_user),
+    current_user: User = Depends(get_current_user),
 ):
-    return await service.get_listings(request, is_private_user)
+    is_private_user = has_private_test_access(current_user)
+    response = await service.get_listings(request, is_private_user)
+    response_id = getattr(response, "id", None)
+    record = await service.get_test_record_by_id(response_id) if response_id is not None else None
+    if record:
+        await record_test_access(
+            service.db, current_user, record, private_access=is_private_user,
+            request_id=getattr(http_request.state, "request_id", None),
+            source_endpoint="/tests/listings",
+        )
+    return response
 
 
 @router.post("/json", response_model=TestResponse, status_code=status.HTTP_201_CREATED)
@@ -397,11 +438,22 @@ async def update_test_json(
 @router.get("/work-package/{work_package_name}", response_model=List[TestResponse])
 async def get_tests_by_work_package(
     work_package_name: str,
+    request: Request,
     service: TestService = Depends(get_test_service),
-    is_private_user: bool = Depends(check_if_private_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all tests for a work package. Same privacy semantics as get_test."""
-    return await service.get_tests_by_work_package(work_package_name, is_private_user)
+    is_private_user = has_private_test_access(current_user)
+    response = await service.get_tests_by_work_package(work_package_name, is_private_user)
+    for item in response:
+        record = await service.get_test_record_by_id(item.id)
+        if record:
+            await record_test_access(
+                service.db, current_user, record, private_access=is_private_user,
+                request_id=getattr(request.state, "request_id", None),
+                source_endpoint=f"/tests/work-package/{work_package_name}",
+            )
+    return response
 
 
 

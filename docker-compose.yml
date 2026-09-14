@@ -48,6 +48,25 @@ services:
         limits:
           memory: 1G
 
+  public-access-retention:
+    build: ./backend
+    restart: unless-stopped
+    command: ["sh", "/app/scripts/run_public_access_retention.sh"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+    volumes:
+      # Mount this path to an approved encrypted/off-host backup destination in
+      # production. Never place it inside the Git working tree.
+      - public_access_backups:/var/backups/chemat-sustain/public-access
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
   frontend:
     build: ./frontend
     restart: unless-stopped
@@ -80,6 +99,7 @@ services:
       - app-network
 volumes:
   pgdata:
+  public_access_backups:
 
 networks:
   app-network:

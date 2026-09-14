@@ -55,7 +55,8 @@ RUN rm -rf \
 COPY . .
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser \
-    && chown -R appuser:appuser /app
+    && mkdir -p /var/backups/chemat-sustain/public-access \
+    && chown -R appuser:appuser /app /var/backups/chemat-sustain
 USER appuser
 
 EXPOSE 8000

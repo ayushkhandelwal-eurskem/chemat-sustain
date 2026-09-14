@@ -7,7 +7,8 @@ interface User {
   id?: number;
   subject?: string;
   email: string;
-  role: 'admin' | 'user';
+  name?: string;
+  role: 'admin' | 'user' | 'public_viewer';
   roles?: string[];
   scopes?: string[];
   organisation_id?: string;

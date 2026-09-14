@@ -2,12 +2,13 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class Role(str, Enum):
     admin = "admin"
     user = "user"
+    public_viewer = "public_viewer"
 
 
 class UserBase(BaseModel):
@@ -18,7 +19,24 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
+    name: str = Field(min_length=2, max_length=200)
     password: str = Field(min_length=12, max_length=72)
+
+
+class PublicRegistration(BaseModel):
+    """Self-registration payload. Role is intentionally not caller-controlled."""
+
+    name: str = Field(min_length=2, max_length=200)
+    email: EmailStr
+    password: str = Field(min_length=12, max_length=72)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if len(normalized) < 2:
+            raise ValueError("Name must contain at least 2 visible characters")
+        return normalized
 
 
 class UserOut(UserBase):
@@ -28,6 +46,7 @@ class UserOut(UserBase):
     )
 
     id: int
+    name: Optional[str] = None
     last_activity: Optional[datetime] = None
     is_active: bool
 

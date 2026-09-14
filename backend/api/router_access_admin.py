@@ -61,7 +61,7 @@ class UserAdminUpdate(BaseModel):
     email: EmailStr | None = None
     role: Role | None = None
     is_active: bool | None = None
-    new_password: str | None = Field(default=None, min_length=12, max_length=256)
+    new_password: str | None = Field(default=None, min_length=12, max_length=72)
 
 
 class ResourceAssignment(BaseModel):

@@ -20,6 +20,7 @@ import MNTDataViewer from '@/components/tests/mnt/page';
 import RotifierDataViewer from '@/components/tests/rotifier/page';
 import WaterFleaDataViewer from '@/components/tests/waterplea/page';
 import AlgaeDataViewer from '@/components/tests/algae/page';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 interface PageProps {
   params: Promise<{
@@ -82,12 +83,14 @@ const DynamicRoutePage: FC<PageProps> = async ({ params }) => {
   }
 
   return (
-    <Viewer
-      work_package={work_package}
-      element={element}
-      test={test}
-      file=""
-    />
+    <ProtectedRoute requireAuth={true}>
+      <Viewer
+        work_package={work_package}
+        element={element}
+        test={test}
+        file=""
+      />
+    </ProtectedRoute>
   );
 };
 

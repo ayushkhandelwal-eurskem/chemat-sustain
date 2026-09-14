@@ -8,8 +8,9 @@ type Tab = 'credentials' | 'organisations' | 'data' | 'users' | 'guide';
 
 type User = {
   id: number;
+  name?: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'public_viewer';
   is_active: boolean;
   last_activity: string | null;
 };
@@ -150,7 +151,7 @@ export default function ApiAccessPage() {
   const [editingUserId, setEditingUserId] = useState<number | ''>('');
   const [editingUser, setEditingUser] = useState({
     email: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'user' as 'admin' | 'user' | 'public_viewer',
     is_active: true,
     new_password: '',
   });
@@ -1046,8 +1047,8 @@ export default function ApiAccessPage() {
             {editingUserId && (
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <label className="text-sm font-medium">Email<input type="email" value={editingUser.email} onChange={(event) => setEditingUser((current) => ({ ...current, email: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" /></label>
-                <label className="text-sm font-medium">Role<select value={editingUser.role} onChange={(event) => setEditingUser((current) => ({ ...current, role: event.target.value as 'admin' | 'user' }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"><option value="user">User</option><option value="admin">Admin</option></select></label>
-                <label className="text-sm font-medium">New password (optional)<input type="password" minLength={12} value={editingUser.new_password} onChange={(event) => setEditingUser((current) => ({ ...current, new_password: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" placeholder="At least 12 characters" /></label>
+                <label className="text-sm font-medium">Role<select value={editingUser.role} onChange={(event) => setEditingUser((current) => ({ ...current, role: event.target.value as 'admin' | 'user' | 'public_viewer' }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"><option value="public_viewer">Public viewer</option><option value="user">User</option><option value="admin">Admin</option></select></label>
+                <label className="text-sm font-medium">New password (optional)<input type="password" minLength={12} maxLength={72} value={editingUser.new_password} onChange={(event) => setEditingUser((current) => ({ ...current, new_password: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" placeholder="At least 12 characters" /></label>
                 <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={editingUser.is_active} onChange={(event) => setEditingUser((current) => ({ ...current, is_active: event.target.checked }))} />Active user</label>
                 <div className="md:col-span-2 flex justify-end gap-3">
                   <button disabled={busy} onClick={saveUser} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Save changes</button>

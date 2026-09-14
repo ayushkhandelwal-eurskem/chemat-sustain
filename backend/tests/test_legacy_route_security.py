@@ -72,6 +72,20 @@ def test_protocol_file_writes_require_admin_and_reads_require_login():
     assert "get_current_user" in _dependency_names(download)
 
 
+def test_legacy_public_test_reads_require_registered_login():
+    public_reads = {
+        "/catalog",
+        "/public",
+        "/{test_id}",
+        "/name/{test_name}",
+        "/listings",
+        "/work-package/{work_package_name}",
+    }
+    for route in _routes(test_router, {"GET", "POST"}):
+        if route.path in public_reads:
+            assert "get_current_user" in _dependency_names(route), route.path
+
+
 def test_stored_protocol_path_accepts_file_beneath_upload_root(tmp_path, monkeypatch):
     import api.router_protocol_files as protocol_files
 

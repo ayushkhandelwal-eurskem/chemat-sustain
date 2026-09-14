@@ -101,13 +101,13 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db),
     # Get user
     result = await db.execute(select(User).filter(User.id == session.user_id))
     user = result.scalars().first()
-    user.last_activity = datetime.now()
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",
         )
     
+    user.last_activity = datetime.now()
     return user
 
 def get_user_by_role(role: Role):
@@ -132,10 +132,13 @@ async def check_if_private_user(request: Request, db: AsyncSession = Depends(get
     # Get user
     result = await db.execute(select(User).filter(User.id == session.user_id))
     user = result.scalars().first()
-    user.last_activity = datetime.now()
     if not user or not user.is_active:
         return False
-    
-    return True
+    user.last_activity = datetime.now()
+
+    # Self-registered viewers are authenticated, but authentication must never
+    # silently grant private research access. They stay on the public masking
+    # path; only established consortium users and administrators are private.
+    return user.role in (Role.user, Role.admin)
 
 

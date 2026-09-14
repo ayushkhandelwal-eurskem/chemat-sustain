@@ -88,11 +88,11 @@ class TestService:
         """Get a test by ID.
 
         `is_private_user` defaults to False - fail closed. A caller that forgets
-        to pass it gets the anonymous treatment (public records only, fields
+        to pass it gets public-viewer treatment (public records only, fields
         masked) rather than unrestricted access, which is the failure mode that
         left every restricted record readable on /tests/{id}.
 
-        Non-public records return 404 rather than 403 for anonymous callers, so
+        Non-public records return 404 rather than 403 for public viewers, so
         record existence cannot be probed by sequential ID.
         """
         stmt = select(Test).filter(Test.id == test_id)
@@ -105,6 +105,10 @@ class TestService:
                 detail="Test not found",
             )
         return test if is_private_user else mask_test_for_public(test)
+
+    async def get_test_record_by_id(self, test_id: int) -> Test | None:
+        """Return the ORM row for access attribution after authorization succeeds."""
+        return await self.db.scalar(select(Test).where(Test.id == test_id))
 
     async def get_test_by_name(self, test_name: str, is_private_user: bool = False):
         """Get a test by name. Same fail-closed semantics as get_test_by_id.
@@ -242,7 +246,7 @@ class TestService:
         and the three material identifiers (CMS / ERM / CAS) used by the
         display rule. Heavy JSON columns are never selected.
  
-        Public/anonymous viewers (is_private_user False) see only public tests.
+        Registered public viewers (is_private_user False) see only public tests.
         """
         stmt = select(
             Test.work_package_name,

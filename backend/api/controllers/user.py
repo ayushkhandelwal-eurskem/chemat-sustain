@@ -3,15 +3,18 @@ import os
 from fastapi import Depends, HTTPException, status, Request, Response
 from utils.custom_router import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from api.schemas.user import (
-    UserCreate, UserOut, LoginRequest, VerifyOTPRequest,
+    UserCreate, UserOut, PublicRegistration, LoginRequest, VerifyOTPRequest,
     ForgotPasswordRequest, ResetPasswordRequest,
-    ChangePasswordRequest, TokenResponse, MessageResponse, Role
+    ChangePasswordRequest, MessageResponse, Role
 )
 from api.services.user import (
     create_user, authenticate_user, send_otp, verify_otp,
-    change_password, update_last_activity, get_user_by_email
+    change_password, update_last_activity, get_user_by_email,
+    register_public_viewer,
 )
+from api.services.public_access import access_history_by_email
 from utils.auth import get_current_user, get_user_by_role, create_session, invalidate_session
 from utils.db import get_db
 from api.models.user import User
@@ -32,6 +35,32 @@ async def create_new_user(user: UserCreate, db: AsyncSession = Depends(get_db), 
         )
     db_user = await create_user(db=db, user=user)
     return db_user
+
+
+@router.post("/register", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def register(
+    registration: PublicRegistration,
+    db: AsyncSession = Depends(get_db),
+):
+    """Self-register a least-privilege viewer and email a sign-in OTP."""
+    normalized_email = str(registration.email).strip().lower()
+    if await get_user_by_email(db, normalized_email):
+        raise HTTPException(status.HTTP_409_CONFLICT, "An account with this email already exists")
+
+    try:
+        await register_public_viewer(db, registration)
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "An account with this email already exists"
+        ) from exc
+
+    success, message = await send_otp(db, normalized_email)
+    if not success:
+        # The account is valid and can use normal sign-in to request another OTP.
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, message)
+    return MessageResponse(msg="Registration successful. A verification code was sent to your email.")
 
 @router.post("/login", response_model=MessageResponse)
 async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
@@ -194,6 +223,41 @@ async def read_all_users(db: AsyncSession = Depends(get_db),
     from api.services.user import get_users
     users = await get_users(db)
     return users
+
+
+@router.get("/admin/access-history")
+async def read_access_history_by_email(
+    email: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_user_by_role(Role.admin)),
+):
+    """Return safe account data and all retained data views for one exact email."""
+    user, events = await access_history_by_email(db, email)
+    if user is None and not events:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No user or access history found")
+    return {
+        "user": UserOut.model_validate(user).model_dump() if user else None,
+        "events": [
+            {
+                "event_id": event.event_id,
+                "user_id": event.user_id,
+                "user_name": event.user_name,
+                "user_email": event.user_email,
+                "test_id": event.test_id,
+                "test_name": event.test_name,
+                "work_package_name": event.work_package_name,
+                "element_cms_id": event.element_cms_id,
+                "organisation_id": event.organisation_id,
+                "access_level": event.access_level,
+                "released_sections": event.released_sections,
+                "request_id": event.request_id,
+                "source_endpoint": event.source_endpoint,
+                "accessed_at": event.accessed_at,
+            }
+            for event in events
+        ],
+        "retention_days": 20,
+    }
 
 
 @router.get("/{email}", response_model=UserOut)

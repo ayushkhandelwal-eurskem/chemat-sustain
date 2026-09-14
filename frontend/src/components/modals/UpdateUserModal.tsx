@@ -6,7 +6,7 @@ import { api } from '@/lib/axios';
 interface User {
   id: number;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'public_viewer';
   is_active: boolean;
   last_activity: string;
 }
@@ -21,7 +21,7 @@ interface UpdateUserModalProps {
 export default function UpdateUserModal({ isOpen, onClose, onUserUpdated, user }: UpdateUserModalProps) {
   const [formData, setFormData] = useState({
     email: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'user' as 'admin' | 'user' | 'public_viewer',
     is_active: true,
     newPassword: '',
   });
@@ -138,11 +138,12 @@ export default function UpdateUserModal({ isOpen, onClose, onUserUpdated, user }
             <select
               id="update-role"
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' | 'public_viewer' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
               disabled // Role updates not implemented in backend yet
             >
               <option value="user">User</option>
+              <option value="public_viewer">Public viewer</option>
               <option value="admin">Admin</option>
             </select>
             <p className="text-xs text-gray-500 mt-1">Role updates are not currently supported</p>
@@ -174,7 +175,8 @@ export default function UpdateUserModal({ isOpen, onClose, onUserUpdated, user }
               onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Leave blank to keep current password"
-              minLength={6}
+              minLength={12}
+              maxLength={72}
             />
             <p className="text-xs text-gray-500 mt-1">Only password changes are currently supported</p>
           </div>

@@ -7,8 +7,9 @@ import UpdateUserModal from '@/components/modals/UpdateUserModal';
 
 interface User {
   id: number;
+  name?: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'public_viewer';
   is_active: boolean;
   last_activity: string;
 }
@@ -135,7 +136,8 @@ export default function UsersPage() {
                         </div>
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{user.email}</div>
+                        <div className="text-sm font-medium text-gray-900">{user.name || user.email}</div>
+                        {user.name && <div className="text-sm text-gray-500">{user.email}</div>}
                         <div className="text-sm text-gray-500">ID: {user.id}</div>
                       </div>
                     </div>

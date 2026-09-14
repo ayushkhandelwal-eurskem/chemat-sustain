@@ -78,6 +78,7 @@ log "Validating environment and Compose configuration"
 required_env=(
   POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB DATABASE_URL
   SMTP_HOST SMTP_PORT SMTP_SECURITY SMTP_SENDER SMTP_USERNAME SMTP_PASSWORD
+  PUBLIC_ACCESS_BACKUP_KEY
 )
 for name in "${required_env[@]}"; do
   grep -Eq "^[[:space:]]*${name}=.+" .env \
@@ -162,7 +163,8 @@ log "Applying additive resource-access migrations"
 for migration in \
   backend/migrations/006_resource_access_grants.sql \
   backend/migrations/007_user_resource_access.sql \
-  backend/migrations/008_dynamic_all_tests_rls.sql; do
+  backend/migrations/008_dynamic_all_tests_rls.sql \
+  backend/migrations/009_public_viewer_access_history.sql; do
   "${COMPOSE[@]}" exec -T db psql \
     -U "${POSTGRES_USER:-postgres}" \
     -d "${POSTGRES_DB:-chematsustain}" \

@@ -56,6 +56,15 @@ export default function BackofficeLayout({ children }: BackofficeLayoutProps) {
       ),
     },
     {
+      name: 'Data Access History',
+      href: '/backoffice/access-history',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+    {
       name: 'API Access',
       href: '/backoffice/api-access',
       icon: (

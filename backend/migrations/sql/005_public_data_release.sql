@@ -36,11 +36,10 @@ BEGIN;
 --        reach another tenant's data by flipping flags, because it cannot
 --        touch that row at all.
 --
--- `is_public` here means PUBLIC ON THE INTERNET - anyone can read it, no
--- authentication required. That is an existing product feature: /tests/public/
--- and the catalogue endpoints intentionally serve anonymous callers. So the
--- read policy must NOT require a tenant context, or anonymous access to
--- released data would break.
+-- `is_public` means released beyond the owning consortium organisation. The
+-- application now requires a registered viewer before serving /tests/public/
+-- or catalogue data. RLS still does not require a tenant context because an
+-- external public_viewer deliberately has no consortium organisation claim.
 --
 -- The security invariant this must preserve is narrower, and it holds here:
 -- an unscoped connection sees ONLY published rows, never unpublished ones.

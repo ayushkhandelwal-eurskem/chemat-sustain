@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from api.models.user import User
-from api.schemas.user import UserCreate, UserOut
+from api.schemas.user import PublicRegistration, Role, UserCreate, UserOut
 from utils.auth import hash_password, verify_password
 from datetime import datetime
 import pyotp
@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 async def create_user(db: AsyncSession, user: UserCreate):
     """Create a new user with hashed password"""
     db_user = User(
-        email=user.email,
+        name=user.name.strip(),
+        email=str(user.email).strip().lower(),
         password=hash_password(user.password),
         role=user.role
     )
@@ -25,15 +26,31 @@ async def create_user(db: AsyncSession, user: UserCreate):
     await db.refresh(db_user)
     return db_user
 
+
+async def register_public_viewer(db: AsyncSession, registration: PublicRegistration):
+    """Create a least-privilege account; callers can never select their role."""
+    db_user = User(
+        name=" ".join(registration.name.split()),
+        email=str(registration.email).strip().lower(),
+        password=hash_password(registration.password),
+        role=Role.public_viewer,
+        is_active=True,
+    )
+    db.add(db_user)
+    await db.flush()
+    return db_user
+
 async def get_user_by_email(db: AsyncSession, email: str):
     """Get user by email"""
-    result = await db.execute(select(User).filter(User.email == email))
+    result = await db.execute(
+        select(User).filter(func.lower(User.email) == str(email).strip().lower())
+    )
     return result.scalars().first()
 
 async def authenticate_user(db: AsyncSession, email: str, password: str):
     """Authenticate user by email and password"""
     user = await get_user_by_email(db, email)
-    if not user or not verify_password(password, user.password):
+    if not user or not user.is_active or not verify_password(password, user.password):
         return False
     return user
 

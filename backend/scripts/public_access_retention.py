@@ -7,8 +7,14 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+# Docker invokes this file by absolute path. In that mode Python adds
+# /app/scripts—not /app—to sys.path, so sibling packages such as `api` and
+# `utils` are otherwise unavailable.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import delete, select

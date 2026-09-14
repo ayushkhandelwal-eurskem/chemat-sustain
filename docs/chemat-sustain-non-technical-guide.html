@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CheMatSustain Database — A Guide for Everyone</title>
+  <style>
+    :root{--navy:#10264b;--blue:#2563eb;--blue-soft:#eaf3ff;--green:#087f5b;--green-soft:#e8f8f2;--amber:#a45c00;--amber-soft:#fff7df;--red:#a7273a;--red-soft:#fff1f2;--ink:#1c273b;--muted:#536176;--line:#d5e0ed}
+    *{box-sizing:border-box}html{font-size:12pt}body{margin:0;background:#eaf0f6;color:var(--ink);font-family:Arial,"Helvetica Neue",sans-serif;line-height:1.55}main{width:210mm;margin:auto;background:#fff;box-shadow:0 10px 35px #10264b22}.page{padding:18mm 17mm 16mm;position:relative}.page-break{break-before:page}h1,h2,h3{color:var(--navy);line-height:1.18;break-after:avoid}h1{font-size:35pt;margin:0 0 13px}h2{font-size:24pt;margin:0 0 16px;border-bottom:3px solid #bdd5f3;padding-bottom:8px}h3{font-size:16pt;margin:21px 0 8px}p{margin:7px 0 12px}ul,ol{padding-left:24px;margin:7px 0 13px}li{margin:6px 0}.small{font-size:9.5pt}.muted{color:var(--muted)}strong{color:var(--navy)}
+    .cover{height:297mm;padding:25mm 21mm;color:#fff;background:linear-gradient(145deg,#0a2854,#1d5b9b 58%,#087f5b);display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}.cover:before,.cover:after{content:"";position:absolute;border:1px solid #ffffff30;border-radius:50%}.cover:before{width:130mm;height:130mm;right:-38mm;top:-34mm}.cover:after{width:100mm;height:100mm;left:-45mm;bottom:25mm}.cover h1{color:#fff;max-width:150mm}.cover .lead{font-size:17pt;line-height:1.5;color:#e8f3ff;max-width:145mm}.cover .eyebrow{font-size:10pt;letter-spacing:2.5px;font-weight:bold;color:#bfdbfe}.cover .pill{display:inline-block;padding:7px 13px;border:1px solid #ffffff66;background:#ffffff17;border-radius:999px;font-size:10pt;margin-top:15px}.cover .meta{border-top:1px solid #ffffff55;padding-top:15px;display:grid;grid-template-columns:1fr 1fr;gap:15px;font-size:10pt}.cover strong{color:#fff}
+    .section-label{font-size:9pt;font-weight:bold;letter-spacing:1.8px;color:var(--blue);text-transform:uppercase;margin-bottom:6px}.intro{font-size:14pt;line-height:1.55;color:#30415c}.callout{border-left:6px solid var(--blue);background:var(--blue-soft);padding:13px 16px;border-radius:8px;margin:14px 0;break-inside:avoid}.callout.green{border-color:var(--green);background:var(--green-soft)}.callout.amber{border-color:#e29416;background:var(--amber-soft)}.callout.red{border-color:var(--red);background:var(--red-soft)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}.card{border:1px solid var(--line);border-radius:11px;padding:14px;background:#fff;break-inside:avoid}.card h3{margin:0 0 7px;font-size:14pt}.icon{display:flex;width:42px;height:42px;align-items:center;justify-content:center;border-radius:12px;background:var(--blue-soft);font-size:23px;margin-bottom:10px}.role{border-top:5px solid var(--blue)}.role.green{border-color:var(--green)}.role.amber{border-color:#e29416}.role.purple{border-color:#7c3aed}
+    .figure{margin:12px 0 8px;break-inside:avoid}.figure img{width:100%;height:auto}.caption{font-size:8.5pt;color:var(--muted);margin-top:5px}.flow{display:flex;gap:7px;align-items:stretch;margin:13px 0;break-inside:avoid}.step{flex:1;border:1px solid #bdd5f3;background:#f7fbff;border-radius:9px;padding:10px;text-align:center;font-size:9.5pt}.step b{display:block;color:var(--navy);margin-bottom:4px}.arrow{display:flex;align-items:center;font-size:20pt;color:var(--blue);font-weight:bold}.number{display:inline-flex;width:27px;height:27px;border-radius:50%;background:var(--blue);color:white;align-items:center;justify-content:center;font-weight:bold;margin-right:7px}
+    table{width:100%;border-collapse:collapse;margin:10px 0 15px;font-size:10pt}thead{display:table-header-group}tr{break-inside:avoid}th,td{border:1px solid #ccd9e8;padding:8px;vertical-align:top;text-align:left}th{background:#e8f1fc;color:var(--navy)}tbody tr:nth-child(even){background:#f8fafc}.yes{color:var(--green);font-weight:bold}.no{color:var(--red);font-weight:bold}.maybe{color:var(--amber);font-weight:bold}
+    .example{border:1px solid #a7dec9;background:#f4fcf8;border-radius:12px;overflow:hidden;margin:13px 0;break-inside:avoid}.example-title{background:var(--green);color:#fff;font-weight:bold;padding:9px 13px}.example-body{padding:12px 14px}.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.tab{padding:5px 9px;border-radius:99px;font-size:9pt;font-weight:bold;background:#dce7f5;color:#44546a}.tab.on{background:#d1fae5;color:#06694b}.tab.off{background:#fee2e2;color:#9f2636}.checklist{list-style:none;padding:0}.checklist li{padding-left:27px;position:relative}.checklist li:before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:bold;font-size:14pt}.faq{margin:9px 0;border:1px solid var(--line);border-radius:9px;padding:11px 13px;break-inside:avoid}.faq h3{font-size:13pt;margin:0 0 5px}.footer-note{border-top:1px solid var(--line);padding-top:8px;margin-top:18px;color:var(--muted);font-size:8pt}
+    @page{size:A4;margin:14mm 13mm 14mm;@bottom-left{content:"CheMatSustain · A Guide for Everyone";font:8pt Arial,sans-serif;color:#64748b}@bottom-right{content:"Page " counter(page) " of " counter(pages);font:8pt Arial,sans-serif;color:#64748b}}@page:first{margin:0;@bottom-left{content:""}@bottom-right{content:""}}
+    @media print{html{font-size:10.5pt}body{background:#fff;line-height:1.45}main{width:auto;box-shadow:none}.cover{height:297mm}.page{padding:2mm 2mm 1mm}.page-break{break-before:page}a{color:inherit}h2{font-size:22pt;margin-bottom:11px;padding-bottom:6px}h3{font-size:14.5pt;margin:14px 0 5px}p{margin:4px 0 8px}ul,ol{margin:4px 0 9px}li{margin:3px 0}.intro{font-size:12.5pt}.callout{padding:9px 12px;margin:9px 0}.grid2{gap:9px}.grid3{gap:8px}.card{padding:10px}.card h3{font-size:12.5pt}.icon{width:34px;height:34px;font-size:18px;margin-bottom:6px}.figure{margin:7px 0 4px}.figure img{max-height:118mm}.flow{margin:8px 0;gap:5px}.step{padding:7px;font-size:8.8pt}.example{margin:8px 0}.example-body{padding:9px 11px}.faq{margin:6px 0;padding:8px 10px}.faq h3{font-size:12pt}table{font-size:9pt;margin:7px 0 10px}th,td{padding:6px}}
+  </style>
+</head>
+<body><main>
+  <section class="cover">
+    <div><div class="eyebrow">CHEMATSUSTAIN · PLAIN-LANGUAGE EDITION</div><div class="pill">No technical knowledge required</div></div>
+    <div><h1>The CheMatSustain Database</h1><p class="lead">A guide for everyone: what it contains, how information gets there, who can see it, and how a scientific spreadsheet becomes a useful report.</p></div>
+    <div><strong>For researchers, project partners, public viewers and data owners</strong><div class="meta"><div><strong>Edition</strong><br>1.0</div><div><strong>Prepared</strong><br>14 September 2026</div><div><strong>Reading time</strong><br>About 15 minutes</div><div><strong>Companion document</strong><br>Technical edition available separately</div></div></div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">Start here</div><h2>What is CheMatSustain?</h2>
+    <p class="intro">CheMatSustain is a shared research information system for selected chemicals and nanomaterials. It helps project partners turn laboratory spreadsheets into organized, understandable reports.</p>
+    <div class="callout"><strong>In one sentence:</strong> the platform preserves the original research file, organizes its contents, controls what may be shared, and presents approved information through a website or controlled data connection.</div>
+    <h3>Why does the project need it?</h3>
+    <div class="grid2">
+      <div class="card"><div class="icon">🧪</div><h3>Different experiments</h3><p>Laboratories carry out many kinds of tests, each with different measurements, units, tables and spreadsheet layouts.</p></div>
+      <div class="card"><div class="icon">🧭</div><h3>One place to find results</h3><p>The platform gives people a consistent way to find a material, understand a test and explore its results.</p></div>
+      <div class="card"><div class="icon">🔒</div><h3>Controlled sharing</h3><p>Data owners decide whether a test is public and which parts of it can be shown publicly.</p></div>
+      <div class="card"><div class="icon">♻️</div><h3>Future reuse</h3><p>Organized information is easier to compare, interpret and reuse in later research—with the right permission.</p></div>
+    </div>
+    <h3>What kinds of tests are included?</h3>
+    <p>The system supports 19 test types, including material characterization, biological response and environmental tests. Examples include DLS, FTIR, XPS, XRD, TGA, MTT, ROS, Trypan Blue, Water Flea and Algae tests.</p>
+    <div class="callout green"><strong>This is more than a file library.</strong> The platform does keep the original spreadsheet, but it also turns the spreadsheet’s contents into searchable information, tables, charts and reports.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">The big picture</div><h2>How Information Moves Through the System</h2>
+    <div class="figure"><img src="images/chemat-sustain-user-journey.svg" alt="Five-step journey from laboratory upload to approved access"><div class="caption">Figure 1. The main journey of a scientific record. Publication is a deliberate checkpoint, not an automatic result of uploading.</div></div>
+    <h3>Five simple steps</h3>
+    <ol>
+      <li><strong>Upload:</strong> an authorized administrator uploads a laboratory spreadsheet.</li>
+      <li><strong>Check and organize:</strong> the platform reads the known spreadsheet layout and places information into consistent sections.</li>
+      <li><strong>Store:</strong> it keeps both the original file and the organized record in protected storage.</li>
+      <li><strong>Choose what to share:</strong> an administrator reviews publication settings for the test and each section.</li>
+      <li><strong>Use:</strong> approved people see reports; approved computer systems can receive controlled data access.</li>
+    </ol>
+    <div class="callout amber"><strong>Upload does not mean publish.</strong> A newly uploaded test is not automatically public. Publication is a separate choice, and each major part of the record has its own sharing switch.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">Understanding the information</div><h2>What Does One Test Record Contain?</h2>
+    <p>Although every scientific test is different, CheMatSustain organizes its information into five familiar groups.</p>
+    <div class="grid2">
+      <div class="card"><div class="icon">📋</div><h3>1. Test details</h3><p>The experimental context: material, preparation, method, equipment, cell line, treatment and similar conditions.</p></div>
+      <div class="card"><div class="icon">🔢</div><h3>2. Raw data</h3><p>The observations or measurements captured during the experiment, such as readings, runs or replicates.</p></div>
+      <div class="card"><div class="icon">⚙️</div><h3>3. Processed data</h3><p>Values calculated or normalized from the original observations.</p></div>
+      <div class="card"><div class="icon">✅</div><h3>4. Final results</h3><p>The summarized scientific outcome, often including averages and variation.</p></div>
+    </div>
+    <div class="card" style="margin-top:13px"><div class="icon">📊</div><h3>5. Statistical analysis</h3><p>Formal analysis used to judge patterns or differences, such as analysis of variance and comparisons between conditions.</p></div>
+    <h3>How do people find a record?</h3>
+    <p>Three labels identify a test in the portal:</p>
+    <div class="grid3">
+      <div class="card"><strong>Work package</strong><br><span class="muted">The project work area</span></div>
+      <div class="card"><strong>Material identifier</strong><br><span class="muted">The selected chemical or nanomaterial</span></div>
+      <div class="card"><strong>Test name</strong><br><span class="muted">The experimental method</span></div>
+    </div>
+    <div class="callout green"><strong>Why keep both a record and a file?</strong> The organized record is best for finding and viewing results. The original spreadsheet preserves the source context and allows authorized teams to review or process it again later.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">Privacy and publication</div><h2>What Can the Public See?</h2>
+    <p class="intro">Public sharing works at two levels: first, decide whether the test may appear publicly; second, decide which parts of that test may be shown.</p>
+    <div class="example"><div class="example-title">Example: a public test with only selected results</div><div class="example-body">
+      <p>The record can be listed publicly so people know that the test exists. The data owner might release the final outcome and statistics while keeping experimental conditions and detailed measurements private.</p>
+      <div class="tabs"><span class="tab off">🔒 Test details</span><span class="tab off">🔒 Raw data</span><span class="tab off">🔒 Processed data</span><span class="tab on">✓ Final results</span><span class="tab on">✓ Statistics</span></div>
+    </div></div>
+    <h3>A small identification header remains visible</h3>
+    <p>For a public report to make sense, a limited set of identifying information can remain visible even when detailed test conditions are not released. This includes the test’s name, short name, type, endpoint, reported endpoint outcome, procedure reference and reference-material identifier.</p>
+    <div class="callout red"><strong>What does not happen:</strong> hidden information is not sent to the public browser and merely covered up on screen. The system removes unreleased sections before sending the public response.</div>
+    <h3>Publication checklist for data owners</h3>
+    <ul class="checklist">
+      <li>Confirm that the correct material and test are selected.</li>
+      <li>Review each section, not only the final result.</li>
+      <li>Check whether raw measurements contain confidential context.</li>
+      <li>Release only the sections approved under project policy.</li>
+      <li>Open the public view and confirm it shows exactly what was intended.</li>
+      <li>If the test must become private, unpublish it; its section-sharing choices are revoked.</li>
+    </ul>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">People and permissions</div><h2>Who Uses the Platform?</h2>
+    <div class="grid2">
+      <div class="card role green"><div class="icon">🌍</div><h3>Public viewer</h3><p>Creates a public account, signs in and sees only published tests and the sections approved for public release.</p><p><strong>Does not see:</strong> private tests, hidden sections or internal file locations.</p></div>
+      <div class="card role"><div class="icon">🔬</div><h3>Team user</h3><p>Uses an internally issued account and an email verification code. Sees internal research information they are authorized to access.</p></div>
+      <div class="card role amber"><div class="icon">🛠️</div><h3>Administrator</h3><p>Uploads and manages tests, controls publication, manages users and organizations, assigns access and reviews public access history.</p></div>
+      <div class="card role purple"><div class="icon">🔗</div><h3>Approved computer system</h3><p>Uses its own issued credentials to request specific kinds of data. It receives only the permitted resources and capabilities.</p></div>
+    </div>
+    <h3>At a glance</h3>
+    <table>
+      <thead><tr><th>Activity</th><th>Public viewer</th><th>Team user</th><th>Administrator</th></tr></thead>
+      <tbody>
+        <tr><td>See published, released information</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        <tr><td>See authorized internal research data</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        <tr><td>Upload a scientific workbook</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td></tr>
+        <tr><td>Choose public sections</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td></tr>
+        <tr><td>Manage users and access</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><strong>Accounts and automated access are separate.</strong> A person’s website login is not used as a computer system’s credential. This makes automated access easier to limit, rotate or disable without sharing a personal password.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">Your journey</div><h2>What Happens When You Use the Portal?</h2>
+    <h3>If you are a public viewer</h3>
+    <div class="flow"><div class="step"><b>1. Register</b>Create an account with your name, email and password</div><div class="arrow">›</div><div class="step"><b>2. Browse</b>Choose a work package, material and test</div><div class="arrow">›</div><div class="step"><b>3. Read</b>See the report sections approved for public use</div></div>
+    <p>The platform records an access-history entry when an authenticated public viewer opens a test. This entry links the viewer, test, time and released sections. Live entries and their protected archives are kept for 20 days.</p>
+    <h3>If you are a team user</h3>
+    <div class="flow"><div class="step"><b>1. Sign in</b>Use your project account</div><div class="arrow">›</div><div class="step"><b>2. Verify</b>Enter the code sent to your email</div><div class="arrow">›</div><div class="step"><b>3. Work</b>Browse the internal information available to you</div></div>
+    <h3>If you are an administrator</h3>
+    <div class="flow"><div class="step"><b>1. Upload</b>Select the test type and source spreadsheet</div><div class="arrow">›</div><div class="step"><b>2. Review</b>Check the organized report</div><div class="arrow">›</div><div class="step"><b>3. Publish</b>Choose public status and each released section</div></div>
+    <div class="callout amber"><strong>If something looks wrong after upload:</strong> do not publish the record. Check that the correct spreadsheet template and test type were used, then ask a platform administrator or maintainer to review the parser warning or error.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">A real example</div><h2>Trypan Blue: From Spreadsheet to Report</h2>
+    <p>Trypan Blue—shown as <strong>TB</strong> in the portal—is a useful example because its spreadsheet contains test conditions, repeated measurements, processed values, final results and statistics.</p>
+    <h3><span class="number">1</span>The spreadsheet</h3>
+    <p>The laboratory workbook has recognizable sheets for test conditions, raw data runs, processed data runs, final results and, when available, statistics.</p>
+    <h3><span class="number">2</span>The platform reads known locations</h3>
+    <p>The TB importer knows where expected labels and values are normally found. It also handles common spreadsheet differences such as dates, decimal commas and empty cells.</p>
+    <h3><span class="number">3</span>The information is organized</h3>
+    <p>The platform groups material preparation, cell line and treatment details; collects each measurement run; associates processed runs; summarizes final conditions, repeats, averages and variation; and includes the statistical tables when present.</p>
+    <h3><span class="number">4</span>The source and record are saved</h3>
+    <p>The original workbook is kept for traceability. The organized information becomes the searchable test record used by the portal.</p>
+    <h3><span class="number">5</span>The TB report is displayed</h3>
+    <p>The viewer turns available information into clear sections, tables and charts. People can switch between runs and download table data where offered. If a section is not public, its tab does not appear to public viewers.</p>
+    <div class="example"><div class="example-title">What might appear in a TB report?</div><div class="example-body"><ul><li>Material and dispersion information</li><li>Cell-line and treatment conditions</li><li>Percent cell death for chambers or conditions</li><li>Repeated measurements and summarized averages</li><li>Variation around the average</li><li>Statistical comparisons between conditions</li></ul></div></div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">Trust and care</div><h2>How Is Information Protected?</h2>
+    <p class="intro">No single control does all the work. CheMatSustain uses several layers so that a mistake or failed control is less likely to expose data.</p>
+    <div class="grid2">
+      <div class="card"><div class="icon">🔑</div><h3>Secure sign-in</h3><p>Passwords are not stored in readable form. Team users and administrators also confirm sign-in with an email code.</p></div>
+      <div class="card"><div class="icon">👥</div><h3>Roles and assignments</h3><p>People and approved systems receive only the access appropriate to their role, organization and assigned resources.</p></div>
+      <div class="card"><div class="icon">🚦</div><h3>Publication gates</h3><p>Public status and each major information section are controlled separately. The server removes hidden content before responding.</p></div>
+      <div class="card"><div class="icon">🧾</div><h3>Access history</h3><p>Relevant public and automated data activity is recorded so access can be reviewed and attributed.</p></div>
+      <div class="card"><div class="icon">📦</div><h3>Protected files</h3><p>Research workbooks and procedure documents are kept in protected storage, not in the public website files.</p></div>
+      <div class="card"><div class="icon">🛡️</div><h3>Checked releases</h3><p>Automated security checks review secrets, code, dependencies, data separation and software images before deployment.</p></div>
+    </div>
+    <div class="callout green"><strong>Privacy by response, not just by screen.</strong> The most important protection for public reports happens before information reaches the viewer: unreleased sections are left out of the response.</div>
+    <div class="callout amber"><strong>Good practice still matters.</strong> Users should not share accounts, passwords, email codes or issued computer credentials. Publication decisions should be reviewed against the project’s data-governance policy.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">Practical help</div><h2>Common Questions</h2>
+    <div class="faq"><h3>Can anyone browse the public database without an account?</h3><p>No. A public viewer registers and signs in. Their account remains limited to published, released information.</p></div>
+    <div class="faq"><h3>Does “public test” mean the complete spreadsheet is public?</h3><p>No. The original spreadsheet remains protected, and the five information sections can be released separately.</p></div>
+    <div class="faq"><h3>Why can I see the report title but not the Test Conditions tab?</h3><p>A small identification header remains visible so the report can be understood. Detailed conditions may still be withheld.</p></div>
+    <div class="faq"><h3>Why do team users receive an email code?</h3><p>It adds a second sign-in step for accounts that can reach internal research information.</p></div>
+    <div class="faq"><h3>Can I download what I see?</h3><p>Some scientific viewers offer downloads for displayed tables, charts or images. A download contains only information that was available in your authorized view.</p></div>
+    <div class="faq"><h3>What if a chart or table is empty?</h3><p>The section may not have been present in the source workbook, may not apply to that test, or may not have been released to your role.</p></div>
+    <div class="faq"><h3>Can an uploaded test be corrected?</h3><p>Yes. An administrator can replace the source file and update the organized record. The operation is designed to avoid leaving an unlinked old or failed file.</p></div>
+    <div class="faq"><h3>What should happen when somebody leaves the project?</h3><p>Their website account should be disabled. Any separately issued automated-access credentials must also be disabled as part of offboarding.</p></div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">Quick reference</div><h2>Who Should I Contact?</h2>
+    <table>
+      <thead><tr><th>Your situation</th><th>Best first contact</th><th>Useful information to provide</th></tr></thead>
+      <tbody>
+        <tr><td>I cannot sign in or receive my email code.</td><td>Platform administrator</td><td>Your account email, approximate time and the screen message. Never send your password.</td></tr>
+        <tr><td>I need access to an internal test or protocol.</td><td>Your organization’s data owner or platform administrator</td><td>Work package, material, test/protocol and business reason.</td></tr>
+        <tr><td>A test should be made public or private.</td><td>Authorized data owner / administrator</td><td>Exact test identity and the approval basis for each section.</td></tr>
+        <tr><td>An uploaded spreadsheet produced unexpected results.</td><td>Platform maintainer</td><td>Test type, workbook template/version, expected outcome and visible warning—without sending confidential data in an open channel.</td></tr>
+        <tr><td>My external software needs data access.</td><td>Platform administrator / API owner</td><td>Organization, intended use, required information and which tests/protocols are needed.</td></tr>
+        <tr><td>I suspect information was exposed or an account was misused.</td><td>Security contact immediately</td><td>Time, affected page/record, what you observed and any safe evidence. Do not investigate by accessing more data.</td></tr>
+      </tbody>
+    </table>
+    <h3>Remember these four points</h3>
+    <div class="grid2">
+      <div class="card"><strong>1. Upload is not publication.</strong><p>Sharing remains a separate, deliberate decision.</p></div>
+      <div class="card"><strong>2. Public is not all-or-nothing.</strong><p>Each major scientific section has its own release choice.</p></div>
+      <div class="card"><strong>3. The source file stays protected.</strong><p>Public reports use organized, approved information.</p></div>
+      <div class="card"><strong>4. Access should be attributable.</strong><p>Use your own account or assigned system credential.</p></div>
+    </div>
+    <div class="callout"><strong>Need technical detail?</strong> See the companion <em>CheMatSustain Database and Platform Documentation</em>, which contains the architecture, database catalogue, implementation relationships, operational controls and complete TB coding walkthrough.</div>
+    <div class="footer-note">CheMatSustain has received funding from the European Union under the Horizon Europe Programme (No. 101137990). This guide explains the software in plain language and does not replace consortium data-governance, security or publication policies.</div>
+  </section>
+</main></body></html>

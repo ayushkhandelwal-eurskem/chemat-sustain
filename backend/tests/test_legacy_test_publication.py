@@ -56,6 +56,39 @@ async def test_making_test_private_revokes_all_release_flags():
     assert not any(getattr(record, field) for field in RELEASE_FIELDS)
 
 
+@pytest.mark.parametrize("release_field", RELEASE_FIELDS)
+@pytest.mark.asyncio
+async def test_each_release_flag_updates_without_changing_the_other_flags(
+    release_field: str,
+):
+    initial_flags = {
+        field: index % 2 == 0 for index, field in enumerate(RELEASE_FIELDS)
+    }
+    record = SimpleNamespace(
+        test_name="MTT",
+        work_package_name="WP3",
+        element_cms_id="CMS_1a_AuNP",
+        is_public=True,
+        **initial_flags,
+    )
+    db = AsyncMock()
+    service = TestService(db)
+    service.get_test_by_id = AsyncMock(return_value=record)
+    new_value = not initial_flags[release_field]
+
+    await service.update_test(
+        42,
+        TestUpdate(**{release_field: new_value}),
+        is_private_user=True,
+    )
+
+    for field in RELEASE_FIELDS:
+        expected = new_value if field == release_field else initial_flags[field]
+        assert getattr(record, field) is expected
+    db.commit.assert_awaited_once_with()
+    db.refresh.assert_awaited_once_with(record)
+
+
 def test_private_test_cannot_request_released_sections():
     with pytest.raises(HTTPException) as error:
         enforce_private_release_flags(

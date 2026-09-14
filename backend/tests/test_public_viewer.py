@@ -1,18 +1,26 @@
 from datetime import datetime, timedelta, timezone
+from itertools import product
+from unittest.mock import AsyncMock, MagicMock
 import pytest
 from cryptography.fernet import Fernet
 from fastapi.routing import APIRoute
 from pydantic import ValidationError
 
-from api.controllers.test import has_private_test_access, router as test_router
+from api.controllers.test import (
+    PARSERS,
+    build_payload_from_parse,
+    has_private_test_access,
+    router as test_router,
+)
 from api.models.public_access import PublicDataAccessEvent
 from api.models.test import Test
 from api.models.user import User
-from api.schemas.test import TestReleaseSelection
+from api.schemas.test import TestListings, TestReleaseSelection
 from api.schemas.user import PublicRegistration, Role
 from api.services.public_access import record_test_access, released_sections
 from api.services.test import (
     RELEASE_FIELDS,
+    TestService,
     catalog_material_metadata,
     mask_test_for_public,
 )
@@ -133,6 +141,143 @@ def test_each_public_release_flag_exposes_only_its_matching_section(
         expected = {"section": field} if field == data_field else None
         assert getattr(response, field) == expected
 
+
+@pytest.mark.parametrize("test_name", sorted(PARSERS))
+@pytest.mark.parametrize(
+    "release_field,data_field",
+    [
+        ("release_test_details", "test_details"),
+        ("release_raw_data", "raw_data"),
+        ("release_processed_data", "processed_data"),
+        ("release_final_results", "final_results"),
+        ("release_statistical_analysis", "statistical_analysis"),
+    ],
+)
+def test_every_test_type_supports_each_release_flag_independently(
+    test_name: str, release_field: str, data_field: str
+):
+    """All registered test types use the same fail-closed public projection."""
+    now = datetime.now(timezone.utc)
+    section_fields = (
+        "test_details",
+        "raw_data",
+        "processed_data",
+        "final_results",
+        "statistical_analysis",
+    )
+    record = Test(
+        id=9,
+        work_package_name="WP-audit",
+        element_cms_id="CMS-audit",
+        test_name=test_name,
+        is_public=True,
+        created_at=now,
+        updated_at=now,
+        **{field: {"test_type": test_name, "section": field} for field in section_fields},
+        **{field: field == release_field for field in RELEASE_FIELDS},
+    )
+
+    response = mask_test_for_public(record)
+
+    assert response.test_name == test_name
+    for field in section_fields:
+        expected = {"test_type": test_name, "section": field} if field == data_field else None
+        assert getattr(response, field) == expected
+    for field in RELEASE_FIELDS:
+        assert getattr(response, field) is (field == release_field)
+
+
+@pytest.mark.parametrize("enabled_flags", product((False, True), repeat=len(RELEASE_FIELDS)))
+def test_all_release_flag_combinations_are_projected_independently(enabled_flags):
+    """No release flag may enable, disable, or depend on another section."""
+    now = datetime.now(timezone.utc)
+    section_fields = (
+        "test_details",
+        "raw_data",
+        "processed_data",
+        "final_results",
+        "statistical_analysis",
+    )
+    releases = dict(zip(RELEASE_FIELDS, enabled_flags))
+    response = mask_test_for_public(
+        Test(
+            id=10,
+            work_package_name="WP-audit",
+            element_cms_id="CMS-combinations",
+            test_name="MTT",
+            is_public=True,
+            created_at=now,
+            updated_at=now,
+            **{field: {"section": field} for field in section_fields},
+            **releases,
+        )
+    )
+
+    for release_field, data_field in zip(RELEASE_FIELDS, section_fields):
+        assert getattr(response, release_field) is releases[release_field]
+        expected = {"section": data_field} if releases[release_field] else None
+        assert getattr(response, data_field) == expected
+
+
+def test_parser_payload_maps_all_five_canonical_sections_independently():
+    parsed = {
+        "test_details": {"section": "test_details"},
+        "replications": [{"section": "raw_data"}],
+        "processed_data": {"section": "processed_data"},
+        "final_results": {"section": "final_results"},
+        "statistical_analysis": {"section": "statistical_analysis"},
+    }
+
+    assert build_payload_from_parse(parsed) == {
+        "test_details": {"section": "test_details"},
+        "raw_data": [{"section": "raw_data"}],
+        "processed_data": {"section": "processed_data"},
+        "final_results": {"section": "final_results"},
+        "statistical_analysis": {"section": "statistical_analysis"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_public_listings_detail_branch_applies_release_projection():
+    now = datetime.now(timezone.utc)
+    record = Test(
+        id=11,
+        work_package_name="WP-audit",
+        element_cms_id="CMS-listings",
+        test_name="XRD",
+        is_public=True,
+        test_details={"secret": "details"},
+        raw_data={"released": "raw"},
+        processed_data={"secret": "processed"},
+        final_results={"released": "results"},
+        statistical_analysis={"secret": "statistics"},
+        release_test_details=False,
+        release_raw_data=True,
+        release_processed_data=False,
+        release_final_results=True,
+        release_statistical_analysis=False,
+        created_at=now,
+        updated_at=now,
+    )
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = record
+    db = AsyncMock()
+    db.execute.return_value = result
+
+    response = await TestService(db).get_listings(
+        TestListings(
+            work_package_name="WP-audit",
+            element_cms_id="CMS-listings",
+            test_name="XRD",
+        ),
+        is_private_user=False,
+    )
+
+    assert response.test_details is None
+    assert response.raw_data == {"released": "raw"}
+    assert response.processed_data is None
+    assert response.final_results == {"released": "results"}
+    assert response.statistical_analysis is None
 
 def test_release_selection_defaults_closed_and_rejects_unknown_fields():
     assert not any(TestReleaseSelection().model_dump().values())

@@ -9,7 +9,6 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
-  Database,
   KeyRound,
   LockKeyhole,
   ShieldCheck,
@@ -206,67 +205,42 @@ export default function LoginPage() {
 
   return (
     <ProtectedRoute requireAuth={false}>
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#dff4ff_0,_#eff8ff_32%,_#f8fafc_72%)] px-4 py-8 sm:px-6 lg:py-12">
-        <div className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-3xl border border-white/80 bg-white shadow-2xl shadow-blue-950/10 lg:grid-cols-[0.9fr_1.1fr]">
-          <aside className="relative overflow-hidden bg-blue-950 p-7 text-white sm:p-10 lg:p-12">
-            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-400/15 blur-3xl" />
-            <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-green-400/10 blur-3xl" />
-            <div className="relative">
-              <div className="rounded-2xl bg-white p-4 shadow-lg">
-                <Image
-                  src="https://chematsustain.eu/wp-content/uploads/2024/03/CMS-Logo-horizontal-color-transp.png"
-                  alt="CheMatSustain"
-                  width={300}
-                  height={90}
-                  className="h-auto w-64"
-                  priority
-                />
-              </div>
+      <main className="flex min-h-screen items-center justify-center bg-sky-100 px-4 py-10 sm:py-12">
+        <div className="w-full max-w-md">
+          <div className="mb-8 flex justify-center">
+            <Image
+              src="https://chematsustain.eu/wp-content/uploads/2024/03/CMS-Logo-horizontal-color-transp.png"
+              alt="CheMatSustain"
+              width={240}
+              height={72}
+              className="h-auto w-56"
+              priority
+            />
+          </div>
 
-              <p className="mt-8 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                Research data portal
-              </p>
-              <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
-                One secure entry point for public data and research APIs.
-              </h1>
-              <p className="mt-4 max-w-lg text-sm leading-6 text-blue-100">
-                Browse governed CheMatSustain datasets, manage authorized research access, or test an issued API credential.
-              </p>
-
-              <div className="mt-8 space-y-3">
-                <Feature icon={<Database size={19} />} title="Public data viewer" text="Registration is open. You see only explicitly released tests and sections." />
-                <Feature icon={<ShieldCheck size={19} />} title="Team & administration" text="Privileged accounts retain email verification as a second factor." />
-                <Feature icon={<KeyRound size={19} />} title="API Explorer" text="Use an issued client ID and secret to inspect your assigned API resources." />
-              </div>
-
-              <Link
-                href="/api-explorer"
-                className="mt-8 flex items-center justify-between rounded-2xl border border-cyan-300/30 bg-white/10 px-5 py-4 transition hover:bg-white/15"
-              >
-                <span>
-                  <span className="block text-sm font-semibold">Open API Explorer</span>
-                  <span className="mt-1 block text-xs text-blue-200">Website sign-in is not required</span>
-                </span>
-                <ArrowRight size={20} />
-              </Link>
-            </div>
-          </aside>
-
-          <section className="p-6 sm:p-10 lg:p-12">
+          <section className="rounded-lg bg-white p-6 shadow-md sm:p-8">
             {(step === 'signin' || step === 'register') && (
-              <div className="mb-8 grid grid-cols-2 rounded-2xl bg-slate-100 p-1.5" aria-label="Choose account access type">
-                <AudienceButton
-                  active={audience === 'public'}
-                  icon={<Users size={18} />}
-                  label="Public access"
-                  onClick={() => selectAudience('public')}
-                />
-                <AudienceButton
-                  active={audience === 'team'}
-                  icon={<LockKeyhole size={18} />}
-                  label="Team & admin"
-                  onClick={() => selectAudience('team')}
-                />
+              <div className="mb-7">
+                <div className="grid grid-cols-2 gap-3" aria-label="Choose account access type">
+                  <AudienceButton
+                    active={audience === 'public'}
+                    icon={<Users size={18} />}
+                    label="Public access"
+                    onClick={() => selectAudience('public')}
+                  />
+                  <AudienceButton
+                    active={audience === 'team'}
+                    icon={<LockKeyhole size={18} />}
+                    label="Team & administrator"
+                    onClick={() => selectAudience('team')}
+                  />
+                </div>
+                <Link
+                  href="/api-explorer"
+                  className="mt-3 flex items-center justify-center gap-2 rounded-md border border-blue-900/20 bg-white px-4 py-2.5 text-sm font-semibold text-blue-900 transition-colors hover:bg-blue-50"
+                >
+                  <KeyRound size={17} /> Open API Explorer
+                </Link>
               </div>
             )}
 
@@ -370,29 +344,14 @@ export default function LoginPage() {
               </form>
             )}
 
-            <div className="mt-8 border-t border-slate-200 pt-5 text-center text-xs leading-5 text-slate-500">
-              Public accounts are limited to approved public datasets. Access is logged and retained according to the data-access policy.
-            </div>
           </section>
-        </div>
 
-        <p className="mx-auto mt-6 max-w-3xl text-center text-xs leading-5 text-green-700">
-          CheMatSustain has received funding from the European Union under the Horizon Europe Programme (No. 101137990).
-        </p>
+          <p className="mt-6 px-4 text-center text-xs leading-5 text-green-700">
+            CheMatSustain has received funding from the European Union under the Horizon Europe Programme (No. 101137990).
+          </p>
+        </div>
       </main>
     </ProtectedRoute>
-  );
-}
-
-function Feature({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
-  return (
-    <div className="flex gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-      <div className="mt-0.5 text-cyan-300">{icon}</div>
-      <div>
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <p className="mt-1 text-xs leading-5 text-blue-200">{text}</p>
-      </div>
-    </div>
   );
 }
 
@@ -402,7 +361,7 @@ function AudienceButton({ active, icon, label, onClick }: { active: boolean; ico
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition ${active ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+      className={`flex min-h-12 items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-center text-sm font-semibold transition ${active ? 'border-blue-900 bg-blue-900 text-white shadow-sm' : 'border-blue-900/20 bg-white text-blue-900 hover:bg-blue-50'}`}
     >
       {icon} {label}
     </button>

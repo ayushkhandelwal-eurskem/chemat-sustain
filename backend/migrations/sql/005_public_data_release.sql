@@ -111,9 +111,11 @@ COMMIT;
 --
 -- `mask_test_for_public()` in backend/api/services/test.py is the single place
 -- this decision is made. Every read path an unauthenticated caller can reach
--- routes through it, returning each field only if its release flag is set:
+-- routes through it, returning each scientific section only if its release
+-- flag is set:
 --
---     test_details          -> only if release_test_details
+--     test_details          -> full section only if release_test_details;
+--                              otherwise only the fixed report-header allowlist
 --     raw_data              -> only if release_raw_data
 --     processed_data        -> only if release_processed_data
 --     final_results         -> only if release_final_results

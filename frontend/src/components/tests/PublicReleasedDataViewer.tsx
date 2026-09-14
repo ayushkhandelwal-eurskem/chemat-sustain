@@ -73,6 +73,14 @@ const SPECIALISED_SECTION_REQUIREMENTS: Record<string, SectionKey[]> = {
 
 const SPECIALISED_STATISTICS_VIEWERS = new Set(["mnt", "ros", "tb", "tb-microfludic"]);
 
+const SECTION_RELEASE_FLAGS: Record<SectionKey, ReleaseFlag> = {
+  test_details: "release_test_details",
+  raw_data: "release_raw_data",
+  processed_data: "release_processed_data",
+  final_results: "release_final_results",
+  statistical_analysis: "release_statistical_analysis",
+};
+
 const canUseSpecialisedViewer = (data: PublicTestResponse) => {
   const testKey = data.test_name.toLowerCase();
   if (
@@ -87,8 +95,18 @@ const canUseSpecialisedViewer = (data: PublicTestResponse) => {
     "processed_data",
     "final_results",
   ];
-  return requirements.every((section) => data[section] !== null && data[section] !== undefined);
+  return requirements.every(
+    (section) =>
+      data[SECTION_RELEASE_FLAGS[section]] === true &&
+      data[section] !== null &&
+      data[section] !== undefined
+  );
 };
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 
 export const getReleasedSections = (
   data: PublicTestResponse | null
@@ -280,15 +298,35 @@ const PublicReleasedDataViewer: FC<PublicReleasedDataViewerProps> = ({
     );
   }
 
+  const testDetails = asRecord(data.test_details);
+  const headerWorkPackage = asRecord(testDetails.work_package);
+  const headerMaterial = asRecord(testDetails.material);
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 text-black">
       <div className="container mx-auto px-4">
         <div className="mb-8 rounded-lg bg-white p-6 shadow-md">
           <h1 className="mb-4 text-2xl font-bold text-blue-800">{data.test_name} Test Data Report</h1>
-          <div className="grid grid-cols-1 gap-4 rounded-md bg-blue-50 p-4 md:grid-cols-3">
-            <p><span className="font-semibold">Work Package:</span> {data.work_package_name || work_package}</p>
-            <p><span className="font-semibold">CMS Identifier:</span> {data.element_cms_id || element}</p>
-            <p><span className="font-semibold">Released sections:</span> {releasedSections.length}</p>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              <h2 className="mb-3 text-lg font-semibold">Test Parameters</h2>
+              <div className="rounded-md bg-blue-50 p-4">
+                <p className="mb-2"><span className="font-semibold">Work Package:</span> {formatPrimitive(data.work_package_name || work_package)}</p>
+                <p className="mb-2"><span className="font-semibold">CMS Internal Identifier:</span> {formatPrimitive(data.element_cms_id || element)}</p>
+                <p><span className="font-semibold">ERM Identifier:</span> {formatPrimitive(headerMaterial.erm_id)}</p>
+              </div>
+            </div>
+            <div>
+              <h2 className="mb-3 text-lg font-semibold">Test Information</h2>
+              <div className="rounded-md bg-blue-50 p-4">
+                <p className="mb-2"><span className="font-semibold">Full Test Name:</span> {formatPrimitive(headerWorkPackage.full_test_name)}</p>
+                <p className="mb-2"><span className="font-semibold">Test Acronym:</span> {formatPrimitive(headerWorkPackage.test_acronym)}</p>
+                <p className="mb-2"><span className="font-semibold">Test Type:</span> {formatPrimitive(headerWorkPackage.test_type)}</p>
+                <p className="mb-2"><span className="font-semibold">Endpoint:</span> {formatPrimitive(headerWorkPackage.endpoint)}</p>
+                <p className="mb-2"><span className="font-semibold">Endpoint Outcome:</span> {formatPrimitive(headerWorkPackage.endpoint_outcome)}</p>
+                <p><span className="font-semibold">SOP:</span> {formatPrimitive(headerWorkPackage.sop)}</p>
+              </div>
+            </div>
           </div>
         </div>
 

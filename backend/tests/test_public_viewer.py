@@ -23,6 +23,7 @@ from api.services.test import (
     TestService,
     catalog_material_metadata,
     mask_test_for_public,
+    public_test_header_metadata,
 )
 from api.services.user import authenticate_user, register_public_viewer
 from scripts.public_access_retention import PREFIX, SUFFIX, prune_archive
@@ -89,6 +90,39 @@ def test_public_viewer_is_not_private_user():
     assert has_private_test_access(User(role=Role.admin)) is True
 
 
+def test_public_header_metadata_keeps_only_report_identification_fields():
+    details = {
+        "work_package": {
+            "full_test_name": "Ultraviolet Photoelectron Spectroscopy",
+            "test_acronym": "UPS",
+            "test_type": "Physicochemical characterisation",
+            "endpoint": "Electronic structure",
+            "endpoint_outcome": "Work function",
+            "sop": "SOP-UPS-01",
+            "partner": "must remain private",
+            "lead_scientists": [{"name": "must remain private"}],
+        },
+        "material": {
+            "erm_id": "ERM-123",
+            "material_name": "must remain private",
+            "core_chemistry": "must remain private",
+        },
+        "instrumentation": {"instrument_model": "must remain private"},
+    }
+
+    assert public_test_header_metadata(details) == {
+        "work_package": {
+            "full_test_name": "Ultraviolet Photoelectron Spectroscopy",
+            "test_acronym": "UPS",
+            "test_type": "Physicochemical characterisation",
+            "endpoint": "Electronic structure",
+            "endpoint_outcome": "Work function",
+            "sop": "SOP-UPS-01",
+        },
+        "material": {"erm_id": "ERM-123"},
+    }
+
+
 def test_released_sections_respect_public_flags():
     test = Test(
         test_details={"visible": True}, raw_data={"secret": True}, final_results={"ok": True},
@@ -139,6 +173,8 @@ def test_each_public_release_flag_exposes_only_its_matching_section(
         "statistical_analysis",
     ):
         expected = {"section": field} if field == data_field else None
+        if field == "test_details" and data_field != "test_details":
+            expected = public_test_header_metadata(values["test_details"])
         assert getattr(response, field) == expected
 
 
@@ -182,6 +218,8 @@ def test_every_test_type_supports_each_release_flag_independently(
     assert response.test_name == test_name
     for field in section_fields:
         expected = {"test_type": test_name, "section": field} if field == data_field else None
+        if field == "test_details" and data_field != "test_details":
+            expected = public_test_header_metadata(record.test_details)
         assert getattr(response, field) == expected
     for field in RELEASE_FIELDS:
         assert getattr(response, field) is (field == release_field)
@@ -216,6 +254,8 @@ def test_all_release_flag_combinations_are_projected_independently(enabled_flags
     for release_field, data_field in zip(RELEASE_FIELDS, section_fields):
         assert getattr(response, release_field) is releases[release_field]
         expected = {"section": data_field} if releases[release_field] else None
+        if data_field == "test_details" and not releases[release_field]:
+            expected = public_test_header_metadata({"section": data_field})
         assert getattr(response, data_field) == expected
 
 
@@ -246,7 +286,19 @@ async def test_public_listings_detail_branch_applies_release_projection():
         element_cms_id="CMS-listings",
         test_name="XRD",
         is_public=True,
-        test_details={"secret": "details"},
+        test_details={
+            "work_package": {
+                "full_test_name": "X-ray Diffraction",
+                "test_acronym": "XRD",
+                "test_type": "Characterisation",
+                "endpoint": "Crystal structure",
+                "endpoint_outcome": "Phase identification",
+                "sop": "SOP-XRD-01",
+                "partner": "withheld partner",
+            },
+            "material": {"erm_id": "ERM-XRD", "material_name": "withheld material"},
+            "instrumentation": {"instrument_model": "withheld instrument"},
+        },
         raw_data={"released": "raw"},
         processed_data={"secret": "processed"},
         final_results={"released": "results"},
@@ -273,7 +325,21 @@ async def test_public_listings_detail_branch_applies_release_projection():
         is_private_user=False,
     )
 
-    assert response.test_details is None
+    assert response.release_test_details is False
+    assert response.test_details == {
+        "work_package": {
+            "full_test_name": "X-ray Diffraction",
+            "test_acronym": "XRD",
+            "test_type": "Characterisation",
+            "endpoint": "Crystal structure",
+            "endpoint_outcome": "Phase identification",
+            "sop": "SOP-XRD-01",
+        },
+        "material": {"erm_id": "ERM-XRD"},
+    }
+    assert "partner" not in response.test_details["work_package"]
+    assert "material_name" not in response.test_details["material"]
+    assert "instrumentation" not in response.test_details
     assert response.raw_data == {"released": "raw"}
     assert response.processed_data is None
     assert response.final_results == {"released": "results"}

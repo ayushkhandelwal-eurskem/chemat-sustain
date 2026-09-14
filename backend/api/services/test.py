@@ -21,6 +21,35 @@ RELEASE_FIELDS = (
     "release_statistical_analysis",
 )
 
+PUBLIC_HEADER_WORK_PACKAGE_FIELDS = (
+    "full_test_name",
+    "test_acronym",
+    "test_type",
+    "endpoint",
+    "endpoint_outcome",
+    "sop",
+)
+
+
+def public_test_header_metadata(details: object) -> dict[str, dict[str, object | None]]:
+    """Return only the identification fields displayed in every public report header."""
+    work_package: dict = {}
+    material: dict = {}
+    if isinstance(details, dict):
+        stored_work_package = details.get("work_package")
+        stored_material = details.get("material")
+        if isinstance(stored_work_package, dict):
+            work_package = stored_work_package
+        if isinstance(stored_material, dict):
+            material = stored_material
+
+    return {
+        "work_package": {
+            field: work_package.get(field) for field in PUBLIC_HEADER_WORK_PACKAGE_FIELDS
+        },
+        "material": {"erm_id": material.get("erm_id")},
+    }
+
 
 def enforce_private_release_flags(values: dict) -> dict:
     """A private test must not retain release grants that could activate later."""
@@ -75,7 +104,11 @@ def mask_test_for_public(test: Test) -> TestResponse:
         work_package_name=test.work_package_name,
         element_cms_id=test.element_cms_id,
         test_name=test.test_name,
-        test_details=test.test_details if test.release_test_details else None,
+        test_details=(
+            test.test_details
+            if test.release_test_details
+            else public_test_header_metadata(test.test_details)
+        ),
         raw_data=test.raw_data if test.release_raw_data else None,
         processed_data=test.processed_data if test.release_processed_data else None,
         final_results=test.final_results if test.release_final_results else None,

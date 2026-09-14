@@ -16,10 +16,14 @@ row is public, these five controls operate independently:
 | `release_statistical_analysis` | `statistical_analysis` |
 
 For a public viewer, a control set to `true` exposes only its matching section.
-A control set to `false` returns its matching section as `null`, regardless of
-the other four controls. Empty or `null` content does not change the control's
-state: a released empty section remains an available section with an empty-state
-message.
+A control set to `false` withholds its matching section, regardless of the other
+four controls. The sole metadata exception is a fixed report-header projection
+inside `test_details`: full test name, acronym, type, endpoint, endpoint outcome,
+SOP, and ERM identifier remain available so public reports can be identified.
+The `release_test_details` flag still exclusively controls the Test Conditions
+tab and all other test-detail fields. Empty or `null` content does not change a
+control's state: a released empty section remains an available section with an
+empty-state message.
 
 Team users and administrators have authorized private access and continue to see
 the complete stored test record. API Explorer `/v1` reads are separately governed

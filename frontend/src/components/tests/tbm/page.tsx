@@ -227,6 +227,7 @@ interface TBData {
   processed_data: TBProcessedDataBlock[] | null;
   final_results: TBFinalResults | null;
   statistical_analysis: TBStatisticalAnalysis | null;
+  release_test_details?: boolean;
 }
 
 /* ============================ Helpers ============================ */
@@ -379,7 +380,7 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
 
   const availableTabs = useMemo(
     () => TABS.filter((tab) => {
-      if (tab.key === "test-conditions") return data?.test_details != null;
+      if (tab.key === "test-conditions") return data?.release_test_details !== false && data?.test_details != null;
       if (tab.key === "raw-data") return data?.raw_data != null;
       if (tab.key === "processed-data") return data?.processed_data != null;
       if (tab.key === "statistical-analysis") return data?.statistical_analysis != null;
@@ -565,7 +566,7 @@ const TBMDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           </ul>
         </div>
 
-        {activeTab === "test-conditions" && details && (
+        {activeTab === "test-conditions" && data.release_test_details !== false && details && (
           <>
             <div className="bg-white rounded-lg shadow-md p-6 mb-8">
               <div className="flex justify-between items-center mb-4">

@@ -1,5 +1,5 @@
 import logging
-import os
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -15,13 +15,9 @@ configure_logging()
 
 from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from utils.db import Base, engine
 from security.config import get_settings
-
-# Register all mapped classes before optional development-only create_all.
-import api.models  # noqa: F401
-from api.models.test import Test  # noqa: F401
-from api.models_tree import Category, Protocol, ProtocolTest  # noqa: F401
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -76,6 +72,19 @@ app.add_middleware(
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
+    # Cookie-authenticated unsafe requests must originate from an explicitly
+    # allowed browser origin. SameSite=Lax remains defence in depth, but is not
+    # sufficient against same-site sibling domains. Machine APIs use HTTP Basic
+    # and carry no session cookie, so they are intentionally unaffected.
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and request.cookies.get("session_id"):
+        origin = request.headers.get("Origin")
+        if not origin:
+            return JSONResponse(status_code=403, content={"detail": "Origin header required"})
+        parsed = urlsplit(origin)
+        normalized_origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+        if normalized_origin not in settings.cors_origins:
+            return JSONResponse(status_code=403, content={"detail": "Cross-origin request denied"})
+
     request_id = request.headers.get("X-Request-ID") or str(uuid4())
     request.state.request_id = request_id
     response = await call_next(request)

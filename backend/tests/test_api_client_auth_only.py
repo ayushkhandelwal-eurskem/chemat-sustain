@@ -16,7 +16,6 @@ async def test_local_api_client_credentials_resolve_principal():
         roles=frozenset({"service_account"}),
         scopes=frozenset({"tests:read"}),
         client_id="cms_test",
-        token_id=None,
     )
     with patch(
         "security.api_key.authenticate_api_client",

@@ -13,7 +13,6 @@ import {
   Cell,
   ComposedChart,
   ErrorBar,
-  Scatter,
 } from "recharts";
 
 /* ============================ Types ============================ */
@@ -1091,8 +1090,6 @@ const TBDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <div className="space-y-8">
                 {finalMeanChartChunks.length > 0 ? (
                   finalMeanChartChunks.map((chartChunk, chartIndex) => {
-                    const chartConditions = chartChunk.map((item) => item.condition);
-
                     return (
                       <div key={chartIndex}>
                         <p className="text-sm font-medium text-gray-700 mb-3">

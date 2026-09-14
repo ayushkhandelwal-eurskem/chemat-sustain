@@ -1,6 +1,7 @@
 .ssh
 certs/
 .env
+.DS_Store
 
 # Local-only documentation and operational runbooks.
 /docs/

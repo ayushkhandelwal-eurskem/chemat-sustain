@@ -15,7 +15,6 @@ async def test_portal_me_preserves_local_api_client_verification_contract():
         roles=frozenset({"service_account"}),
         scopes=frozenset({"tests:read"}),
         client_id="cms_test",
-        token_id=None,
     )
     response = await me(principal)
     assert response["client_id"] == "cms_test"

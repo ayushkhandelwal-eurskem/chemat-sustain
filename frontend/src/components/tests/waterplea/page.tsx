@@ -12,15 +12,12 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  Cell,
 } from "recharts";
 import {
   Download,
   CheckCircle,
   XCircle,
   AlertTriangle,
-  ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 
 const COLORS = [
@@ -212,26 +209,6 @@ const AcceptanceBadge: FC<{ status?: string }> = ({ status }) => {
       {passed ? <CheckCircle size={16} /> : <XCircle size={16} />}
       {status}
     </span>
-  );
-};
-
-const CollapsibleSection: FC<{
-  title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}> = ({ title, defaultOpen = true, children }) => {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="bg-white rounded-lg shadow-md mb-8">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex justify-between items-center p-6 text-left"
-      >
-        <h2 className="text-xl font-bold text-blue-800">{title}</h2>
-        {open ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-      </button>
-      {open && <div className="px-6 pb-6">{children}</div>}
-    </div>
   );
 };
 

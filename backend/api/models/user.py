@@ -1,5 +1,4 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum
-from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from utils.db import Base
 from api.schemas.user import Role

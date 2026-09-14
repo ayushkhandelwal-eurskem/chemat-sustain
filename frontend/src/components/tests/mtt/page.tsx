@@ -2,7 +2,6 @@
 import { api } from "@/lib/axios";
 import { FC, useEffect, useState } from "react";
 import { Download } from "lucide-react";
-import dynamic from 'next/dynamic'
 import {
   ScatterChart,
   Scatter,
@@ -15,30 +14,13 @@ import {
   BarChart,
   Bar,
   Cell,
-  Line,
-  ComposedChart,
-  Legend,
-  Area
 } from "recharts";
-import { log } from "console";
 
-
-const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
 interface PageProps {
   work_package: string;
   element: string;
   test: string;
-}
-
-interface Replication {
-  replication: {
-    test_identifier_number: string;
-    test_start_date: string;
-    test_end_date: string;
-    no_of_replicate: string;
-  };
-  raw_data: RawData[];
 }
 
 interface RawData {
@@ -129,19 +111,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     }
     return null; // Return null if no match found
   }
-
-  const generateRegressionLine = (intercept: number, slope: number, xMin: number, xMax: number, numPoints = 100) => {
-    const points = [];
-    const step = (xMax - xMin) / (numPoints - 1);
-
-    for (let i = 0; i < numPoints; i++) {
-      const x = xMin + (step * i);
-      const y = intercept + (slope * x);
-      points.push({ logDose: x, mean: y });
-    }
-
-    return points;
-  };
 
 
   if (loading) {
@@ -970,7 +939,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                         key={`chart-${selectedProcessedSheet}`}
                         data={data.processed_data[selectedProcessedSheet].viability_data.concentrations
                           .filter((item: string) => item !== "NC'")
-                          .map((item: string, index: number) => {
+                          .map((item: string) => {
                             const num = parseFloat(item);
                             const label = isNaN(num) ? item : num;
                             const viability = data.processed_data[selectedProcessedSheet].viability_data.percentage_values[item];
@@ -1276,82 +1245,6 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                   </BarChart>
                 </ResponsiveContainer>
               )}
-              {/* {(typeof window !== 'undefined') &&
-                <Chart
-                  options={{
-                    chart: {
-                      id: "bar",
-                      type: "bar",
-                    },
-                    title: {
-                      text: element,
-                      align: "center",
-                    },
-                    plotOptions: {
-                      bar: {
-                        columnWidth: "40%",
-                        horizontal: false,
-                      },
-                    },
-                    dataLabels: {
-                      enabled: false,
-                    },
-                    legend: {
-                      show: false // Hide legend since we're using custom colors
-                    },
-                    stroke: {
-                      show: true,
-                      width: 2,
-                      colors: ['transparent']
-                    },
-                    colors: ["#2E8DEF", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9", "#A9A9A9"],
-                    yaxis: {
-                      title: {
-                        text: "% of viability vs. NC"
-                      }
-                    },
-                    xaxis: {
-                      title: {
-                        text: "NPs concentration [μg/mL]"
-                      },
-                      labels: {
-                        formatter: function (value) {
-                          // Return the value exactly as is (preventing any rounding)
-                          return value;
-                        },
-                        // Prevent truncation of decimal values
-                        trim: false,
-                        // Ensure enough space for decimal values
-                        style: {
-                          fontSize: '12px'
-                        }
-                      },
-                      categories: data.final_results.percent_viability_vs_nc.concentrations
-                        .filter((item: string) => item !== "NC'")
-                        .map((item: string) => {
-                          // If item is a number, parse and format it
-                          const num = parseFloat(item);
-
-                          return isNaN(num) ? item : num;
-                        }),
-                    },
-                  }}
-                  series={[
-                    {
-                      name: "Viability",
-                      data: data.final_results.percent_viability_vs_nc.mean
-                        .map((mean: number) =>
-                          typeof mean === 'number' ? mean.toFixed(1) : mean
-                        ),
-                    },
-                  ]}
-                  type="bar"
-                  height={365}
-                />
-              } */}
-
-
-
               {/* Third Table: Reverse concentrations */}
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse border border-gray-300">
@@ -1476,7 +1369,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
                       }}
                     />
                     <Tooltip
-                      formatter={(value, name) => [`${typeof value === 'number' ? value.toFixed(2) : value}%`, 'Viability']}
+                      formatter={(value) => [`${typeof value === 'number' ? value.toFixed(2) : value}%`, 'Viability']}
                       labelFormatter={(label) => `Point: ${label}`}
                     />
                     <Scatter

@@ -8,10 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy import exists, false, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-
 from api.models.test import Test
-from api.models_tree import Category, Protocol
+from api.models_tree import Protocol
 from api.models.user_access import UserProtocolAccess, UserTestAccess
 from security.audit import append_audit_event
 from security.auth import Principal, get_principal, require_scopes

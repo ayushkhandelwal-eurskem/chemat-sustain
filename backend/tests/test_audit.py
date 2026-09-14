@@ -64,7 +64,6 @@ async def test_append_audit_event_constructs_event():
         roles=frozenset({"service_account"}),
         scopes=frozenset({"tests:read"}),
         client_id="cms_test",
-        token_id=None,
     )
     session = _FakeSession()
     event = await append_audit_event(
@@ -86,7 +85,6 @@ async def test_append_audit_event_can_use_resource_owner_organisation():
         roles=frozenset({"service_account"}),
         scopes=frozenset({"experimental-data:read"}),
         client_id="cms_platform",
-        token_id=None,
         user_id=22,
         is_platform_tester=True,
         audit_organisation_id="eurskem-org",

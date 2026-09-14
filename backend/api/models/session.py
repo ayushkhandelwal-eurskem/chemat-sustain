@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from utils.db import Base
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 class Session(Base):
     __tablename__ = "sessions"

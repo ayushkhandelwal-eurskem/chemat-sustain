@@ -13,6 +13,48 @@ from ..schemas.test import (
 )
 
 
+RELEASE_FIELDS = (
+    "release_test_details",
+    "release_raw_data",
+    "release_processed_data",
+    "release_final_results",
+    "release_statistical_analysis",
+)
+
+
+def enforce_private_release_flags(values: dict) -> dict:
+    """A private test must not retain release grants that could activate later."""
+    if not values.get("is_public", False):
+        if any(values.get(field) is True for field in RELEASE_FIELDS):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Data sections cannot be released while the test is private",
+            )
+        values.update({field: False for field in RELEASE_FIELDS})
+    return values
+
+
+def catalog_material_metadata(details: object, *, released: bool) -> dict[str, object | None]:
+    """Return catalog metadata only when the test-details section is released."""
+    metadata = {
+        "material_name": None,
+        "cms_id": None,
+        "erm_id": None,
+        "cas_no": None,
+    }
+    if not released or not isinstance(details, dict):
+        return metadata
+    material = details.get("material")
+    if not isinstance(material, dict):
+        return metadata
+    return {
+        "material_name": material.get("material_name"),
+        "cms_id": material.get("material_identifier"),
+        "erm_id": material.get("erm_id"),
+        "cas_no": material.get("cas_no"),
+    }
+
+
 def mask_test_for_public(test: Test) -> TestResponse:
     """Strip everything an anonymous/public caller is not entitled to see.
 
@@ -41,11 +83,11 @@ def mask_test_for_public(test: Test) -> TestResponse:
             test.statistical_analysis if test.release_statistical_analysis else None
         ),
         is_public=test.is_public,
-        release_test_details=test.release_test_details,
-        release_raw_data=test.release_raw_data,
-        release_processed_data=test.release_processed_data,
-        release_final_results=test.release_final_results,
-        release_statistical_analysis=test.release_statistical_analysis,
+        release_test_details=bool(test.release_test_details),
+        release_raw_data=bool(test.release_raw_data),
+        release_processed_data=bool(test.release_processed_data),
+        release_final_results=bool(test.release_final_results),
+        release_statistical_analysis=bool(test.release_statistical_analysis),
         test_result=test.test_result,
         file_path=None,
         created_at=test.created_at,
@@ -78,7 +120,8 @@ class TestService:
                 ),
             )
 
-        db_test = Test(**test_data.dict())
+        values = enforce_private_release_flags(test_data.model_dump())
+        db_test = Test(**values)
         self.db.add(db_test)
         await self.db.commit()
         await self.db.refresh(db_test)
@@ -180,7 +223,16 @@ class TestService:
             test_id, is_private_user=is_private_user
         )
 
-        update_data = test_data.dict(exclude_unset=True)
+        update_data = test_data.model_dump(exclude_unset=True)
+
+        effective_is_public = update_data.get("is_public", test.is_public)
+        if not effective_is_public:
+            if any(update_data.get(field) is True for field in RELEASE_FIELDS):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Data sections cannot be released while the test is private",
+                )
+            update_data.update({field: False for field in RELEASE_FIELDS})
 
         # Check if combination is being updated and if it conflicts.
         combination_fields = {"test_name", "work_package_name", "element_cms_id"}
@@ -260,6 +312,7 @@ class TestService:
             Test.element_cms_id,
             Test.test_name,
             Test.test_details,   # small JSON; heavy columns excluded
+            Test.release_test_details,
         )
  
         if not is_private_user:
@@ -268,26 +321,16 @@ class TestService:
         result = await self.db.execute(stmt)
  
         out = []
-        for wp, el, tn, details in result.all():
-            material_name = None
-            cms_id = None
-            erm_id = None
-            cas_no = None
-            if isinstance(details, dict):
-                material = details.get("material")
-                if isinstance(material, dict):
-                    material_name = material.get("material_name")
-                    cms_id = material.get("material_identifier")
-                    erm_id = material.get("erm_id")
-                    cas_no = material.get("cas_no")
+        for wp, el, tn, details, release_test_details in result.all():
+            material = catalog_material_metadata(
+                details,
+                released=is_private_user or bool(release_test_details),
+            )
             out.append({
                 "work_package_name": wp,
                 "element_cms_id": el,
                 "test_name": tn,
-                "material_name": material_name,
-                "cms_id": cms_id,
-                "erm_id": erm_id,
-                "cas_no": cas_no,
+                **material,
             })
         return out
     
@@ -310,8 +353,16 @@ class TestService:
             )
 
         for test in tests:
+            if not test.is_public and any(release_flags.values()):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"Test {test.id} is private; publish it with an explicit "
+                        "section selection before releasing data"
+                    ),
+                )
             for field, value in release_flags.items():
-                if hasattr(test, field):
+                if field in RELEASE_FIELDS:
                     setattr(test, field, value)
 
         await self.db.commit()

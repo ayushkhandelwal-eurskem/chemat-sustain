@@ -11,7 +11,7 @@ below to wherever your project defines it (commonly app.database or app.db).
 """
 from __future__ import annotations
 
-from sqlalchemy import Integer, Text, String, ForeignKey, TIMESTAMP, UniqueConstraint, func
+from sqlalchemy import Integer, Text, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from utils.db import Base

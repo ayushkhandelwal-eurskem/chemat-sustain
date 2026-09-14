@@ -87,7 +87,6 @@ def _principal(organisation_id: str) -> Principal:
         roles=frozenset({"service_account"}),
         scopes=frozenset({"files:navigate"}),
         client_id="cms_test",
-        token_id=None,
     )
 
 

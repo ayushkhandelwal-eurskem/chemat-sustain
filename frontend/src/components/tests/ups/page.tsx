@@ -10,9 +10,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
 } from "recharts";
 
 /* ============================ Types ============================ */
@@ -164,15 +161,6 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "results", label: "Final Results" },
 ];
 
-const COLORS = [
-  "#2563eb",
-  "#16a34a",
-  "#ea580c",
-  "#9333ea",
-  "#dc2626",
-  "#0891b2",
-];
-
 const fmt = (v: any, digits = 2) => {
   if (v === null || v === undefined || v === "") return "N/A";
   if (typeof v === "number") return v.toFixed(digits);
@@ -304,19 +292,6 @@ const UPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     () => downsampleSpectrumPoints(currentRawBlock?.spectrum_points),
     [currentRawBlock]
   );
-
-  /** Work function bar chart — parse "3.73 eV" → number */
-  const workFunctionChartData = useMemo(() => {
-    return safeFinalResults
-      .filter((r) => r.work_function != null && r.work_function !== "")
-      .map((r, i) => ({
-        spot: r.spot || `Spot ${i + 1}`,
-        work_function:
-          typeof r.work_function === "number"
-            ? r.work_function
-            : parseFloat(String(r.work_function).replace(/[^\d.-]/g, "")) || 0,
-      }));
-  }, [safeFinalResults]);
 
   /* ============================ Render ============================ */
 

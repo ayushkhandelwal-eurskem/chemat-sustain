@@ -41,18 +41,12 @@ class Principal:
     roles: frozenset[str]
     scopes: frozenset[str]
     client_id: str | None
-    token_id: str | None
     user_id: int | None = None
     all_tests: bool = False
     all_protocols: bool = False
     all_files: bool = False
     is_platform_tester: bool = False
     audit_organisation_id: str | None = None
-
-    @property
-    def is_machine(self) -> bool:
-        return self.client_id is not None and self.email is None
-
 
 async def get_principal(
     basic: HTTPBasicCredentials | None = Depends(basic_auth),
@@ -78,15 +72,6 @@ def require_scopes(*required: str) -> Callable[..., Principal]:
         missing = set(required) - principal.scopes
         if missing:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient scope")
-        return principal
-
-    return dependency
-
-
-def require_roles(*allowed: str) -> Callable[..., Principal]:
-    async def dependency(principal: Principal = Depends(get_principal)) -> Principal:
-        if not principal.roles.intersection(allowed):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient role")
         return principal
 
     return dependency

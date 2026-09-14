@@ -2,7 +2,7 @@
 
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import JSON, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from utils.db import Base

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 from utils.db import get_db
 from api.models.user import User
-from api.schemas.user import UserOut, Role
+from api.schemas.user import Role
 import os
 from sqlalchemy import select
 import secrets
@@ -32,7 +32,6 @@ def generate_session_id():
 async def create_session(db: AsyncSession, user_id: int, user_agent: str = None, ip_address: str = None):
     """Create a new session for the user"""
     from api.models.session import Session
-    from sqlalchemy import select
     
     # Clean up expired sessions for this user
     await cleanup_expired_sessions(db, user_id)
@@ -74,7 +73,7 @@ async def invalidate_session(db: AsyncSession, session_id: str):
 async def cleanup_expired_sessions(db: AsyncSession, user_id: int = None):
     """Clean up expired sessions"""
     from api.models.session import Session
-    from sqlalchemy import select, delete
+    from sqlalchemy import delete
     
     query = delete(Session).where(Session.expires_at < datetime.utcnow())
     if user_id:
@@ -120,25 +119,5 @@ def get_user_by_role(role: Role):
             )
         return current_user
     return check_role
-
-async def check_if_private_user(request: Request, db: AsyncSession = Depends(get_db), session_id: str = Cookie(None, alias="session_id")):
-    if not session_id:
-        return False
-    session = await get_session_by_id(db, session_id)
-
-    if not session or not session.is_valid():
-        return False
-    
-    # Get user
-    result = await db.execute(select(User).filter(User.id == session.user_id))
-    user = result.scalars().first()
-    if not user or not user.is_active:
-        return False
-    user.last_activity = datetime.now()
-
-    # Self-registered viewers are authenticated, but authentication must never
-    # silently grant private research access. They stay on the public masking
-    # path; only established consortium users and administrators are private.
-    return user.role in (Role.user, Role.admin)
 
 

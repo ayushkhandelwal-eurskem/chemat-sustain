@@ -1,7 +1,6 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -12,12 +11,9 @@ interface BackofficeLayoutProps {
 
 export default function BackofficeLayout({ children }: BackofficeLayoutProps) {
   const { user, loading } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    console.log(loading, user);
-
     if (!loading) {
       if (user && user.role != 'admin') {
         window.location.assign('/');
@@ -25,7 +21,7 @@ export default function BackofficeLayout({ children }: BackofficeLayoutProps) {
         window.location.assign('/login');
       }
     }
-  }, [user, loading, router]);
+  }, [user, loading]);
 
   if (loading || (!user || user.role !== 'admin')) {
     return (

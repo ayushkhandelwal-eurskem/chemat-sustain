@@ -115,7 +115,6 @@ interface AlgaeData {
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
-const degC = (s?: string) => (s ?? "").replace(/oC/g, "°C");
 const dot = (s?: string) => (s ?? "").replace(/,/g, ".");
 const fmt = (v: any, d = 2) => {
   if (v == null || v === "") return "";

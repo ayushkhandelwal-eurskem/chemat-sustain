@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
 from api.models.user import User
-from api.schemas.user import PublicRegistration, Role, UserCreate, UserOut
+from api.schemas.user import PublicRegistration, Role, UserCreate
 from utils.auth import hash_password, verify_password
 from datetime import datetime
 import pyotp

@@ -112,7 +112,7 @@ const UniversalImagesTab: FC<UniversalImagesTabProps> = ({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch {
       // Fallback: direct download
       const link = document.createElement('a');
       link.href = image.url;

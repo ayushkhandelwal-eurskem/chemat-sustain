@@ -41,7 +41,7 @@ jobs:
       - name: Run bandit (fail on medium+ severity/confidence)
         run: |
           bandit -r backend --severity-level medium --confidence-level medium \
-            -x backend/parsers \
+            -x backend/parsers,backend/tests \
             -f json -o bandit-report.json
         continue-on-error: true
 
@@ -51,17 +51,20 @@ jobs:
           name: bandit-report
           path: bandit-report.json
 
-      - name: Enforce no high-severity findings
+      - name: Enforce no medium-or-higher findings
         run: |
           python3 - <<'EOF'
           import json, sys
           with open("bandit-report.json") as f:
               data = json.load(f)
-          high = [r for r in data.get("results", []) if r["issue_severity"] == "HIGH"]
-          for r in high:
-              print(f"HIGH: {r['filename']}:{r['line_number']} {r['test_id']} {r['issue_text']}")
-          if high:
-              print(f"\n{len(high)} high-severity bandit finding(s) - failing build.")
+          findings = [
+              r for r in data.get("results", [])
+              if r["issue_severity"] in {"MEDIUM", "HIGH"}
+          ]
+          for r in findings:
+              print(f"{r['issue_severity']}: {r['filename']}:{r['line_number']} {r['test_id']} {r['issue_text']}")
+          if findings:
+              print(f"\n{len(findings)} medium-or-higher bandit finding(s) - failing build.")
               sys.exit(1)
           EOF
 

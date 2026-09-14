@@ -230,7 +230,7 @@ export const getTestImages = (
   
   const cms = normalizeCmsId(cmsId);
   
-  return config.images.map((img, index) => ({
+  return config.images.map((img) => ({
     id: `${cms}-${testType}-${img.suffix}`,
     url: generateImageUrl(workPackage, cmsId, testType, img.suffix),
     title: img.title,

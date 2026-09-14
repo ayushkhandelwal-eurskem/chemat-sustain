@@ -1,6 +1,5 @@
 "use client";
 import React, { FC, useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { api } from "@/lib/axios";
 import { Download } from "lucide-react";
 import {
@@ -186,7 +185,6 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
           throw new Error("Network response was not ok");
         }
         const result = response.data;
-        console.log("Fetched HR-STEM data:", result);
         setData(result);
       } catch (err) {
         console.error("Error fetching data:", err);

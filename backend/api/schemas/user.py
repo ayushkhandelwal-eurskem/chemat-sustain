@@ -77,10 +77,5 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=12, max_length=72)
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str
-
-
 class MessageResponse(BaseModel):
     msg: str

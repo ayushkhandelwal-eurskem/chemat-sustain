@@ -3,7 +3,6 @@ from utils.custom_router import APIRouter
 import logging
 import math
 import time
-import json
 from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional, Callable, Any, Dict
@@ -21,6 +20,7 @@ from ..schemas.test import (
     TestResponse,
     TestListResponse,
     TestListings,
+    TestReleaseSelection,
 )
 from ..schemas.user import Role
 from ..models.user import User
@@ -495,19 +495,16 @@ async def bulk_update_release_flags(
 @router.patch("/{test_id}/publish", response_model=TestResponse)
 async def publish_test(
     test_id: int,
+    selection: TestReleaseSelection,
     service: TestService = Depends(get_test_service),
     admin: Role = Depends(get_user_by_role(Role.admin)),
 ):
-    """Publish a test (make it public and release all data)."""
+    """Publish a test and expose only the administrator-selected sections."""
     return await service.update_test(
         test_id,
         TestUpdate(
             is_public=True,
-            release_test_details=True,
-            release_raw_data=True,
-            release_processed_data=True,
-            release_final_results=True,
-            release_statistical_analysis=True,
+            **selection.model_dump(),
         ),
         is_private_user=True,
     )

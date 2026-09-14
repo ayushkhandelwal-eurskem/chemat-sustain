@@ -24,6 +24,12 @@ FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
+# Apply the current Debian security patch for PCRE2 even when the upstream
+# Python image digest has not yet incorporated the updated Bookworm package.
+RUN apt-get update \
+    && apt-get install --only-upgrade -y --no-install-recommends libpcre2-8-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 

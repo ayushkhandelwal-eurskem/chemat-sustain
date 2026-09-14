@@ -325,14 +325,6 @@ const XPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     );
   }, [safeFinalResults]);
 
-  const finalResultsSampleIdentifier = useMemo(() => {
-    return safeFinalResults[0]?.sample_identifier ?? "N/A";
-  }, [safeFinalResults]);
-
-  const finalResultsType = useMemo(() => {
-    return safeFinalResults[0]?.result_type ?? "N/A";
-  }, [safeFinalResults]);
-
   if (loading) {
     return (
       <div className="bg-white flex items-center justify-center min-h-screen">

@@ -25,8 +25,8 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (newPassword.length < 12) {
+      setError('Password must be at least 12 characters long');
       return;
     }
 
@@ -40,7 +40,7 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
     setMessage('');
 
     try {
-      const response = await api.post('/users/change-password', {
+      await api.post('/users/change-password', {
         email: user.email,
         new_password: newPassword
       });

@@ -24,7 +24,7 @@ interface DSCProcessedDataBlock { headers: string[]; replicates: DSCProcessedRep
 interface DSCFinalResultEntry { metric_name: string | null; value: number | string | null; std_dev: number | string | null; std_dev_unit: string | null; character: string | null; }
 interface ParserWarning { type?: string; note?: string; }
 interface DSCData {
-  test_details: { work_package: WorkPackageData; material: MaterialData; cell_line: Record<string, never>; dispersion: DispersionData; instrumentation: InstrumentationData; };
+  test_details?: { work_package: WorkPackageData; material: MaterialData; cell_line: Record<string, never>; dispersion: DispersionData; instrumentation: InstrumentationData; } | null;
   replications: ReplicationMetadata[];
   raw_data: DSCRawDataBlock[];
   processed_data: { available: boolean; blocks: DSCProcessedDataBlock[]; };
@@ -142,8 +142,8 @@ const DSCDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   const safeBlocks: DSCProcessedDataBlock[] = useMemo(() => data?.processed_data?.blocks ?? [], [data?.processed_data]);
   const safeFR: DSCFinalResultEntry[] = useMemo(() => Array.isArray(data?.final_results) ? data.final_results : [], [data?.final_results]);
 
-  const allIndices = useMemo(() => safeRaw.map((_, i) => i), [safeRaw.length]);
-  useEffect(() => { if (safeRaw.length) setSelectedRuns(safeRaw.map((_, i) => i)); }, [safeRaw.length]);
+  const allIndices = useMemo(() => safeRaw.map((_, i) => i), [safeRaw]);
+  useEffect(() => { if (safeRaw.length) setSelectedRuns(safeRaw.map((_, i) => i)); }, [safeRaw]);
 
   const toggleRun = useCallback((idx: number) => {
     setSelectedRuns(prev => prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx].sort());
@@ -154,7 +154,12 @@ const DSCDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   if (loading) return <div className="bg-white flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" /></div>;
   if (error || !data) return <div className="flex items-center justify-center min-h-screen"><div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"><p>{error || "No data."}</p></div></div>;
 
-  const td = data.test_details, wp = td.work_package, mat = td.material, disp = td.dispersion, inst = td.instrumentation;
+  const td = data.test_details;
+  const wp = td?.work_package ?? {} as Partial<WorkPackageData>;
+  const mat = td?.material ?? {} as Partial<MaterialData>;
+  const disp = td?.dispersion ?? {} as Partial<DispersionData>;
+  const inst = td?.instrumentation ?? {} as Partial<InstrumentationData>;
+  const sampleMasses = inst.sample_masses ?? [];
   const repMeta = data.replications ?? [], warnings = data.parser_warnings ?? [];
 
   return (
@@ -178,7 +183,7 @@ const DSCDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           <Collapse title="Sample Preparation"><KV id="dispTbl" dl="DSC_SamplePrep" rows={[{ label: "Dispersion Protocol", value: disp.dispersion_protocol }, { label: "Dispersion Technique", value: disp.dispersion_technique }, { label: "Dispersion Medium", value: disp.dispersion_medium }, { label: "Sonicator Type", value: disp.sonicator_type }, { label: "Power (W)", value: disp.power_w }, { label: "Sonication Time (s)", value: disp.sonication_time_s }, { label: "Bath Volume (dm³)", value: disp.bath_volume_dm3 }, { label: "Sample Volume", value: disp.sample_volume }, { label: "Final Concentration", value: disp.final_concentration }, { label: "Additional Info", value: disp.additional_info }]} /></Collapse>
           <Collapse title="Instrumentation">
             <KV id="instTbl" dl="DSC_Instrumentation" rows={[{ label: "Instrument Model", value: inst.instrument_model }, { label: "Crucible Type", value: inst.crucible_type }, { label: "Replication Count", value: inst.replication_count }, { label: "Protective Atmosphere", value: inst.protective_atmosphere }, { label: "Temperature Range", value: inst.temperature_range }, { label: "Heating Speed", value: inst.heating_speed }]} />
-            {inst.sample_masses?.length > 0 && <div className="mt-4"><h4 className="text-md font-semibold mb-2">Sample Masses</h4><table className="min-w-full bg-white border border-gray-200 text-sm"><thead><tr className="bg-gray-100"><th className="py-2 px-4 border text-left">Replicate</th><th className="py-2 px-4 border text-left">Mass</th><th className="py-2 px-4 border text-left">Notes</th></tr></thead><tbody>{inst.sample_masses.map((s, i) => <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}><td className="py-2 px-4 border">{s.label}</td><td className="py-2 px-4 border">{s.value ?? ""}</td><td className="py-2 px-4 border text-sm text-gray-500">{s.notes ?? ""}</td></tr>)}</tbody></table></div>}
+            {sampleMasses.length > 0 && <div className="mt-4"><h4 className="text-md font-semibold mb-2">Sample Masses</h4><table className="min-w-full bg-white border border-gray-200 text-sm"><thead><tr className="bg-gray-100"><th className="py-2 px-4 border text-left">Replicate</th><th className="py-2 px-4 border text-left">Mass</th><th className="py-2 px-4 border text-left">Notes</th></tr></thead><tbody>{sampleMasses.map((s, i) => <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}><td className="py-2 px-4 border">{s.label}</td><td className="py-2 px-4 border">{s.value ?? ""}</td><td className="py-2 px-4 border text-sm text-gray-500">{s.notes ?? ""}</td></tr>)}</tbody></table></div>}
           </Collapse>
           <Collapse title="Replication Metadata"><div className="overflow-x-auto"><table id="repTbl" className="min-w-full bg-white border border-gray-200"><thead><tr className="bg-gray-100"><th className="py-2 px-4 border text-left">Test ID</th><th className="py-2 px-4 border text-left">Start</th><th className="py-2 px-4 border text-left">End</th><th className="py-2 px-4 border text-left">Raw Sheet</th></tr></thead><tbody>{repMeta.length ? repMeta.map((r, i) => <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}><td className="py-2 px-4 border">{r.test_identifier_number}</td><td className="py-2 px-4 border">{r.test_start_date}</td><td className="py-2 px-4 border">{r.test_end_date}</td><td className="py-2 px-4 border">{r.raw_sheet_name}</td></tr>) : <tr><td colSpan={4} className="py-2 px-4 border text-center">None</td></tr>}</tbody></table></div></Collapse>
           <Collapse title="Scientists"><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{[{ t: "Lead Scientists", l: wp.lead_scientists }, { t: "Assay Scientists", l: wp.assay_scientists }].map(s => <div key={s.t}><h3 className="text-lg font-semibold mb-3">{s.t}</h3><table className="min-w-full bg-white border border-gray-200"><thead><tr className="bg-gray-100"><th className="py-2 px-4 border text-left">Name</th><th className="py-2 px-4 border text-left">Email</th></tr></thead><tbody>{s.l?.length ? s.l.map((sc, i) => <tr key={i}><td className="py-2 px-4 border">{sc.name}</td><td className="py-2 px-4 border">{sc.email}</td></tr>) : <tr><td colSpan={2} className="py-2 px-4 border text-center">None</td></tr>}</tbody></table></div>)}</div></Collapse>

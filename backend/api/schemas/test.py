@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from fastapi import Form, File, UploadFile
 from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
@@ -19,11 +19,13 @@ class TestBase(BaseModel):
     final_results: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Final results in JSON format")
     statistical_analysis: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(None, description="Statistical analysis in JSON format")
     is_public: bool = Field(False, description="Whether the test is public")
-    release_test_details: Optional[bool] = Field(None, description="Whether to release test details")
-    release_raw_data: Optional[bool] = Field(None, description="Whether to release raw data")
-    release_processed_data: Optional[bool] = Field(None, description="Whether to release processed data")
-    release_final_results: Optional[bool] = Field(None, description="Whether to release final results")
-    release_statistical_analysis: bool = Field(False, description="Whether to release statistical analysis")
+    # Optional preserves serialization compatibility with legacy rows that may
+    # contain SQL NULL; new create requests still default every grant closed.
+    release_test_details: Optional[bool] = Field(False, description="Whether to release test details")
+    release_raw_data: Optional[bool] = Field(False, description="Whether to release raw data")
+    release_processed_data: Optional[bool] = Field(False, description="Whether to release processed data")
+    release_final_results: Optional[bool] = Field(False, description="Whether to release final results")
+    release_statistical_analysis: Optional[bool] = Field(False, description="Whether to release statistical analysis")
     test_result: Optional[bool] = Field(None, description="Whether the test passed or failed")
 
 class TestCreateForm:
@@ -79,6 +81,18 @@ class TestUpdate(BaseModel):
     release_final_results: Optional[bool] = None
     release_statistical_analysis: Optional[bool] = None
     test_result : Optional[bool] = None
+
+
+class TestReleaseSelection(BaseModel):
+    """Fail-closed selection of sections exposed when a test is published."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    release_test_details: bool = False
+    release_raw_data: bool = False
+    release_processed_data: bool = False
+    release_final_results: bool = False
+    release_statistical_analysis: bool = False
 
 
 class TestResponse(TestBase):

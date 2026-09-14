@@ -10,7 +10,6 @@ export default function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -27,12 +26,6 @@ export default function Header() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Searching for:", searchQuery);
-    // You would typically redirect to a search page or trigger search here
-  };
 
   const handleLogout = async () => {
     try {
@@ -94,37 +87,6 @@ export default function Header() {
           <NavLink href="/prediction">Prediction model (QSAR)</NavLink>
 
           <NavLink href="/help">Help</NavLink>
-          {/* Search Form */}
-          <form onSubmit={handleSearch} className="relative">
-            <input
-              type="text"
-              placeholder="Search..."
-              className="pl-4 pr-10 py-2 border border-blue-900 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-900 hover:text-blue-600"
-              aria-label="Search"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </button>
-          </form>
-
           {/* User Dropdown - Show only if user is logged in */}
           {user && (
             <div className="relative" ref={dropdownRef}>

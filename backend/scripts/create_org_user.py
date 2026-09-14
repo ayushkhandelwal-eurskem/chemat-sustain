@@ -52,12 +52,11 @@ async def create_user(email: str, org_slug: str, role: str) -> None:
         # organisation_id is NOT NULL in the database (migration 002) but is
         # not mapped on the legacy User model, so the ORM insert would omit
         # it. Insert directly with the binding included in one statement.
-        result = await db.execute(
+        await db.execute(
             text(
                 """
                 insert into users (email, password, role, is_active, organisation_id)
                 values (:email, :password, cast(:role as role), true, :org)
-                returning id
                 """
             ),
             {
@@ -67,7 +66,6 @@ async def create_user(email: str, org_slug: str, role: str) -> None:
                 "org": organisation_id,
             },
         )
-        user_id = result.scalar_one()
         await db.commit()
 
     print()

@@ -465,8 +465,14 @@ const RotifierDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   const reps = td.replications ?? [];
   const warnings = td.parser_warnings ?? [];
 
-  const proc = data?.processed_data ?? { available: false };
-  const fr = data?.final_results ?? { available: false };
+  const proc = useMemo(
+    () => data?.processed_data ?? { available: false },
+    [data?.processed_data],
+  );
+  const fr = useMemo(
+    () => data?.final_results ?? { available: false },
+    [data?.final_results],
+  );
   const concUnit = app.concentration_unit ?? "mg·l⁻¹";
 
   /* -------------- Chart builders -------------- */

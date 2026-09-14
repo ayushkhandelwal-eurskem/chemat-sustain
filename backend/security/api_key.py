@@ -91,12 +91,11 @@ async def authenticate_api_client(
 
     return Principal(
         subject=f"api-client:{record.client_id}",
-        email=None,                      # machine credential - is_machine is True
+        email=None,
         organisation_id=record.organisation_id or "",
         roles=frozenset({"service_account"}),
         scopes=frozenset(record.scopes or []),
         client_id=record.client_id,
-        token_id=None,
         user_id=user.id,
         all_tests=bool(profile and profile.all_tests),
         all_protocols=bool(profile and profile.all_protocols),

@@ -18,7 +18,6 @@ def _principal(all_tests: bool) -> Principal:
         roles=frozenset({"service_account"}),
         scopes=frozenset({"tests:read"}),
         client_id="cms_partner",
-        token_id=None,
         user_id=30,
         all_tests=all_tests,
     )

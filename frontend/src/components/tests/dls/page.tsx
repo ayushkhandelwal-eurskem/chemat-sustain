@@ -1,6 +1,5 @@
 "use client";
 import React, { FC, useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { api } from "@/lib/axios";
 import { Download } from "lucide-react";
 import {
@@ -152,45 +151,13 @@ interface DLSData {
   };
 }
 
-type Point = { x: number; y: number };
-
-const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
-
-function mapRunToPoints(run: DLSData["raw_data"][0]): {
-  correlationPoints: Point[];
-  sizeDistributionPoints: Point[];
-} {
-  const corr = run?.correlation_data ?? { time_us: [], correlation_coefficient: [] };
-  const correlationPoints: Point[] =
-    Array.isArray(corr.time_us) && Array.isArray(corr.correlation_coefficient)
-      ? corr.time_us.map((t, i) => ({
-        x: t,
-        y: corr.correlation_coefficient[i] ?? 0,
-      }))
-      : [];
-
-  const sd = run?.processed_data?.size_distribution ?? { size_nm: [], mean_intensity_percent: [] };
-  const sizeDistributionPoints: Point[] =
-    Array.isArray(sd.size_nm) && Array.isArray(sd.mean_intensity_percent)
-      ? sd.size_nm.map((s, i) => ({
-        x: s,
-        y: sd.mean_intensity_percent[i] ?? 0,
-      }))
-      : [];
-
-  return { correlationPoints, sizeDistributionPoints };
-}
-
 const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => {
   const [data, setData] = useState<DLSData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("test-conditions");
   const [selectedRun, setSelectedRun] = useState(0);
-  const [correlationPoints, setCorrelationPoints] = useState<Point[]>([]);
-  const [sizeDistributionPoints, setSizeDistributionPoints] = useState<Point[]>([]);
-
-  // Fetch data and initialize plots
+  // Fetch data.
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -204,20 +171,7 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
           throw new Error("Network response was not ok");
         }
         const result = response.data;
-        console.log("Fetched DLS data:", result);
         setData(result);
-
-        if (result?.raw_data?.length > 0) {
-          const { correlationPoints, sizeDistributionPoints } = mapRunToPoints(
-            result.raw_data[0]
-          );
-          setCorrelationPoints(correlationPoints);
-          setSizeDistributionPoints(sizeDistributionPoints);
-        } else {
-          console.warn("No raw data available, setting empty points");
-          setCorrelationPoints([]);
-          setSizeDistributionPoints([]);
-        }
       } catch (err) {
         console.error("Error fetching data:", err);
         setError("Failed to load DLS data. Please try again later.");
@@ -229,18 +183,6 @@ const DLSDataViewer: FC<PageProps> = ({ work_package, element, test, file }) => 
   }, [work_package, element, test, file]);
 
   // Update plots when selected run changes
-  useEffect(() => {
-    if (!data?.raw_data?.length) {
-      setCorrelationPoints([]);
-      setSizeDistributionPoints([]);
-      return;
-    }
-    const run = data.raw_data[selectedRun] || data.raw_data[0];
-    const { correlationPoints, sizeDistributionPoints } = mapRunToPoints(run);
-    setCorrelationPoints(correlationPoints);
-    setSizeDistributionPoints(sizeDistributionPoints);
-  }, [selectedRun, data]);
-
   const downloadTable = (tableId: string, filename: string) => {
     const table = document.getElementById(tableId);
     if (!table) return;

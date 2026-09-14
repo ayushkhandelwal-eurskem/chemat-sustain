@@ -182,7 +182,6 @@ const ZetaDataViewer: FC<PageProps> = ({ work_package, element, test, file }) =>
           throw new Error("Network response was not ok");
         }
         const result = response.data;
-        console.log("Fetched Zeta data:", result);
         setData(result);
       } catch (err) {
         console.error("Error fetching data:", err);

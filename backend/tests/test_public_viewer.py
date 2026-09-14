@@ -8,8 +8,14 @@ from api.controllers.test import has_private_test_access, router as test_router
 from api.models.public_access import PublicDataAccessEvent
 from api.models.test import Test
 from api.models.user import User
+from api.schemas.test import TestReleaseSelection
 from api.schemas.user import PublicRegistration, Role
 from api.services.public_access import record_test_access, released_sections
+from api.services.test import (
+    RELEASE_FIELDS,
+    catalog_material_metadata,
+    mask_test_for_public,
+)
 from api.services.user import authenticate_user, register_public_viewer
 from scripts.public_access_retention import PREFIX, SUFFIX, prune_archive
 from utils.auth import hash_password
@@ -83,6 +89,79 @@ def test_released_sections_respect_public_flags():
     )
     assert released_sections(test, private_access=False) == ["test_details", "final_results"]
     assert released_sections(test, private_access=True) == ["test_details", "raw_data", "final_results"]
+
+
+@pytest.mark.parametrize(
+    "release_field,data_field",
+    [
+        ("release_test_details", "test_details"),
+        ("release_raw_data", "raw_data"),
+        ("release_processed_data", "processed_data"),
+        ("release_final_results", "final_results"),
+        ("release_statistical_analysis", "statistical_analysis"),
+    ],
+)
+def test_each_public_release_flag_exposes_only_its_matching_section(
+    release_field: str, data_field: str
+):
+    now = datetime.now(timezone.utc)
+    values = {
+        "id": 9,
+        "work_package_name": "WP3",
+        "element_cms_id": "CMS-1",
+        "test_name": "MTT",
+        "is_public": True,
+        "test_details": {"section": "test_details"},
+        "raw_data": {"section": "raw_data"},
+        "processed_data": {"section": "processed_data"},
+        "final_results": {"section": "final_results"},
+        "statistical_analysis": {"section": "statistical_analysis"},
+        "created_at": now,
+        "updated_at": now,
+        **{field: field == release_field for field in RELEASE_FIELDS},
+    }
+
+    response = mask_test_for_public(Test(**values))
+
+    for field in (
+        "test_details",
+        "raw_data",
+        "processed_data",
+        "final_results",
+        "statistical_analysis",
+    ):
+        expected = {"section": field} if field == data_field else None
+        assert getattr(response, field) == expected
+
+
+def test_release_selection_defaults_closed_and_rejects_unknown_fields():
+    assert not any(TestReleaseSelection().model_dump().values())
+    with pytest.raises(ValidationError):
+        TestReleaseSelection.model_validate({"release_uncontrolled_data": True})
+
+
+def test_catalog_withholds_material_metadata_with_test_details():
+    details = {
+        "material": {
+            "material_name": "Sensitive material",
+            "material_identifier": "CMS-secret",
+            "erm_id": "ERM-secret",
+            "cas_no": "CAS-secret",
+        }
+    }
+
+    assert catalog_material_metadata(details, released=False) == {
+        "material_name": None,
+        "cms_id": None,
+        "erm_id": None,
+        "cas_no": None,
+    }
+    assert catalog_material_metadata(details, released=True) == {
+        "material_name": "Sensitive material",
+        "cms_id": "CMS-secret",
+        "erm_id": "ERM-secret",
+        "cas_no": "CAS-secret",
+    }
 
 
 async def test_record_access_snapshots_user_and_test_metadata():

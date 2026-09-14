@@ -78,22 +78,12 @@ export default function TestsPage() {
     fetchTests(currentPage);
   }, [currentPage, fetchTests]);
 
-  const resetToFirstPage = () => {
-    if (currentPage !== 1) {
-      setCurrentPage(1); // triggers refetch via effect
-    } else {
-      fetchTests(1);     // already on page 1, force refetch
-    }
-  };
-
   const handleFilterChange = (
     setter: (v: string) => void,
     value: string
   ) => {
     setter(value);
-    // currentPage update happens after state settles. We could call
-    // resetToFirstPage() but the useEffect dependency on filterX values
-    // already triggers a refetch; we just need to ensure we're on page 1.
+    // The filter dependency triggers a refetch; ensure it starts on page 1.
     if (currentPage !== 1) setCurrentPage(1);
   };
 

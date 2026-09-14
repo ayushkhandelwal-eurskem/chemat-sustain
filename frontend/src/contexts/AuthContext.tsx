@@ -23,8 +23,6 @@ interface AuthContextType {
   login: (email?: string, password?: string) => Promise<{ success: boolean; message: string }>;
   verifyOTP: (email: string, otpCode: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
-  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,7 +33,7 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider = ({ children }: { children: React.ReactNode; skipInitialCheck?: boolean }) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -78,7 +76,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode; skipInit
   useEffect(() => { void checkAuth(); }, [checkAuth]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyOTP, logout, checkAuth, refreshAuth: checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyOTP, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/axios';
 import {
   ReleaseKey,
+  releaseOptions,
   testTypes,
   workPackages,
   elements,
@@ -59,11 +60,11 @@ export default function UpdateTestModal({
       setTestName(test.test_name);
       setIsPublic(test.is_public);
       setRelease({
-        release_test_details: test.release_test_details,
-        release_raw_data: test.release_raw_data,
-        release_processed_data: test.release_processed_data,
-        release_final_results: test.release_final_results,
-        release_statistical_analysis: test.release_statistical_analysis,
+        release_test_details: test.is_public && test.release_test_details,
+        release_raw_data: test.is_public && test.release_raw_data,
+        release_processed_data: test.is_public && test.release_processed_data,
+        release_final_results: test.is_public && test.release_final_results,
+        release_statistical_analysis: test.is_public && test.release_statistical_analysis,
       });
       setTestResult(String(test.test_result));
     }
@@ -74,6 +75,15 @@ export default function UpdateTestModal({
       ...prev,
       [key]: !prev[key],
     }));
+  };
+
+  const handlePublicChange = (checked: boolean) => {
+    setIsPublic(checked);
+    if (!checked) {
+      setRelease((current) => Object.fromEntries(
+        Object.keys(current).map((key) => [key, false])
+      ) as typeof current);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -199,7 +209,7 @@ export default function UpdateTestModal({
                 id="isPublic"
                 type="checkbox"
                 checked={isPublic}
-                onChange={(e) => setIsPublic(e.target.checked)}
+                onChange={(e) => handlePublicChange(e.target.checked)}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="isPublic" className="ml-2 block text-sm text-gray-900">
@@ -207,12 +217,15 @@ export default function UpdateTestModal({
               </label>
             </div>
 
-            <div className="mt-4">
-              {Object.keys(release).map((key) => {
-                const releaseKey = key as ReleaseKey;
+            <fieldset className="mt-4" disabled={!isPublic}>
+              <legend className="text-sm font-semibold text-gray-900">Public sections</legend>
+              <p className="mb-3 text-xs text-gray-500">
+                Only selected sections are shared. Making this test private revokes every section.
+              </p>
+              {releaseOptions.map(({ key: releaseKey, label }) => {
                 return (
-                  <div key={key} className="mb-4">
-                    <label className="inline-flex items-center cursor-pointer">
+                  <div key={releaseKey} className="mb-4">
+                    <label className={`inline-flex items-center ${isPublic ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
                       <input
                         type="checkbox"
                         checked={release[releaseKey]}
@@ -220,12 +233,12 @@ export default function UpdateTestModal({
                         className="sr-only peer"
                       />
                       <div className="relative w-11 h-6 bg-gray-100 rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600 dark:peer-checked:bg-blue-600"></div>
-                      <span className="ms-3 text-sm font-medium">{key}</span>
+                      <span className="ms-3 text-sm font-medium">{label}</span>
                     </label>
                   </div>
                 );
               })}
-            </div>
+            </fieldset>
           </div>
 
           {error && (

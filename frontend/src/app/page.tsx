@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowUpDown, FileText, Download, Eye, Package, FlaskConical, ClipboardList } from 'lucide-react';
+import { Search, FileText, Download, Eye, Package, FlaskConical, ClipboardList } from 'lucide-react';
 import { api } from '@/lib/axios';
 import Link from 'next/link';
 
@@ -83,12 +83,7 @@ const apiService = {
   },
   fetchTestData(workPackage: string, element: string, test: string) {
     if (!workPackage || !element || !test) return [];
-    try {
-      return [{ name: element + '_' + test, type: 'xlsx' }];
-    } catch (error) {
-      console.error('Error fetching test data:', error);
-      return [];
-    }
+    return [{ name: element + '_' + test, type: 'xlsx' }];
   },
 };
 
@@ -145,6 +140,8 @@ const ProtocolFilters: React.FC = () => {
   const [filtersActive, setFiltersActive] = useState(0);
   const [testData, setTestData] = useState<TestDataItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const selectedWorkPackage = selectedFilters['Work package'];
+  const selectedElement = selectedFilters['Element'];
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -156,8 +153,8 @@ const ProtocolFilters: React.FC = () => {
 
   useEffect(() => {
     const fetchElementsData = async () => {
-      if (selectedFilters['Work package']) {
-        const elementData = await apiService.fetchElements(selectedFilters['Work package']!);
+      if (selectedWorkPackage) {
+        const elementData = await apiService.fetchElements(selectedWorkPackage);
         const sorted = elementData.sort((a: string, b: string) => {
           const i = Number(a.split('_')[1].slice(0, -1));
           const j = Number(b.split('_')[1].slice(0, -1));
@@ -171,14 +168,14 @@ const ProtocolFilters: React.FC = () => {
       }
     };
     fetchElementsData();
-  }, [selectedFilters['Work package']]);
+  }, [selectedWorkPackage]);
 
   useEffect(() => {
     const fetchTestsData = async () => {
-      if (selectedFilters['Work package'] && selectedFilters['Element']) {
+      if (selectedWorkPackage && selectedElement) {
         const td = await apiService.fetchTests(
-          selectedFilters['Work package']!,
-          selectedFilters['Element']!
+          selectedWorkPackage,
+          selectedElement
         );
         setTests(td);
       } else {
@@ -188,7 +185,7 @@ const ProtocolFilters: React.FC = () => {
       }
     };
     fetchTestsData();
-  }, [selectedFilters['Element'], selectedFilters['Work package']]);
+  }, [selectedElement, selectedWorkPackage]);
 
   useEffect(() => {
     const activeCount = Object.values(selectedFilters).filter((val) => val !== null).length;

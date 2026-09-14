@@ -1,5 +1,5 @@
 # Use the official Node.js Alpine image
-FROM node:23-alpine
+FROM node:24-alpine
 
 # Set the working directory
 WORKDIR /app
@@ -8,13 +8,16 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci
 
 # Copy the rest of the project files
 COPY . .
 
 # Build the Next.js application
 RUN npm run build
+
+RUN chown -R node:node /app
+USER node
 
 # Expose the port Next.js runs on
 EXPOSE 3000

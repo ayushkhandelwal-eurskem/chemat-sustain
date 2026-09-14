@@ -47,13 +47,6 @@ export default function UpdateUserModal({ isOpen, onClose, onUserUpdated, user }
     setError(null);
 
     try {
-      // Update user basic info (we'll need to add this endpoint to backend)
-      const updateData = {
-        email: formData.email,
-        role: formData.role,
-        is_active: formData.is_active,
-      };
-
       // For now, we'll use the change password endpoint if password is provided
       if (formData.newPassword) {
         await api.post('/users/change-password', {

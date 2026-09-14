@@ -154,13 +154,13 @@ interface ParserWarning {
 }
 
 interface XRDData {
-  test_details: {
+  test_details?: {
     work_package: WorkPackageData;
     material: MaterialData;
     cell_line: Record<string, never>;
     dispersion: DispersionData;
     instrumentation: InstrumentationData;
-  };
+  } | null;
   /** Backend remaps parser's "replication_metadata" → "replications" */
   replications: ReplicationMetadata[];
   /** Backend remaps parser's "replications" → "raw_data" */
@@ -218,7 +218,6 @@ const MEAN_COLOR = "#2563eb"; // blue-600
    Helpers
    ================================================================ */
 
-const degC = (s: string) => s.replace(/oC/g, "°C");
 const fmt = (value: any, digits = 4) => {
   if (value === null || value === undefined || value === "") return "";
   if (typeof value === "number") return value.toFixed(digits);
@@ -455,7 +454,6 @@ const XRDDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
     const block = safeRawBlocks[selectedRawBlock];
     if (!block?.spectrum_points?.length) return [];
 
-    const numScans = block.number_of_scans ?? 0;
     const raw = block.spectrum_points
       .filter((p) => p.two_theta_deg != null)
       .sort((a, b) => (a.two_theta_deg as number) - (b.two_theta_deg as number));
@@ -523,10 +521,10 @@ const XRDDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
   }
 
   const td = data.test_details;
-  const wp = td.work_package;
-  const mat = td.material;
-  const disp = td.dispersion;
-  const inst = td.instrumentation;
+  const wp = td?.work_package ?? {} as Partial<WorkPackageData>;
+  const mat = td?.material ?? {} as Partial<MaterialData>;
+  const disp = td?.dispersion ?? {} as Partial<DispersionData>;
+  const inst = td?.instrumentation ?? {} as Partial<InstrumentationData>;
   const repMeta = data.replications ?? [];
   const warnings = data.parser_warnings ?? [];
 

@@ -1,1 +1,9 @@
 .env
+__pycache__/
+*.pyc
+.hypothesis/
+.pytest_cache/
+data/
+protocol_files/
+tests/
+requirements-dev.txt

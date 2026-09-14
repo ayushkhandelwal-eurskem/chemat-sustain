@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="840" viewBox="0 0 1400 840" role="img" aria-labelledby="title desc">
+  <title id="title">CheMatSustain platform architecture and technology stack</title>
+  <desc id="desc">Users and API clients connect through Cloudflare and Nginx to a Next.js frontend and FastAPI backend. FastAPI uses parsers, authorization, PostgreSQL, persistent research files, protocol files, and encrypted access-history backups.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eff6ff"/>
+      <stop offset="1" stop-color="#ecfdf5"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#059669"/>
+      <stop offset="1" stop-color="#065f46"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title{font:700 30px Arial,sans-serif;fill:#0f172a}.subtitle{font:400 15px Arial,sans-serif;fill:#475569}
+      .zone{font:700 14px Arial,sans-serif;fill:#475569;letter-spacing:1.4px}.h{font:700 18px Arial,sans-serif;fill:#0f172a}
+      .hb{font:700 18px Arial,sans-serif;fill:#fff}.t{font:400 13px Arial,sans-serif;fill:#334155}.tw{font:400 13px Arial,sans-serif;fill:#e0f2fe}
+      .tag{font:700 11px Arial,sans-serif;fill:#1e3a8a}.line{stroke:#475569;stroke-width:2.2;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#64748b;stroke-width:1.8;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1400" height="840" rx="28" fill="url(#bg)"/>
+  <text x="55" y="58" class="title">CheMatSustain Platform Architecture</text>
+  <text x="55" y="84" class="subtitle">Scientific workbook ingestion, governed publication, human portal access and scoped machine APIs</text>
+
+  <text x="55" y="125" class="zone">ACTORS</text>
+  <g filter="url(#shadow)">
+    <rect x="55" y="145" width="215" height="92" rx="16" fill="#fff" stroke="#bfdbfe"/>
+    <circle cx="92" cy="184" r="20" fill="#dbeafe"/><path d="M84 185a8 8 0 1 1 16 0M77 216c2-13 28-13 30 0" fill="none" stroke="#1d4ed8" stroke-width="3"/>
+    <text x="125" y="178" class="h">Human users</text><text x="125" y="201" class="t">Public, team, admin</text><text x="125" y="220" class="t">Browser + secure session</text>
+    <rect x="55" y="263" width="215" height="92" rx="16" fill="#fff" stroke="#a7f3d0"/>
+    <rect x="75" y="286" width="34" height="27" rx="4" fill="#d1fae5" stroke="#059669"/><path d="M82 321h20M92 313v8" stroke="#059669" stroke-width="3"/>
+    <text x="125" y="296" class="h">API clients</text><text x="125" y="319" class="t">Issued client ID/secret</text><text x="125" y="338" class="t">HTTP Basic + scopes</text>
+  </g>
+
+  <text x="335" y="125" class="zone">EDGE &amp; PRESENTATION</text>
+  <g filter="url(#shadow)">
+    <rect x="335" y="145" width="245" height="92" rx="16" fill="#fff" stroke="#cbd5e1"/>
+    <text x="360" y="178" class="h">Cloudflare + Nginx</text><text x="360" y="201" class="t">TLS, reverse proxy, headers</text><text x="360" y="220" class="t">Auth endpoint rate limits</text>
+    <rect x="335" y="263" width="245" height="122" rx="16" fill="url(#blue)"/>
+    <text x="360" y="297" class="hb">Next.js 15 portal</text><text x="360" y="322" class="tw">React 19 + TypeScript</text><text x="360" y="343" class="tw">Tailwind CSS + Lucide</text><text x="360" y="364" class="tw">Recharts scientific viewers</text>
+  </g>
+
+  <text x="650" y="125" class="zone">APPLICATION &amp; DATA LOGIC</text>
+  <g filter="url(#shadow)">
+    <rect x="650" y="145" width="310" height="122" rx="16" fill="url(#green)"/>
+    <text x="675" y="179" class="hb">FastAPI research service</text><text x="675" y="204" class="tw">Pydantic contracts + SQLAlchemy 2</text><text x="675" y="225" class="tw">Cookie roles / API scopes</text><text x="675" y="246" class="tw">Release projection + access audit</text>
+    <rect x="650" y="293" width="310" height="112" rx="16" fill="#fff" stroke="#fbbf24"/>
+    <text x="675" y="327" class="h">Scientific parser registry</text><text x="675" y="351" class="t">19 test-specific Python parsers</text><text x="675" y="372" class="t">openpyxl → canonical JSON sections</text><text x="675" y="391" class="tag">TEST DETAILS · RAW · PROCESSED · RESULTS · STATS</text>
+  </g>
+
+  <text x="1030" y="125" class="zone">PERSISTENCE</text>
+  <g filter="url(#shadow)">
+    <rect x="1030" y="145" width="315" height="134" rx="16" fill="#fff" stroke="#93c5fd"/>
+    <ellipse cx="1080" cy="180" rx="25" ry="10" fill="#bfdbfe" stroke="#2563eb"/><path d="M1055 180v38c0 13 50 13 50 0v-38M1055 199c0 13 50 13 50 0" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="1122" y="177" class="h">PostgreSQL 14</text><text x="1122" y="200" class="t">Metadata + JSON data sections</text><text x="1122" y="220" class="t">Users, grants, protocols, audit</text><text x="1122" y="240" class="t">RLS and governance controls</text>
+    <rect x="1030" y="305" width="315" height="100" rx="16" fill="#fff" stroke="#c4b5fd"/>
+    <path d="M1055 332h52v42h-52zM1061 325h19l7 7h20" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+    <text x="1122" y="337" class="h">Persistent file volumes</text><text x="1122" y="360" class="t">Research Excel workbooks</text><text x="1122" y="380" class="t">Protocol/SOP documents</text>
+  </g>
+
+  <text x="335" y="475" class="zone">GOVERNANCE, OPERATIONS &amp; BROADER CONTEXT</text>
+  <g filter="url(#shadow)">
+    <rect x="335" y="495" width="245" height="112" rx="16" fill="#fff" stroke="#fca5a5"/>
+    <text x="360" y="529" class="h">Publication controls</text><text x="360" y="553" class="t">Public row + 5 section flags</text><text x="360" y="574" class="t">Header metadata allowlist</text><text x="360" y="594" class="t">Private writes remain restricted</text>
+    <rect x="650" y="495" width="310" height="112" rx="16" fill="#fff" stroke="#a7f3d0"/>
+    <text x="675" y="529" class="h">Audit &amp; retention</text><text x="675" y="553" class="t">Public view history: 20 days</text><text x="675" y="574" class="t">Fernet-encrypted verified archives</text><text x="675" y="594" class="t">HMAC-chained API audit events</text>
+    <rect x="1030" y="495" width="315" height="112" rx="16" fill="#fff" stroke="#fdba74"/>
+    <text x="1055" y="529" class="h">CI/CD and production</text><text x="1055" y="553" class="t">GitHub security gate</text><text x="1055" y="574" class="t">Gitleaks · Bandit · audits · Trivy</text><text x="1055" y="594" class="t">Gated SSH deploy to IONOS</text>
+  </g>
+
+  <path d="M270 190H335" class="line"/><path d="M270 309H335" class="line"/>
+  <path d="M458 237V263" class="line"/><path d="M580 324H615Q630 324 630 309V220Q630 205 650 205" class="line"/>
+  <path d="M580 190H650" class="dash"/><path d="M805 267V293" class="line"/>
+  <path d="M960 205H1030" class="line"/><path d="M960 349H1000Q1015 349 1015 355H1030" class="line"/>
+  <path d="M805 405V495" class="dash"/><path d="M1187 405V495" class="dash"/>
+  <path d="M580 551H650" class="line"/><path d="M960 551H1030" class="line"/>
+
+  <rect x="55" y="675" width="1290" height="105" rx="18" fill="#0f172a"/>
+  <text x="82" y="708" class="hb">Broader role in the CheMatSustain project</text>
+  <text x="82" y="735" class="tw">A governed bridge between heterogeneous laboratory workbooks and reusable FAIR-oriented research access:</text>
+  <text x="82" y="758" class="tw">preserve source files → normalize scientific structure → control publication → support human interpretation and machine reuse.</text>
+  <text x="1270" y="807" text-anchor="end" class="subtitle">Figure 1 · Repository state 2026-09-14</text>
+</svg>

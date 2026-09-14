@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CheMatSustain Database and Platform Documentation</title>
+  <style>
+    :root{--navy:#0b2b5b;--blue:#1d4ed8;--sky:#eaf4ff;--green:#087f5b;--mint:#e8f8f2;--ink:#172033;--muted:#566277;--line:#d9e2ef;--paper:#fff;--amber:#9a5b00;--amber-bg:#fff7df;--red:#9f2636;--red-bg:#fff1f2}
+    *{box-sizing:border-box}html{font-size:10.5pt}body{margin:0;background:#edf2f7;color:var(--ink);font-family:Arial,"Helvetica Neue",sans-serif;line-height:1.48}
+    main{width:210mm;margin:0 auto;background:var(--paper);box-shadow:0 12px 40px #0f172a22}.page{padding:18mm 17mm 17mm;position:relative}.page-break{break-before:page}.avoid{break-inside:avoid}.small{font-size:8.8pt}.tiny{font-size:7.8pt}.muted{color:var(--muted)}
+    h1,h2,h3,h4{color:var(--navy);line-height:1.2;break-after:avoid}h1{font-size:27pt;margin:0 0 10px}h2{font-size:20pt;border-bottom:2px solid #bed7f4;padding-bottom:7px;margin:0 0 14px}h3{font-size:14pt;margin:20px 0 8px}h4{font-size:11pt;margin:14px 0 5px}p{margin:6px 0 10px}ul,ol{margin:5px 0 11px;padding-left:22px}li{margin:3px 0}a{color:var(--blue);text-decoration:none}code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:.88em}.code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;background:#0f172a;color:#dbeafe;border-radius:8px;padding:11px 13px;white-space:pre-wrap;font-size:7.8pt;line-height:1.45;break-inside:avoid}.code .c{color:#86efac}.code .k{color:#93c5fd}.code .v{color:#fde68a}
+    .cover{height:297mm;padding:25mm 20mm;background:linear-gradient(145deg,#08264f 0%,#164e8f 58%,#087f5b 100%);color:#fff;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}.cover:before,.cover:after{content:"";position:absolute;border:1px solid #ffffff26;border-radius:50%}.cover:before{width:125mm;height:125mm;right:-35mm;top:-30mm}.cover:after{width:95mm;height:95mm;left:-40mm;bottom:30mm}.cover h1{font-size:35pt;color:#fff;max-width:150mm}.cover .eyebrow{font-size:10pt;letter-spacing:2.5px;font-weight:bold;color:#bfdbfe}.cover .lead{font-size:15pt;max-width:145mm;color:#e7f2ff;line-height:1.5}.cover .meta{display:grid;grid-template-columns:1fr 1fr;gap:14px;border-top:1px solid #ffffff45;padding-top:15px;font-size:9.5pt}.cover .brand{font-size:12pt;font-weight:bold;letter-spacing:.5px}.cover .pill{display:inline-block;border:1px solid #ffffff66;background:#ffffff16;padding:6px 11px;border-radius:999px;margin-top:16px;font-size:9pt}
+    .section-label{color:var(--blue);font-weight:bold;font-size:8.5pt;letter-spacing:1.8px;text-transform:uppercase;margin-bottom:6px}.summary{background:linear-gradient(90deg,var(--sky),#f6fbff);border-left:5px solid var(--blue);padding:13px 15px;border-radius:7px;margin:13px 0}.note{background:var(--amber-bg);border:1px solid #f2d28d;border-left:5px solid #e59b18;padding:10px 13px;border-radius:6px;margin:12px 0}.security{background:var(--mint);border:1px solid #a7e2ce;border-left:5px solid var(--green);padding:10px 13px;border-radius:6px;margin:12px 0}.warning{background:var(--red-bg);border:1px solid #fecdd3;border-left:5px solid var(--red);padding:10px 13px;border-radius:6px;margin:12px 0}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.card{border:1px solid var(--line);border-radius:8px;padding:11px 12px;background:#fff;break-inside:avoid}.card h3,.card h4{margin-top:0}.metric{font-size:24pt;font-weight:bold;color:var(--blue);line-height:1}.metric-label{font-size:8.5pt;color:var(--muted);margin-top:5px}
+    table{width:100%;border-collapse:collapse;margin:8px 0 15px;font-size:8.5pt;break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid}th{background:#eaf2fb;color:var(--navy);text-align:left;font-weight:bold}th,td{border:1px solid #ced9e7;padding:6px 7px;vertical-align:top}tbody tr:nth-child(even){background:#f8fafc}.compact th,.compact td{padding:4px 6px;font-size:7.8pt}.domain{font-weight:bold;color:var(--blue)}
+    .toc{columns:2;column-gap:30px}.toc ol{margin-top:0}.toc li{break-inside:avoid;padding:3px 0}.figure{margin:13px 0 7px;text-align:center;break-inside:avoid}.figure img{width:100%;height:auto}.caption{font-size:8pt;color:var(--muted);margin-top:5px;text-align:left}
+    .flow{display:flex;align-items:stretch;gap:7px;margin:12px 0 17px;break-inside:avoid}.step{flex:1;background:#f8fbff;border:1px solid #bfdbfe;border-radius:8px;padding:9px;text-align:center;font-size:8pt;position:relative}.step b{display:block;color:var(--navy);font-size:9pt;margin-bottom:3px}.arrow{display:flex;align-items:center;color:var(--blue);font-size:18pt;font-weight:bold}.lane{border:1px solid var(--line);border-radius:9px;margin:9px 0 14px;overflow:hidden;break-inside:avoid}.lane-title{background:var(--navy);color:white;font-weight:bold;padding:7px 10px}.lane-body{padding:10px 12px}.tag{display:inline-block;background:#dbeafe;color:#1e40af;border-radius:4px;padding:2px 6px;font-size:7.5pt;font-weight:bold;margin:1px}.tag.green{background:#d1fae5;color:#065f46}.tag.gray{background:#e2e8f0;color:#334155}.tag.amber{background:#fef3c7;color:#92400e}
+    .callout-num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;align-items:center;justify-content:center;font-weight:bold;margin-right:6px}.footer-note{border-top:1px solid var(--line);margin-top:18px;padding-top:7px;color:var(--muted);font-size:7.5pt}.checklist{list-style:none;padding-left:0}.checklist li:before{content:"✓";color:var(--green);font-weight:bold;margin-right:7px}
+    @page{size:A4;margin:14mm 13mm 14mm;@bottom-left{content:"CheMatSustain Database & Platform Documentation";font-family:Arial,sans-serif;font-size:7.5pt;color:#64748b}@bottom-right{content:"Page " counter(page) " of " counter(pages);font-family:Arial,sans-serif;font-size:7.5pt;color:#64748b}}
+    @page:first{margin:0;@bottom-left{content:""}@bottom-right{content:""}}
+    @media print{body{background:#fff}main{width:auto;box-shadow:none}.cover{height:297mm}.page{padding:4mm 3mm 2mm}.no-print{display:none}a{color:inherit}.page-break{break-before:page}}
+  </style>
+</head>
+<body><main>
+  <section class="cover">
+    <div>
+      <div class="eyebrow">CHEMATSUSTAIN · TECHNICAL REFERENCE</div>
+      <div class="pill">Database · Architecture · User Flows · TB Implementation</div>
+    </div>
+    <div>
+      <h1>Database and Platform Documentation</h1>
+      <p class="lead">A system-level guide to CheMatSustain’s scientific data model, production architecture, governed access paths, and one complete test implementation from Excel parser to interactive viewer.</p>
+    </div>
+    <div>
+      <div class="brand">CheMatSustain Research Database</div>
+      <div class="meta">
+        <div><strong>Document version</strong><br>1.0</div>
+        <div><strong>Repository baseline</strong><br><code style="background:#ffffff20;color:white">f831ba3</code></div>
+        <div><strong>Prepared</strong><br>14 September 2026</div>
+        <div><strong>Production portal</strong><br>database.eurskem.com</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">Document guide</div><h2>Contents and Scope</h2>
+    <div class="summary"><strong>Purpose.</strong> This document explains the entire CheMatSustain database in its application context. “Database” therefore includes the PostgreSQL schema, normalized scientific JSON, persistent source files, APIs, viewers, access controls, audit records, and operational lifecycle that make the data usable and governable.</div>
+    <div class="toc">
+      <ol>
+        <li><strong>Overview</strong><ol><li>Mission and capabilities</li><li>Scientific test inventory</li><li>Data organization</li></ol></li>
+        <li><strong>Architecture and technology stack</strong><ol><li>Architecture image</li><li>Component responsibilities</li><li>Broader research context</li><li>Deployment and security</li></ol></li>
+        <li><strong>Database design</strong><ol><li>Storage model</li><li>Table catalogue</li><li>Relationships</li><li>Release and tenancy controls</li><li>Lifecycle and retention</li></ol></li>
+        <li><strong>User process flows</strong><ol><li>Public viewer</li><li>Team user</li><li>Administrator</li><li>API client</li></ol></li>
+        <li><strong>Worked implementation: TB</strong><ol><li>Workbook contract</li><li>Backend parser</li><li>Upload and persistence</li><li>Read projection</li><li>Frontend viewer</li><li>Extension checklist</li></ol></li>
+        <li><strong>Operations and maintenance</strong></li>
+        <li><strong>Glossary and source map</strong></li>
+      </ol>
+    </div>
+    <h3>Audience</h3>
+    <div class="grid2">
+      <div class="card"><h4>Scientific and project users</h4><p>Understand how uploaded laboratory workbooks become searchable reports and which publication choices affect public visibility.</p></div>
+      <div class="card"><h4>Developers and maintainers</h4><p>Locate the relevant model, parser, service, route, viewer, migration, test, deployment, and security logic.</p></div>
+      <div class="card"><h4>Administrators and data owners</h4><p>Understand account classes, resource assignments, publication flags, API credentials, access history, and safe data lifecycle.</p></div>
+      <div class="card"><h4>Auditors and reviewers</h4><p>Trace controls from browser/API identity to authorization, PostgreSQL policy, field projection, audit event, retention, and CI/CD gate.</p></div>
+    </div>
+    <div class="note"><strong>Baseline and limitations.</strong> This is an implementation document generated from repository state <code>f831ba3</code>. It describes code and migration intent; it is not a live production data dictionary with row counts or confidential values. Some migration-era columns retain <code>keycloak_*</code>/<code>oauth_*</code> names, but active authentication is local session authentication and locally issued API client credentials.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">1 · Overview</div><h2>1. Platform Overview</h2>
+    <p>CheMatSustain is a research data portal for selected chemicals and nanomaterials. It converts heterogeneous test-specific Excel workbooks into a consistent five-section data contract, stores the result with ownership and publication metadata, and presents it through both human-oriented scientific viewers and scope-controlled machine APIs.</p>
+    <div class="grid3">
+      <div class="card"><div class="metric">19</div><div class="metric-label">registered scientific test types</div></div>
+      <div class="card"><div class="metric">5</div><div class="metric-label">independently releasable data sections</div></div>
+      <div class="card"><div class="metric">3</div><div class="metric-label">interactive roles: public, team, admin</div></div>
+    </div>
+    <h3>1.1 Core capabilities</h3>
+    <ul class="checklist">
+      <li>Upload and retain source Excel workbooks for scientific traceability.</li>
+      <li>Parse each assay/instrument format with a dedicated Python parser.</li>
+      <li>Normalize parser output into a stable JSON contract.</li>
+      <li>Browse data by work package, CMS material identifier, test category, and test type.</li>
+      <li>Render specialized tables, charts, statistics, images, and CSV downloads.</li>
+      <li>Publish a test while independently selecting which scientific sections are public.</li>
+      <li>Support authenticated public viewers, internal team users, administrators, and machine clients.</li>
+      <li>Apply resource grants, API scopes, tenant context, access logs, and operational security gates.</li>
+    </ul>
+    <h3>1.2 Canonical scientific record</h3>
+    <table>
+      <thead><tr><th>Section</th><th>Purpose</th><th>Typical content</th><th>Public control</th></tr></thead>
+      <tbody>
+        <tr><td><code>test_details</code></td><td>Experimental context</td><td>Work package, material, preparation, instrumentation, cell line, treatment</td><td><code>release_test_details</code></td></tr>
+        <tr><td><code>raw_data</code></td><td>Observed/source measurements</td><td>Runs, spectra, time series, plates, replicate observations</td><td><code>release_raw_data</code></td></tr>
+        <tr><td><code>processed_data</code></td><td>Derived measurements</td><td>Normalized values, fitted curves, calculated metrics</td><td><code>release_processed_data</code></td></tr>
+        <tr><td><code>final_results</code></td><td>Reported outcome</td><td>Summary metrics, means, standard deviations, acceptance results</td><td><code>release_final_results</code></td></tr>
+        <tr><td><code>statistical_analysis</code></td><td>Statistical interpretation</td><td>ANOVA, Brown–Forsythe, Tukey comparisons, significance</td><td><code>release_statistical_analysis</code></td></tr>
+      </tbody>
+    </table>
+    <div class="security"><strong>Public header exception.</strong> Public reports always retain a narrow identification projection from <code>test_details</code>: full test name, acronym, type, endpoint, endpoint outcome, SOP, and ERM identifier. This does not release the Test Conditions tab or any other test-detail fields.</div>
+    <h3>1.3 Registered tests</h3>
+    <p><span class="tag">MTT</span><span class="tag">DLS</span><span class="tag">FTIR</span><span class="tag">HR-STEM</span><span class="tag">UV-VIS</span><span class="tag">ZETA</span><span class="tag">SIMS</span><span class="tag">ROS</span><span class="tag">TB</span><span class="tag">UPS</span><span class="tag">XPS</span><span class="tag">XRD</span><span class="tag">DSC</span><span class="tag">TGA</span><span class="tag">MNT</span><span class="tag">TB-Microfludic</span><span class="tag">Rotifier</span><span class="tag">WaterFlea</span><span class="tag">Algae</span></p>
+    <p class="small muted">The spelling <code>TB-Microfludic</code> and <code>Rotifier</code> are canonical identifiers retained for database/API compatibility.</p>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">2 · Architecture</div><h2>2. Architecture and Technology Stack</h2>
+    <div class="figure"><img src="images/chemat-sustain-architecture.svg" alt="CheMatSustain architecture and technology stack"><div class="caption">Figure 1. Production-oriented component architecture. Solid arrows represent principal request/data paths; dashed arrows represent governance and operational interactions.</div></div>
+    <h3>2.1 How to read the architecture</h3>
+    <ol>
+      <li><strong>Human users</strong> access one HTTPS origin. Nginx sends page requests to Next.js and rewrites <code>/api/*</code> to FastAPI.</li>
+      <li><strong>Machine clients</strong> use separately issued HTTP Basic credentials against <code>/api/v1</code>; scope and resource checks occur on every request.</li>
+      <li><strong>FastAPI</strong> owns application contracts, parsing orchestration, role checks, release projection, resource filtering, and audit writes.</li>
+      <li><strong>PostgreSQL</strong> stores searchable identifiers, normalized JSON sections, users/sessions, ownership, grants, protocols, and audit history.</li>
+      <li><strong>Persistent volumes</strong> preserve original workbooks and SOP/protocol files separately from container images and database rows.</li>
+      <li><strong>CI/CD</strong> deploys only after secret, static, dependency, tenant-isolation, SBOM, and container-image checks succeed.</li>
+    </ol>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">2 · Architecture</div><h2>2.2 Component Responsibilities</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Confirmed technology</th><th>Responsibility and usage</th></tr></thead>
+      <tbody>
+        <tr><td>Edge</td><td>Cloudflare-facing origin; Nginx stable</td><td>HTTPS termination at the origin, HTTP→HTTPS redirect, reverse proxy, request-size boundary, response security headers, and login/OTP/registration/reset throttling.</td></tr>
+        <tr><td>Frontend</td><td>Next.js 15.5.25, React 19, TypeScript, Tailwind CSS</td><td>Authenticated portal, public/team login modes, catalogue, backoffice, dynamic test routing, protocol browser, and API Explorer.</td></tr>
+        <tr><td>Scientific UI</td><td>Recharts 2.15, Lucide React</td><td>Test-specific charts, scientific tables, interactive run selection, images, status indicators, and client-side CSV/JSON downloads.</td></tr>
+        <tr><td>HTTP client</td><td>Axios</td><td>Same-origin <code>/api</code> requests with secure cookie credentials and generated <code>X-Request-ID</code>.</td></tr>
+        <tr><td>Backend</td><td>Python, FastAPI 0.136, Pydantic 2</td><td>REST routing, validation, user/session workflows, parser registry, publication projection, administrative APIs, and machine APIs.</td></tr>
+        <tr><td>Persistence access</td><td>SQLAlchemy 2 async + asyncpg</td><td>Async sessions, ORM models, transactions, query filtering, and PostgreSQL tenant context.</td></tr>
+        <tr><td>Scientific parsing</td><td>openpyxl</td><td>Reads workbook cells/sheets, normalizes values and dates, structures raw/processed/final/statistical sections, and records parser warnings.</td></tr>
+        <tr><td>Relational store</td><td>PostgreSQL 14</td><td>Metadata, JSON scientific records, users, sessions, organisations, protocol hierarchy, access assignments, credentials, release flags, and audit records.</td></tr>
+        <tr><td>File persistence</td><td>Host bind mounts / Docker volumes</td><td>Original research workbooks under <code>/app/data</code>, protocol documents under <code>/app/protocol_files</code>, encrypted access archives under <code>/var/backups/...</code>.</td></tr>
+        <tr><td>Runtime packaging</td><td>Docker Compose</td><td>Runs <code>db</code>, <code>backend</code>, <code>frontend</code>, <code>nginx</code>, and <code>public-access-retention</code> on an isolated bridge network.</td></tr>
+        <tr><td>Delivery</td><td>GitHub Actions + SSH deploy to IONOS</td><td>Security workflow gates deployment; server performs migrations, image builds, service restart, mount checks, docs-exposure checks, and health checks.</td></tr>
+      </tbody>
+    </table>
+    <h3>2.3 Broader context</h3>
+    <div class="grid2">
+      <div class="card"><h4>Laboratory interoperability</h4><p>Partners can continue producing familiar assay-specific workbooks. Dedicated parsers absorb layout differences and emit one application contract.</p></div>
+      <div class="card"><h4>Scientific interpretation</h4><p>Specialized viewers retain domain meaning that a generic JSON browser would lose: units, replicate context, plotted series, uncertainty, and statistical tables.</p></div>
+      <div class="card"><h4>Governed dissemination</h4><p>A record can be discoverable as public while raw, processed, final, statistical, or condition sections remain independently withheld.</p></div>
+      <div class="card"><h4>Human and machine reuse</h4><p>The portal optimizes comprehension; the <code>/v1</code> interface supports authorized pipelines without sharing browser sessions or administrator credentials.</p></div>
+    </div>
+    <div class="note"><strong>Architectural boundary.</strong> PostgreSQL does not contain the uploaded workbook bytes. The <code>tests.file_path</code> value links a database record to the persistent research-data volume. Public responses always omit this internal server path.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">3 · Database design</div><h2>3. Database and Storage Model</h2>
+    <h3>3.1 Hybrid persistence strategy</h3>
+    <div class="grid3">
+      <div class="card"><h4>Relational identifiers</h4><p>Primary keys, foreign keys, work package, CMS identifier, test name, tenant, publication state, timestamps, and grants support filtering and governance.</p></div>
+      <div class="card"><h4>JSON scientific sections</h4><p>Test-specific nested structures remain flexible without forcing every instrument and assay into one very wide relational schema.</p></div>
+      <div class="card"><h4>Immutable source context</h4><p>Excel and protocol files remain on protected persistent storage for provenance and possible reprocessing.</p></div>
+    </div>
+    <h3>3.2 Central <code>tests</code> table</h3>
+    <table>
+      <thead><tr><th>Column group</th><th>Columns</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>Identity</td><td><code>id</code>, <code>organisation_id</code></td><td>Record key and owning tenant.</td></tr>
+        <tr><td>Scientific locator</td><td><code>work_package_name</code>, <code>element_cms_id</code>, <code>test_name</code></td><td>Human navigation and exact lookup triple used by <code>/tests/listings</code>.</td></tr>
+        <tr><td>Scientific payload</td><td><code>test_details</code>, <code>raw_data</code>, <code>processed_data</code>, <code>final_results</code>, <code>statistical_analysis</code></td><td>Five canonical JSON sections populated by a parser or JSON API.</td></tr>
+        <tr><td>Publication</td><td><code>is_public</code> and five <code>release_*</code> booleans</td><td>Two-level disclosure: row discoverability plus independent section grants.</td></tr>
+        <tr><td>Outcome</td><td><code>test_result</code></td><td>Optional pass/fail summary independent of section JSON.</td></tr>
+        <tr><td>Provenance</td><td><code>file_path</code>, <code>created_at</code>, <code>updated_at</code></td><td>Source-workbook reference and lifecycle timestamps.</td></tr>
+      </tbody>
+    </table>
+    <h3>3.3 Principal relationships</h3>
+    <div class="code"><span class="c"># Scientific and protocol relationships</span>
+organisations 1 ── * tests
+organisations 1 ── * categories 1 ── * protocols 1 ── * protocol_tests
+protocol_tests --(work_package_name, element_cms_id, test_name)--> tests
+
+<span class="c"># Interactive identity and public access history</span>
+users 1 ── * sessions
+users 1 ── * public_data_access_events * ── 1 tests
+
+<span class="c"># User/API resource authorization</span>
+users 1 ── 1 user_access_profiles
+users * ── * tests       via user_test_access
+users * ── * protocols   via user_protocol_access
+organisations * ── * tests/protocols via organisation_*_access
+users/organisations 1 ── * api_clients
+
+<span class="c"># Governance workflow</span>
+organisations 1 ── * developer_applications 1 ── * access_requests
+access_requests 1 ── * approval_decisions
+access_requests/applications 1 ── * active_grants
+organisations 1 ── * audit_events</div>
+    <div class="note"><strong>Protocol link detail.</strong> <code>protocol_tests</code> does not currently carry a foreign key to <code>tests.id</code>. It links to the scientific record through the unique locator triple. Its optional <code>display_name</code> changes presentation without changing the stable lookup values.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">3 · Database design</div><h2>3.4 Active Application Table Catalogue</h2>
+    <table class="compact">
+      <thead><tr><th>Domain</th><th>Table</th><th>Role</th><th>Key links / controls</th></tr></thead>
+      <tbody>
+        <tr><td class="domain">Science</td><td><code>tests</code></td><td>Scientific metadata, five JSON sections, publication flags, source path.</td><td>→ organisations; public/RLS policies; section projection.</td></tr>
+        <tr><td class="domain">Identity</td><td><code>users</code></td><td>Local interactive accounts: name, email, bcrypt password, role, OTP seed, active state.</td><td>Unique email; roles admin/user/public_viewer.</td></tr>
+        <tr><td class="domain">Identity</td><td><code>sessions</code></td><td>Opaque browser sessions with expiry, active state, user agent, IP.</td><td>→ users; session ID stored in HttpOnly Secure cookie.</td></tr>
+        <tr><td class="domain">Public audit</td><td><code>public_data_access_events</code></td><td>Who viewed which test, through which route, with which released sections.</td><td>→ users/tests; 20-day live and encrypted-archive retention.</td></tr>
+        <tr><td class="domain">Machine access</td><td><code>api_clients</code></td><td>Current issued HTTP Basic client credentials.</td><td>→ organisations/users; bcrypt secret hash, scopes, disable/rotation version.</td></tr>
+        <tr><td class="domain">User grants</td><td><code>user_access_profiles</code></td><td>Global resource switches and platform tester designation.</td><td>PK/FK user; all_tests/all_protocols/all_files; audit tenant.</td></tr>
+        <tr><td class="domain">User grants</td><td><code>user_test_access</code></td><td>Explicit per-user test access.</td><td>Composite PK → users + tests.</td></tr>
+        <tr><td class="domain">User grants</td><td><code>user_protocol_access</code></td><td>Explicit per-user protocol access.</td><td>Composite PK → users + protocols.</td></tr>
+        <tr><td class="domain">Tenant</td><td><code>organisations</code></td><td>Tenant root and organization status.</td><td>Referenced by research, protocol, credential, grant, audit tables.</td></tr>
+        <tr><td class="domain">Tenant</td><td><code>organisation_memberships</code></td><td>Organization membership/role metadata.</td><td>→ organisations; historical <code>keycloak_subject</code> name.</td></tr>
+        <tr><td class="domain">Cross-access</td><td><code>organisation_test_access</code></td><td>Read a test without transferring ownership.</td><td>Composite PK → organisations + tests; RLS.</td></tr>
+        <tr><td class="domain">Cross-access</td><td><code>organisation_protocol_access</code></td><td>Read a protocol without transferring ownership.</td><td>Composite PK → organisations + protocols; RLS.</td></tr>
+        <tr><td class="domain">Catalogue</td><td><code>categories</code></td><td>Top-level protocol/navigation taxonomy.</td><td>→ organisations; 1:* protocols; ordered.</td></tr>
+        <tr><td class="domain">Catalogue</td><td><code>protocols</code></td><td>Protocol metadata and attached SOP file metadata.</td><td>→ categories/organisations; 1:* protocol_tests.</td></tr>
+        <tr><td class="domain">Catalogue</td><td><code>protocol_tests</code></td><td>Connects protocols to test locator triples.</td><td>→ protocols/organisations; unique test locator; display label.</td></tr>
+        <tr><td class="domain">API governance</td><td><code>api_definitions</code></td><td>Describes API products, version, classification, and scopes.</td><td>Unique name; active state.</td></tr>
+        <tr><td class="domain">API governance</td><td><code>developer_applications</code></td><td>Application registration and credential generation metadata.</td><td>→ organisations; legacy <code>keycloak_client_id</code> column name.</td></tr>
+        <tr><td class="domain">API governance</td><td><code>access_requests</code></td><td>Requested scopes, justification, status, and expiry.</td><td>→ organisation + application.</td></tr>
+        <tr><td class="domain">API governance</td><td><code>approval_decisions</code></td><td>Independent approval stages and reasons.</td><td>→ access_requests; unique role/stage per request.</td></tr>
+        <tr><td class="domain">API governance</td><td><code>active_grants</code></td><td>Issued scopes, expiry, and revocation metadata.</td><td>→ request/application/organisation.</td></tr>
+        <tr><td class="domain">Security audit</td><td><code>audit_events</code></td><td>Append-oriented, tamper-evident API/security activity.</td><td>→ organisations; sequence + previous/event hash.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">3 · Database design</div><h2>3.5 Compatibility and Migration-Era Tables</h2>
+    <p>The migration history also defines four tables from the earlier identity/access architecture. They are part of the schema history and may exist in deployed databases, but they are not the active authentication path described in Section 4.</p>
+    <table>
+      <thead><tr><th>Table</th><th>Original purpose</th><th>Current interpretation</th></tr></thead>
+      <tbody>
+        <tr><td><code>keycloak_identities</code></td><td>Map an external identity-provider subject to an organization and legacy user.</td><td>Compatibility/cutover data. Active browser identity is local <code>users</code> + <code>sessions</code>.</td></tr>
+        <tr><td><code>oauth_clients</code></td><td>Registry for organization-bound OAuth machine clients.</td><td>Superseded operationally by local <code>api_clients</code> HTTP Basic credentials.</td></tr>
+        <tr><td><code>api_scopes</code></td><td>Scope definitions, classification, and approval requirement.</td><td>Governance reference; the active API issue UI uses an explicit allowlist matching route scopes.</td></tr>
+        <tr><td><code>revocations</code></td><td>Immutable revocation records for grants, OAuth clients, or memberships.</td><td>Compatibility/governance history; current local API clients also have immediate <code>is_active</code> disablement.</td></tr>
+      </tbody>
+    </table>
+    <h3>3.6 Publication and field projection</h3>
+    <div class="flow"><div class="step"><b>1. Row gate</b><code>is_public</code> controls public discoverability</div><div class="arrow">›</div><div class="step"><b>2. Section gates</b>Five independent <code>release_*</code> flags</div><div class="arrow">›</div><div class="step"><b>3. API projection</b><code>mask_test_for_public()</code></div><div class="arrow">›</div><div class="step"><b>4. Viewer tabs</b>Only authorized sections render</div></div>
+    <ul>
+      <li>A private test cannot retain active release grants; attempts fail closed or revoke the flags.</li>
+      <li>Public viewers receive public rows only, with unreleased scientific sections removed.</li>
+      <li>The fixed seven-field report header remains available for identification.</li>
+      <li>Team users and administrators receive the complete authorized record.</li>
+      <li><code>file_path</code> is never returned in the public projection.</li>
+    </ul>
+    <h3>3.7 Tenant and resource controls</h3>
+    <div class="security"><strong>Defense in depth.</strong> Machine API reads combine (1) credential authentication, (2) scope checks, (3) explicit user/resource profile checks, (4) transaction-local organization context, (5) PostgreSQL RLS policies, and (6) audit events. Transaction-local <code>set_config(..., true)</code> prevents tenant context leaking through the connection pool.</div>
+    <div class="warning"><strong>Operational migration note.</strong> Repository guidance states that legacy ownership reconciliation must be completed before the production runtime database connection is switched from the current owner role to the least-privilege, RLS-enforcing <code>chemat_app</code> role. RLS policies and CI tests exist, but operators must verify the live connection role and ownership migration status rather than infer it from source code.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">3 · Database design</div><h2>3.8 Data Lifecycle, Audit, and Recovery</h2>
+    <h3>Scientific record lifecycle</h3>
+    <div class="flow"><div class="step"><b>Upload</b>Validate extension and save source workbook</div><div class="arrow">›</div><div class="step"><b>Parse</b>Create canonical JSON</div><div class="arrow">›</div><div class="step"><b>Persist</b>Commit DB row and file path</div><div class="arrow">›</div><div class="step"><b>Govern</b>Private/public and section release flags</div><div class="arrow">›</div><div class="step"><b>Replace/Delete</b>Coordinate DB and file cleanup</div></div>
+    <h3>Access and audit data</h3>
+    <table>
+      <thead><tr><th>Record</th><th>Captured information</th><th>Retention/control</th></tr></thead>
+      <tbody>
+        <tr><td>Browser session</td><td>Opaque session ID, user, creation/expiry, active flag, user agent, IP.</td><td>Default seven-day expiry; logout invalidates; expired sessions are cleaned during session creation.</td></tr>
+        <tr><td>Public data access event</td><td>User identity snapshot, test locator, owning organization, access level, released sections, request ID, route, timestamp.</td><td>20 days. Hourly worker encrypts and verifies archives before deleting expired live rows; expired archive entries are also pruned.</td></tr>
+        <tr><td>Machine/API audit event</td><td>Actor subject/client, action, resource, outcome, timestamp, safe metadata, hash chain.</td><td>Append-oriented database permissions and HMAC/hash-chain tamper evidence.</td></tr>
+        <tr><td>Source research file</td><td>Original uploaded workbook.</td><td>Persistent host bind mount; replacement deletes old file only after DB update succeeds; failed parse/create cleans the new file.</td></tr>
+        <tr><td>Protocol file</td><td>SOP document and DB metadata (name, MIME, size, path).</td><td>Protected persistent mount; authorized download with safe path resolution and no-store headers.</td></tr>
+      </tbody>
+    </table>
+    <h3>Operational recovery controls</h3>
+    <ul>
+      <li>PostgreSQL data persists in the <code>pgdata</code> Docker volume.</li>
+      <li>Research workbooks and protocol files use host bind mounts so image rebuilds do not erase them.</li>
+      <li>The deploy script refuses to proceed over tracked server edits, applies reviewed migrations, verifies mounts, rebuilds images, and checks direct plus Nginx health.</li>
+      <li>API documentation endpoints are fail-closed and the deployment explicitly verifies that <code>/docs</code>, <code>/redoc</code>, and <code>/openapi.json</code> are not published.</li>
+    </ul>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">4 · User process</div><h2>4. Process Flow from the User Point of View</h2>
+    <h3>4.1 Public viewer</h3>
+    <div class="lane"><div class="lane-title">Public access journey</div><div class="lane-body">
+      <div class="flow"><div class="step"><b>Register / sign in</b>Email + password; self-registration fixes role to public_viewer</div><div class="arrow">›</div><div class="step"><b>Browse</b>Only public tests appear in filters/catalogue</div><div class="arrow">›</div><div class="step"><b>Open report</b>Route contains work package, CMS ID, test</div><div class="arrow">›</div><div class="step"><b>View released data</b>Header always; authorized tabs only</div><div class="arrow">›</div><div class="step"><b>Audit</b>View event recorded and retained 20 days</div></div>
+      <p>The browser session is created immediately after successful public registration or password authentication. Public viewers do not complete the privileged OTP step. The backend—not the browser—filters public records and projects sections, so hiding tabs is a usability layer rather than the security boundary.</p>
+    </div></div>
+    <h3>4.2 Team user</h3>
+    <div class="lane"><div class="lane-title">Consortium/team journey</div><div class="lane-body">
+      <div class="flow"><div class="step"><b>Choose team access</b>Enter internally issued account</div><div class="arrow">›</div><div class="step"><b>Password check</b>Backend returns OTP challenge</div><div class="arrow">›</div><div class="step"><b>Email OTP</b>Submit six-digit code</div><div class="arrow">›</div><div class="step"><b>Secure session</b>HttpOnly cookie issued</div><div class="arrow">›</div><div class="step"><b>Research access</b>Full authorized internal viewer</div></div>
+      <p>Team users can browse internal resources available to their role/access assignments. Specialized test viewers provide full scientific presentation rather than public-section masking.</p>
+    </div></div>
+    <h3>4.3 Password and session behavior</h3>
+    <ul>
+      <li>Passwords are bcrypt-hashed; schemas require at least 12 characters for account creation/reset.</li>
+      <li>Privileged <code>user</code> and <code>admin</code> roles require emailed OTP after password verification.</li>
+      <li>The session cookie is HttpOnly, Secure by default, SameSite=Lax, and has a seven-day maximum age.</li>
+      <li>Unsafe cookie-authenticated requests require an allowed <code>Origin</code>; responses receive request IDs, no-store, and security headers.</li>
+    </ul>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">4 · User process</div><h2>4.4 Administrator and API Client Flows</h2>
+    <h3>Administrator: ingest and publish</h3>
+    <div class="lane"><div class="lane-title">Backoffice test-management journey</div><div class="lane-body">
+      <div class="flow"><div class="step"><b>Create test</b>Select WP, CMS ID, canonical test type</div><div class="arrow">›</div><div class="step"><b>Upload workbook</b><code>.xlsx</code>/<code>.xls</code></div><div class="arrow">›</div><div class="step"><b>Parse</b>Registered parser produces five sections</div><div class="arrow">›</div><div class="step"><b>Review</b>Open specialized viewer</div><div class="arrow">›</div><div class="step"><b>Publish</b>Select each public section explicitly</div></div>
+      <p>Administrators can create, update, delete, filter, publish, and unpublish tests; manage users and organisations; assign test/protocol/file access; inspect public access history; and issue or disable API credentials. Making a test private revokes all five section grants.</p>
+    </div></div>
+    <h3>Authorized API client</h3>
+    <div class="lane"><div class="lane-title">Machine-to-machine journey</div><div class="lane-body">
+      <div class="flow"><div class="step"><b>Issue credential</b>Admin selects owner and scopes</div><div class="arrow">›</div><div class="step"><b>Copy once</b>Plain secret shown only in create/rotate response</div><div class="arrow">›</div><div class="step"><b>Authenticate</b>HTTP Basic to <code>/api/v1</code></div><div class="arrow">›</div><div class="step"><b>Authorize</b>Scope + resource + tenant/RLS checks</div><div class="arrow">›</div><div class="step"><b>Audit</b>Action attributed to client/principal</div></div>
+      <p>Available issue-time scopes are:</p>
+      <p><span class="tag green">tests:read</span><span class="tag green">experimental-data:read</span><span class="tag green">protocols:read</span><span class="tag green">protocol-files:download</span><span class="tag green">files:navigate</span></p>
+      <p>The client secret is stored only as a bcrypt hash. Rotation invalidates the previous secret immediately; disabling an API client affects its next request. Disabling a human user does not implicitly disable their API clients, so offboarding includes the dedicated “disable all” operation.</p>
+    </div></div>
+    <div class="security"><strong>Separation of channels.</strong> Browser users authenticate with a session cookie. Machine clients authenticate with HTTP Basic credentials. API Explorer is a convenience interface for issued API credentials; it does not reuse or elevate the browser’s team/admin session.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">5 · Worked implementation</div><h2>5. TB Test: End-to-End Coding Logic</h2>
+    <p>The Trypan Blue (<strong>TB</strong>) implementation is representative because it contains structured conditions, repeated raw runs, processed values, final replicate statistics, an optional statistical sheet, charts, images, downloads, and direct support for partial public releases.</p>
+    <h3>5.1 File and component map</h3>
+    <table>
+      <thead><tr><th>Stage</th><th>Source</th><th>Key symbol</th></tr></thead>
+      <tbody>
+        <tr><td>Parser</td><td><code>backend/parsers/tb.py</code></td><td><code>TBParser</code>, <code>parse_excel_tb()</code></td></tr>
+        <tr><td>Registry/upload</td><td><code>backend/api/controllers/test.py</code></td><td><code>PARSERS["TB"]</code>, <code>save_and_parse()</code>, <code>build_payload_from_parse()</code></td></tr>
+        <tr><td>Persistence</td><td><code>backend/api/models/test.py</code></td><td><code>Test</code> JSON columns and release flags</td></tr>
+        <tr><td>Read service</td><td><code>backend/api/services/test.py</code></td><td><code>get_listings()</code>, <code>mask_test_for_public()</code></td></tr>
+        <tr><td>Dynamic dispatch</td><td><code>frontend/.../RoleAwareTestViewer.tsx</code></td><td><code>SPECIALISED_VIEWERS["tb"]</code></td></tr>
+        <tr><td>Viewer</td><td><code>frontend/src/components/tests/tb/page.tsx</code></td><td><code>TBDataViewer</code></td></tr>
+      </tbody>
+    </table>
+    <h3>5.2 Workbook contract</h3>
+    <table>
+      <thead><tr><th>Sheet/pattern</th><th>Parser behavior</th><th>Output</th></tr></thead>
+      <tbody>
+        <tr><td><code>Test_conditions</code></td><td>Reads key/value labels and fixed cells for work package, scientists, material, dispersion, cell line, treatment, and replicate metadata.</td><td><code>test_details</code> plus <code>replication_metadata</code></td></tr>
+        <tr><td><code>Raw_data_*</code></td><td>Discovers all matching sheets; extracts test/plate labels, assay metric, chamber measurements, protocol details, instrument serial, and notes.</td><td>List of raw run blocks</td></tr>
+        <tr><td><code>Processed data_*</code></td><td>Matches suffixes to raw sheets; reads condition labels and derived cell-death values.</td><td>List of processed run blocks</td></tr>
+        <tr><td><code>Final results</code></td><td>Reads sample/endpoint, four conditions, three replicate rows, mean row, and standard-deviation row.</td><td>Final result object</td></tr>
+        <tr><td><code>Statistics</code> (optional)</td><td>Reads software/test, ANOVA and Brown–Forsythe summaries, ANOVA table, data summary, and Tukey post-hoc comparisons.</td><td>Statistical analysis object; otherwise <code>available:false</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">5 · Worked implementation</div><h2>5.3 Backend Parser Logic</h2>
+    <h3><span class="callout-num">1</span>Open and normalize</h3>
+    <p><code>TBParser.__init__()</code> loads the workbook with formulas resolved (<code>data_only=True</code>) and selects <code>Test_conditions</code>. Helpers normalize human labels into snake-case keys, parse Excel/date variants, replace decimal commas, and return <code>None</code> for unusable numeric values.</p>
+    <div class="code"><span class="k">normalize_key</span>(label): lowercase → replace non-alphanumeric runs with "_"
+<span class="k">excel_date_to_string</span>(value): datetime | Excel serial | known string formats → YYYY-MM-DD
+<span class="k">_safe_float</span>(value): decimal comma → decimal point → float; invalid → None
+<span class="k">_safe_str</span>(value): trim non-empty values</div>
+    <h3><span class="callout-num">2</span>Extract typed scientific structures</h3>
+    <p>Dataclasses define the parser’s output vocabulary—<code>WorkPackageData</code>, <code>MaterialData</code>, <code>DispersionData</code>, <code>CellLineData</code>, <code>TreatmentData</code>, raw/processed blocks, and final results. Extraction methods return dictionaries using <code>asdict()</code>.</p>
+    <div class="code"><span class="k">extract_work_package_data</span>()
+  scan first six columns for label/value rows
+  map normalized labels to wp, partner, full name, acronym, type, endpoint, SOP
+  read scientist names/emails; retain email only when regex-valid
+
+<span class="k">extract_material_data</span>()
+  map Test_conditions rows 26–43 to identifiers, chemistry, batch and stock metadata
+
+<span class="k">extract_raw_data</span>()
+  for each sheet whose name starts with "raw_data":
+    find matching "Processed data_&lt;suffix&gt;"
+    collect chamber labels and % cell death from columns D:G
+    collect protocol/instrument values and assay notes</div>
+    <h3><span class="callout-num">3</span>Assemble one canonical payload</h3>
+    <div class="code"><span class="k">parse_all_data</span>() → {
+  <span class="v">"test_details"</span>: {work_package, material, dispersion, cell_line, treatment},
+  <span class="v">"replication_metadata"</span>: [...],
+  <span class="v">"raw_data"</span>: raw_runs,
+  <span class="v">"replications"</span>: raw_runs,       <span class="c"># compatibility key consumed on upload</span>
+  <span class="v">"processed_data"</span>: processed_runs,
+  <span class="v">"final_results"</span>: final_summary,
+  <span class="v">"statistical_analysis"</span>: statistics,
+  <span class="v">"parser_warnings"</span>: [...]       <span class="c"># only when present</span>
+}</div>
+    <div class="note"><strong>Important mapping.</strong> The upload controller’s <code>build_payload_from_parse()</code> writes <code>file_data["replications"]</code> into the database <code>raw_data</code> column. TB deliberately emits both <code>raw_data</code> and <code>replications</code> with the same list for compatibility with this canonical upload path.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">5 · Worked implementation</div><h2>5.4 Upload, Persistence, and Read Projection</h2>
+    <h3>Administrator upload sequence</h3>
+    <ol>
+      <li><code>POST /tests/</code> requires the administrator role.</li>
+      <li><code>validate_excel_filename()</code> accepts only <code>.xlsx</code> or <code>.xls</code>.</li>
+      <li><code>get_parser("TB")</code> resolves <code>parse_excel_tb</code> from the centralized 19-test registry.</li>
+      <li><code>save_uploaded_file()</code> sanitizes the timestamped name and writes the workbook under the persistent research-data mount.</li>
+      <li>The parser runs. Any parser failure deletes the just-saved file and returns a non-sensitive 400 response.</li>
+      <li><code>clean_for_json()</code> recursively converts dates, decimals, tuples, and unsupported values into JSON-safe primitives.</li>
+      <li><code>TestService.create_test()</code> rejects a duplicate locator triple, validates private/release consistency, commits the row, and refreshes it.</li>
+      <li>If database creation fails, the controller removes the saved workbook so no orphan is left.</li>
+    </ol>
+    <h3>Read sequence</h3>
+    <div class="flow"><div class="step"><b>Viewer request</b><code>POST /tests/listings</code> with WP/CMS/test</div><div class="arrow">›</div><div class="step"><b>Session role</b>public_viewer vs user/admin</div><div class="arrow">›</div><div class="step"><b>SQL lookup</b>Exact locator + public filter when needed</div><div class="arrow">›</div><div class="step"><b>Projection</b>Full record or released sections</div><div class="arrow">›</div><div class="step"><b>Audit</b>Attributable access event</div></div>
+    <h3>Public projection pseudocode</h3>
+    <div class="code"><span class="k">mask_test_for_public</span>(test):
+  return {
+    identity: id + work_package_name + element_cms_id + test_name,
+    test_details: full section IF release_test_details
+                  ELSE seven-field public header allowlist,
+    raw_data: test.raw_data IF release_raw_data ELSE null,
+    processed_data: test.processed_data IF release_processed_data ELSE null,
+    final_results: test.final_results IF release_final_results ELSE null,
+    statistical_analysis: value IF release_statistical_analysis ELSE null,
+    release flags: boolean values,
+    file_path: null
+  }</div>
+    <div class="security"><strong>Why projection is server-side.</strong> A public user must never receive unreleased values and merely have them hidden by React. The response itself is minimized before serialization. Viewer tab filtering then mirrors the authoritative release flags.</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">5 · Worked implementation</div><h2>5.5 TB Frontend Viewer Logic</h2>
+    <h3>Fetch and state</h3>
+    <p><code>TBDataViewer</code> receives the decoded route values and requests the exact test record. React state tracks the response, loading/error state, active tab, and selected run.</p>
+    <div class="code"><span class="k">useEffect</span>([work_package, element, test]):
+  POST /tests/listings { work_package_name, element_cms_id, test_name }
+  setData(response.data)
+
+state = { data, loading, error, activeTab, selectedRun }</div>
+    <h3>Release-aware tab construction</h3>
+    <p>TB is directly safe for partial public releases. It derives available tabs from response values; Test Conditions additionally checks <code>release_test_details !== false</code> because the public response may contain only the header metadata envelope.</p>
+    <div class="code">Test Conditions      ⇢ release_test_details is not false AND test_details exists
+Raw Data            ⇢ raw_data exists
+Processed Data      ⇢ processed_data exists
+Statistical Analysis⇢ statistical_analysis exists
+Final Results       ⇢ final_results exists
+
+IF active tab is unavailable: select the first available tab</div>
+    <h3>Derived visualization data</h3>
+    <table>
+      <thead><tr><th>Memoized model</th><th>Transformation</th><th>UI result</th></tr></thead>
+      <tbody>
+        <tr><td><code>safeRawData</code></td><td>Accept arrays only; otherwise empty list.</td><td>Safe run selector, raw table, and chart.</td></tr>
+        <tr><td><code>rawBarChartData</code></td><td>Each chamber → <code>{chamber, value}</code>.</td><td>Bar chart of percent cell death.</td></tr>
+        <tr><td><code>safeProcessedData</code></td><td>Accept arrays only and select current/first run.</td><td>Condition/value processed chart and table.</td></tr>
+        <tr><td><code>finalMeanChartData</code></td><td>Conditions joined with mean and SD maps.</td><td>Final mean ± SD visualization.</td></tr>
+        <tr><td><code>finalReplicateSeries</code></td><td>Replicate rows assigned stable keys/colors.</td><td>Per-replicate series alongside summary.</td></tr>
+        <tr><td>Statistics sections</td><td>Read optional summary/table arrays defensively.</td><td>ANOVA, Brown–Forsythe, data summary, and Tukey tables.</td></tr>
+      </tbody>
+    </table>
+    <h3>Presentation and export</h3>
+    <ul>
+      <li>The always-visible header shows work package, CMS ID, ERM ID, full name, acronym, type, endpoint, outcome, and SOP.</li>
+      <li>Test Conditions renders material, dispersion, cell line, treatment, and metadata tables only when released/authorized.</li>
+      <li>Each data section has explicit empty states rather than assuming values exist.</li>
+      <li><code>downloadTable()</code> reads rendered table cells, quotes CSV values safely, and downloads a section-specific file.</li>
+      <li>Configured TB images use normalized CMS identifiers and provide display, missing-image fallback, and download links.</li>
+    </ul>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">5 · Worked implementation</div><h2>5.6 End-to-End TB Trace</h2>
+    <table>
+      <thead><tr><th>#</th><th>Input/state</th><th>Code decision</th><th>Output/next stage</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Admin selects TB and an Excel file.</td><td>Canonical value <code>TB</code> matches parser and viewer registries.</td><td>Multipart request to <code>POST /tests/</code>.</td></tr>
+        <tr><td>2</td><td>Filename has supported extension.</td><td>Sanitize and save to persistent research volume.</td><td>Stable source file path.</td></tr>
+        <tr><td>3</td><td>Workbook sheets and cells.</td><td><code>TBParser</code> normalizes values and extracts each domain.</td><td>Canonical nested dictionary.</td></tr>
+        <tr><td>4</td><td>Parser dictionary.</td><td>Controller maps compatibility <code>replications</code> to DB <code>raw_data</code>; cleans JSON values.</td><td>Validated <code>TestCreate</code>.</td></tr>
+        <tr><td>5</td><td>Locator + payload + release state.</td><td>Service checks duplicates/private grants and commits transaction.</td><td><code>tests</code> row plus file reference.</td></tr>
+        <tr><td>6</td><td>User browses WP/material/test.</td><td>Catalogue/listings filter by interactive role.</td><td>Dynamic route <code>/{wp}/{element}/TB</code>.</td></tr>
+        <tr><td>7</td><td>Viewer requests exact locator.</td><td>Public response is projected; private authorized response is complete.</td><td>Safe TB response and access event.</td></tr>
+        <tr><td>8</td><td>TB React component receives response.</td><td>Build tabs and memoized chart/table models from available sections.</td><td>Scientific report, charts, tables, images, downloads.</td></tr>
+      </tbody>
+    </table>
+    <h3>Failure behavior</h3>
+    <table>
+      <thead><tr><th>Failure</th><th>Behavior</th></tr></thead>
+      <tbody>
+        <tr><td>Unknown test type</td><td>Upload receives 400; dynamic viewer reports no configured viewer.</td></tr>
+        <tr><td>Unsupported file extension</td><td>Upload rejected before parsing.</td></tr>
+        <tr><td>Workbook/sheet cannot be loaded</td><td>Parser logs the internal error; saved file is removed; client receives safe processing error.</td></tr>
+        <tr><td>Optional Final results missing</td><td>Parser warning plus structurally valid empty final result.</td></tr>
+        <tr><td>Statistics missing</td><td><code>{available:false, notes:...}</code>; viewer renders an unavailable/empty state.</td></tr>
+        <tr><td>Duplicate WP/CMS/test triple</td><td>Service returns conflict rather than creating an ambiguous record.</td></tr>
+        <tr><td>Public request for private test</td><td>404 to avoid exposing record existence.</td></tr>
+        <tr><td>Unreleased section</td><td>Section payload removed server-side and corresponding tab hidden.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">6 · Maintenance</div><h2>6. Operations and Extension Guide</h2>
+    <h3>6.1 Adding a new test type</h3>
+    <ol>
+      <li>Define the canonical test identifier and keep it identical across create options, parser registry, URL dispatch, and viewer registry.</li>
+      <li>Create a parser under <code>backend/parsers/</code> that returns all five canonical sections (use explicit empty/unavailable structures where a section is unsupported).</li>
+      <li>Add the parser function to <code>PARSERS</code> in <code>backend/api/controllers/test.py</code>.</li>
+      <li>Create a null-safe TypeScript viewer under <code>frontend/src/components/tests/</code>.</li>
+      <li>Register the viewer in <code>RoleAwareTestViewer.tsx</code> and add catalogue display metadata.</li>
+      <li>Add the test option to <code>CreateTestModal.tsx</code>.</li>
+      <li>Test every independent public section flag and all relevant combinations; never infer a section’s release from another section’s presence.</li>
+      <li>Run parser tests, public projection tests, backend suite, ESLint, TypeScript, Next.js build, Compose validation, and security workflow.</li>
+    </ol>
+    <h3>6.2 Parser design rules</h3>
+    <ul class="checklist">
+      <li>Normalize spreadsheet variability at the parser boundary.</li>
+      <li>Use safe conversions and preserve missing values as <code>null</code>/<code>None</code>.</li>
+      <li>Return stable typed keys; do not make viewers understand workbook coordinates.</li>
+      <li>Record optional/missing scientific sections explicitly rather than crashing.</li>
+      <li>Avoid logging complete scientific payloads in production; treat source data according to classification.</li>
+    </ul>
+    <h3>6.3 Database change rules</h3>
+    <ul class="checklist">
+      <li>Use reviewed, idempotent migrations outside development; production auto-DDL must remain off.</li>
+      <li>Back up and restore-test before ownership/backfill or destructive changes.</li>
+      <li>Preserve fail-closed behavior when tenant context, release state, or credentials are missing.</li>
+      <li>Keep heavy JSON out of list/index queries; fetch full payload only for one authorized record.</li>
+      <li>Coordinate DB rows and persistent files to avoid dangling paths or orphan files.</li>
+      <li>Do not store plaintext passwords, client secrets, OTPs, authorization headers, or tokens in logs/audit metadata.</li>
+    </ul>
+    <h3>6.4 Verification commands</h3>
+    <div class="code"><span class="c"># Backend</span>
+docker run --rm -v "$PWD/backend:/app:ro" -w /app \
+  chemat-sustain-backend:test-deps python -m pytest -q
+
+<span class="c"># Frontend</span>
+cd frontend &amp;&amp; npm run lint &amp;&amp; npx tsc --noEmit &amp;&amp; npm run build
+
+<span class="c"># Deployment configuration and diff integrity</span>
+docker compose config --quiet
+git diff --check</div>
+  </section>
+
+  <section class="page page-break">
+    <div class="section-label">7 · Reference</div><h2>7. Glossary and Source Map</h2>
+    <h3>Glossary</h3>
+    <table class="compact">
+      <thead><tr><th>Term</th><th>Meaning in this system</th></tr></thead>
+      <tbody>
+        <tr><td>CMS identifier</td><td>CheMatSustain material identifier used in record lookup and routes, e.g. <code>CMS_30a_CH_TER</code>.</td></tr>
+        <tr><td>ERM identifier</td><td>External/reference material identifier stored within material test details.</td></tr>
+        <tr><td>Canonical sections</td><td>The five normalized scientific JSON groups shared across test types.</td></tr>
+        <tr><td>Public test</td><td>A row with <code>is_public=true</code>; section flags still determine disclosed scientific content.</td></tr>
+        <tr><td>Public viewer</td><td>Authenticated least-privilege interactive role that can read only public projected records.</td></tr>
+        <tr><td>Team user</td><td>Interactive <code>user</code> role with password + OTP and authorized internal record access.</td></tr>
+        <tr><td>API client</td><td>Issued machine credential with hashed secret, scopes, and resource/tenant assignments.</td></tr>
+        <tr><td>RLS</td><td>PostgreSQL Row-Level Security, using transaction-local organization/access context.</td></tr>
+        <tr><td>Header projection</td><td>Seven allowlisted identification fields retained when detailed Test Conditions are unreleased.</td></tr>
+        <tr><td>Protocol test</td><td>A navigation-tree link from a protocol to a test locator triple, not the scientific data row itself.</td></tr>
+      </tbody>
+    </table>
+    <h3>Authoritative source map</h3>
+    <table class="compact">
+      <thead><tr><th>Concern</th><th>Primary source</th></tr></thead>
+      <tbody>
+        <tr><td>Application assembly and middleware</td><td><code>backend/app.py</code></td></tr>
+        <tr><td>Database engine/session</td><td><code>backend/utils/db.py</code></td></tr>
+        <tr><td>ORM model definitions</td><td><code>backend/api/models*.py</code>, <code>backend/api/models/*.py</code></td></tr>
+        <tr><td>Reviewed schema evolution</td><td><code>backend/migrations/</code> and <code>backend/migrations/sql/</code></td></tr>
+        <tr><td>Scientific upload and parser registry</td><td><code>backend/api/controllers/test.py</code></td></tr>
+        <tr><td>Test query/public projection</td><td><code>backend/api/services/test.py</code></td></tr>
+        <tr><td>TB parser</td><td><code>backend/parsers/tb.py</code></td></tr>
+        <tr><td>TB viewer</td><td><code>frontend/src/components/tests/tb/page.tsx</code></td></tr>
+        <tr><td>Viewer dispatch/public fallback</td><td><code>RoleAwareTestViewer.tsx</code>, <code>PublicReleasedDataViewer.tsx</code></td></tr>
+        <tr><td>Interactive identity</td><td><code>backend/api/controllers/user.py</code>, <code>backend/utils/auth.py</code></td></tr>
+        <tr><td>Machine identity and scopes</td><td><code>backend/security/auth.py</code>, <code>router_api_clients.py</code>, <code>router_phase1.py</code></td></tr>
+        <tr><td>Tenant context</td><td><code>backend/security/tenant.py</code> and RLS migrations</td></tr>
+        <tr><td>Retention</td><td><code>backend/scripts/public_access_retention.py</code></td></tr>
+        <tr><td>Production topology</td><td><code>docker-compose.yml</code>, <code>nginx/default.conf</code></td></tr>
+        <tr><td>Security/deployment gate</td><td><code>.github/workflows/security.yml</code>, <code>deploy.yml</code>, <code>scripts/deploy.sh</code></td></tr>
+      </tbody>
+    </table>
+    <div class="summary"><strong>System summary.</strong> CheMatSustain uses a hybrid database architecture to preserve scientific flexibility without sacrificing governance: source workbooks remain durable, parser-specific knowledge is isolated in backend modules, canonical JSON enables common APIs, specialized viewers retain scientific meaning, and layered identity/release/tenant controls constrain who can see what.</div>
+    <div class="footer-note">CheMatSustain has received funding from the European Union under the Horizon Europe Programme (No. 101137990). This technical document describes software implementation and does not supersede consortium data-governance policies.</div>
+  </section>
+</main></body></html>

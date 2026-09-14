@@ -5,8 +5,9 @@ silently rewriting existing research ownership.
 
 Start with `CLAUDE.md` for a token-efficient coding-agent handoff. Human reviewers should read `docs/security/current-state-assessment.md`, `architecture.md`, `database-migration-plan.md` and `release-checklist.md`.
 
-Interactive users authenticate with password plus emailed OTP and an HttpOnly,
-Secure session cookie. Partner systems use individually issued HTTP Basic client
+Public viewers authenticate with email and password; consortium users and
+administrators additionally verify an emailed OTP. All interactive roles receive
+an HttpOnly, Secure session cookie. Partner systems use individually issued HTTP Basic client
 credentials whose secrets are stored only as bcrypt hashes. Scoped Phase 1
 routes live under `/api/v1`.
 

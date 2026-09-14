@@ -79,3 +79,9 @@ class ChangePasswordRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     msg: str
+
+
+class LoginResponse(MessageResponse):
+    authenticated: bool
+    requires_otp: bool
+    role: Role

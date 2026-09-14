@@ -20,8 +20,15 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email?: string, password?: string) => Promise<{ success: boolean; message: string }>;
+  login: (email?: string, password?: string) => Promise<{
+    success: boolean;
+    message: string;
+    authenticated?: boolean;
+    requiresOTP?: boolean;
+    role?: User['role'];
+  }>;
   verifyOTP: (email: string, otpCode: string) => Promise<{ success: boolean; message: string }>;
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -52,7 +59,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (email?: string, password?: string) => {
     try {
       const response = await api.post('/users/login', { email, password });
-      return { success: true, message: response.data.msg };
+      if (response.data.authenticated) await checkAuth();
+      return {
+        success: true,
+        message: response.data.msg,
+        authenticated: response.data.authenticated,
+        requiresOTP: response.data.requires_otp,
+        role: response.data.role,
+      };
     } catch (error: any) {
       return { success: false, message: error.response?.data?.detail || 'Login failed' };
     }
@@ -76,7 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => { void checkAuth(); }, [checkAuth]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyOTP, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyOTP, refreshUser: checkAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );

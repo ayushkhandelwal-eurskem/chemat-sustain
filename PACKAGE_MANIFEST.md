@@ -9,7 +9,8 @@ It intentionally excludes `.git`, `node_modules`, scientific data, uploaded file
 ## Included areas
 
 - Root: environment example, CI/security configuration and operational readmes.
-- Backend security: local sessions with email OTP, hashed API-client credentials,
+- Backend security: role-aware local sessions (password-only public viewers and
+  email OTP for privileged users), hashed API-client credentials,
   tenant DB context, safe files and audit chaining.
 - Backend domain: organisations, explicit user/resource grants and API clients.
 - Secure APIs: scoped Phase 1 research endpoints and API-client verification.

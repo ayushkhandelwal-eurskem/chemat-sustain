@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from api.schemas.user import (
     UserCreate, UserOut, PublicRegistration, LoginRequest, VerifyOTPRequest,
     ForgotPasswordRequest, ResetPasswordRequest,
-    ChangePasswordRequest, MessageResponse, Role
+    ChangePasswordRequest, LoginResponse, MessageResponse, Role
 )
 from api.services.user import (
     create_user, authenticate_user, send_otp, verify_otp,
@@ -25,6 +25,27 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
+
+async def _create_login_session(
+    db: AsyncSession,
+    user: User,
+    request: Request,
+    response: Response,
+) -> None:
+    """Create the standard session and attach its protected cookie."""
+    await update_last_activity(db=db, email=user.email)
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    session = await create_session(db, user.id, user_agent, ip_address)
+    response.set_cookie(
+        key="session_id",
+        value=session.session_id,
+        max_age=7 * 24 * 60 * 60,
+        httponly=True,
+        secure=os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true",
+        samesite="lax",
+    )
+
 @router.post("/", response_model=UserOut)
 async def create_new_user(user: UserCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Create a new user (admin only)"""
@@ -37,18 +58,20 @@ async def create_new_user(user: UserCreate, db: AsyncSession = Depends(get_db), 
     return db_user
 
 
-@router.post("/register", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     registration: PublicRegistration,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    """Self-register a least-privilege viewer and email a sign-in OTP."""
+    """Self-register and sign in a least-privilege public viewer."""
     normalized_email = str(registration.email).strip().lower()
     if await get_user_by_email(db, normalized_email):
         raise HTTPException(status.HTTP_409_CONFLICT, "An account with this email already exists")
 
     try:
-        await register_public_viewer(db, registration)
+        user = await register_public_viewer(db, registration)
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
@@ -56,15 +79,22 @@ async def register(
             status.HTTP_409_CONFLICT, "An account with this email already exists"
         ) from exc
 
-    success, message = await send_otp(db, normalized_email)
-    if not success:
-        # The account is valid and can use normal sign-in to request another OTP.
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, message)
-    return MessageResponse(msg="Registration successful. A verification code was sent to your email.")
+    await _create_login_session(db, user, request, response)
+    return LoginResponse(
+        msg="Registration successful. You are now signed in.",
+        authenticated=True,
+        requires_otp=False,
+        role=Role.public_viewer,
+    )
 
-@router.post("/login", response_model=MessageResponse)
-async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """User login with email and password"""
+@router.post("/login", response_model=LoginResponse)
+async def login(
+    login_data: LoginRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Authenticate public viewers directly; require OTP for privileged users."""
     user = await authenticate_user(db=db, email=login_data.email, password=login_data.password)
     if not user:
         raise HTTPException(
@@ -72,7 +102,16 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Invalid email or password"
         )
 
-    # Send OTP
+    if user.role == Role.public_viewer:
+        await _create_login_session(db, user, request, response)
+        return LoginResponse(
+            msg="Login successful",
+            authenticated=True,
+            requires_otp=False,
+            role=Role.public_viewer,
+        )
+
+    # Administrators and consortium users retain email OTP as a second factor.
     success, message = await send_otp(db, login_data.email)
     if not success:
         raise HTTPException(
@@ -80,7 +119,12 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail=message
         )
 
-    return MessageResponse(msg="OTP sent to email")
+    return LoginResponse(
+        msg="Verification code sent to your email",
+        authenticated=False,
+        requires_otp=True,
+        role=user.role,
+    )
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
@@ -134,7 +178,7 @@ async def reset_password(
         )
     return MessageResponse(msg="Password reset successfully. You can now sign in.")
 
-@router.post("/verify-otp", response_model=MessageResponse)
+@router.post("/verify-otp", response_model=LoginResponse)
 async def verify_otp_endpoint(otp_data: VerifyOTPRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     """Verify OTP code and create session"""
     logger.info("OTP verification attempt received")
@@ -159,26 +203,15 @@ async def verify_otp_endpoint(otp_data: VerifyOTPRequest, request: Request, resp
 
     logger.info("OTP verification succeeded")
 
-    # Update last activity
-    await update_last_activity(db=db, email=otp_data.email)
-
-    # Create session
-    user_agent = request.headers.get("user-agent")
-    ip_address = request.client.host if request.client else None
-    session = await create_session(db, user.id, user_agent, ip_address)
-
-    # Set session cookie. The session identifier itself is never logged.
-    response.set_cookie(
-        key="session_id",
-        value=session.session_id,
-        max_age=7*24*60*60,  # 7 days in seconds
-        httponly=True,
-        secure=os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true",
-        samesite="lax"
-    )
+    await _create_login_session(db, user, request, response)
 
     logger.info("Session created for user")
-    return MessageResponse(msg="Login successful")
+    return LoginResponse(
+        msg="Login successful",
+        authenticated=True,
+        requires_otp=False,
+        role=user.role,
+    )
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):

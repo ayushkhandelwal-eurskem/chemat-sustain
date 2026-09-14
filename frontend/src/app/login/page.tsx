@@ -180,33 +180,33 @@ export default function LoginPage() {
   };
 
   const title = step === 'register'
-    ? 'Create public viewer account'
+    ? 'Create a public access account'
     : step === 'otp'
-      ? 'Verify team sign-in'
+      ? 'Security verification'
       : step === 'forgot'
-        ? 'Recover your account'
+        ? 'Account recovery'
         : step === 'reset'
-          ? 'Choose a new password'
+          ? 'Create a new password'
           : audience === 'public'
-            ? 'View released public data'
-            : 'Team & administrator sign in';
+            ? 'Public data access'
+            : 'Team & administrator access';
 
   const description = step === 'register'
-    ? 'Register with your name, email, and password. No sign-in code is required for public access.'
+    ? 'Register to access CheMatSustain datasets approved for public viewing.'
     : step === 'otp'
-      ? `Enter the six-digit security code sent to ${email}.`
+      ? `Enter the six-digit security code sent to ${email} to complete your sign-in.`
       : step === 'forgot'
-        ? 'Enter your account email. If an active account exists, we will send a password-reset code.'
+        ? 'Enter your account email to request a secure password-reset code.'
         : step === 'reset'
-          ? `Use the reset code sent to ${email}, then create a new password.`
+          ? `Enter the code sent to ${email}, then choose a secure new password.`
           : audience === 'public'
-            ? 'Sign in with email and password to browse only the data sections approved for public release.'
-            : 'Consortium and administrator accounts use email, password, and a second verification step.';
+            ? 'Registered public viewers can access CheMatSustain datasets approved for public availability.'
+            : 'Authorized consortium personnel and platform administrators can access internal resources after security verification.';
 
   return (
     <ProtectedRoute requireAuth={false}>
       <main className="flex min-h-screen items-center justify-center bg-sky-100 px-4 py-10 sm:py-12">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-2xl">
           <div className="mb-8 flex justify-center">
             <Image
               src="https://chematsustain.eu/wp-content/uploads/2024/03/CMS-Logo-horizontal-color-transp.png"
@@ -221,7 +221,7 @@ export default function LoginPage() {
           <section className="rounded-lg bg-white p-6 shadow-md sm:p-8">
             {(step === 'signin' || step === 'register') && (
               <div className="mb-7">
-                <div className="grid grid-cols-2 gap-3" aria-label="Choose account access type">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Choose account access type">
                   <AudienceButton
                     active={audience === 'public'}
                     icon={<Users size={18} />}
@@ -235,12 +235,21 @@ export default function LoginPage() {
                     onClick={() => selectAudience('team')}
                   />
                 </div>
-                <Link
-                  href="/api-explorer"
-                  className="mt-3 flex items-center justify-center gap-2 rounded-md border border-blue-900/20 bg-white px-4 py-2.5 text-sm font-semibold text-blue-900 transition-colors hover:bg-blue-50"
-                >
-                  <KeyRound size={17} /> Open API Explorer
-                </Link>
+                {audience === 'team' && (
+                  <Link
+                    href="/api-explorer"
+                    className="mt-3 flex items-center justify-between gap-3 rounded-md border border-blue-900/20 bg-blue-50 px-4 py-3 text-blue-900 transition-colors hover:bg-blue-100"
+                  >
+                    <span className="flex items-center gap-3">
+                      <KeyRound size={18} />
+                      <span>
+                        <span className="block text-sm font-semibold">Open API Explorer</span>
+                        <span className="block text-xs font-normal text-blue-800/70">For authorized API client credentials</span>
+                      </span>
+                    </span>
+                    <ArrowRight size={17} />
+                  </Link>
+                )}
               </div>
             )}
 

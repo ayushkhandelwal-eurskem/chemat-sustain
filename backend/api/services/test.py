@@ -169,9 +169,16 @@ class TestService:
 
         return list(tests), total
 
-    async def update_test(self, test_id: int, test_data: TestUpdate) -> Test:
-        """Update a test."""
-        test = await self.get_test_by_id(test_id)
+    async def update_test(
+        self,
+        test_id: int,
+        test_data: TestUpdate,
+        is_private_user: bool = False,
+    ) -> Test:
+        """Update a test after applying the caller's explicit visibility context."""
+        test = await self.get_test_by_id(
+            test_id, is_private_user=is_private_user
+        )
 
         update_data = test_data.dict(exclude_unset=True)
 

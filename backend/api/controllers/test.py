@@ -231,7 +231,7 @@ async def update_test(
     """Update a test with optional Excel file upload."""
     logger.info(f"Updating test with ID: {test_id}")
 
-    current_test = await service.get_test_by_id(test_id)
+    current_test = await service.get_test_by_id(test_id, is_private_user=True)
 
     saved_path: Optional[str] = None
     file_payload: dict = {}
@@ -263,7 +263,9 @@ async def update_test(
         update_data.statistical_analysis = file_payload["statistical_analysis"]
 
     try:
-        result = await service.update_test(test_id, update_data)
+        result = await service.update_test(
+            test_id, update_data, is_private_user=True
+        )
     except Exception:
         if saved_path:
             delete_file(saved_path)
@@ -432,7 +434,9 @@ async def update_test_json(
     admin: Role = Depends(get_user_by_role(Role.admin)),
 ):
     """Update a test using JSON payload as an authenticated administrator."""
-    return await service.update_test(test_id, test_data)
+    return await service.update_test(
+        test_id, test_data, is_private_user=True
+    )
 
 
 @router.get("/work-package/{work_package_name}", response_model=List[TestResponse])
@@ -505,7 +509,9 @@ async def publish_test(
             release_final_results=True,
             release_statistical_analysis=True,
         ),
+        is_private_user=True,
     )
+
 
 
 @router.patch("/{test_id}/unpublish", response_model=TestResponse)
@@ -525,4 +531,5 @@ async def unpublish_test(
             release_final_results=False,
             release_statistical_analysis=False,
         ),
+        is_private_user=True,
     )

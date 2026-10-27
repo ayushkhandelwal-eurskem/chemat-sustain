@@ -56,6 +56,7 @@ export const testTypes: { value: string; label: string }[] = [
   { value: 'Algae',          label: 'Algae' },
   { value: 'ANNX',           label: 'ANNX — Annexin V/DAPI Apoptosis' },
   { value: 'PCR',            label: 'PCR — Real-Time PCR' },
+  { value: 'PCR-Microfludic', label: 'PCR Microfluidic' },
 ];
 
 export const workPackages = ['WP2', 'WP3', 'WP4'];

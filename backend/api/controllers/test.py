@@ -48,6 +48,7 @@ from parsers.waterflea import parse_excel_waterflea
 from parsers.algae import parse_excel_algae
 from parsers.annx import parse_excel_annx
 from parsers.pcr import parse_excel_pcr
+from parsers.pcr_microfludic import parse_excel_pcr_microfludic
 
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -84,6 +85,7 @@ PARSERS: Dict[str, Callable[[str], dict]] = {
     "Algae": parse_excel_algae,
     "ANNX": parse_excel_annx,
     "PCR": parse_excel_pcr,
+    "PCR-Microfludic": parse_excel_pcr_microfludic,
 }
 
 ALLOWED_EXTENSIONS = (".xlsx", ".xls")

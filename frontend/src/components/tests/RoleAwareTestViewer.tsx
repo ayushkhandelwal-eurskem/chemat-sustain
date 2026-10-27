@@ -24,6 +24,7 @@ import WaterFleaDataViewer from "@/components/tests/waterplea/page";
 import AlgaeDataViewer from "@/components/tests/algae/page";
 import ANNXDataViewer from "@/components/tests/annx/page";
 import PCRDataViewer from "@/components/tests/pcr/page";
+import PCRMicrofludicDataViewer from "@/components/tests/pcr_microfludic/page";
 
 interface ViewerProps {
   work_package: string;
@@ -54,6 +55,7 @@ const SPECIALISED_VIEWERS: Record<string, ComponentType<ViewerProps>> = {
   algae: AlgaeDataViewer,
   annx: ANNXDataViewer,
   pcr: PCRDataViewer,
+  "pcr-microfludic": PCRMicrofludicDataViewer,
 };
 
 const RoleAwareTestViewer: FC<ViewerProps> = (props) => {

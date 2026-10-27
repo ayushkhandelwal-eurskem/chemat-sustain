@@ -1,5 +1,23 @@
 # ANNX and PCR workbook integration
 
+## PCR-Microfludic variant
+
+`PCR-Microfludic` is a separate canonical platform type (spelling retained to
+match the requested identifier and the existing `TB-Microfludic` convention).
+`parsers/pcr_microfludic.py` registers a class-based parser that reuses the PCR
+scientific extraction because the supplied workbook has the same PCR template.
+Its workbook acronym remains `PCR`; `test_details.platform_test_type` records
+the selected variant without rewriting the workbook metadata or inventing
+microfluidic chip/flow conditions. Explicit `PCR-Microfludic` and
+`PCR-Microfluidic` workbook acronyms are accepted as well.
+
+The self-contained frontend viewer lives in `pcr_microfludic/page.tsx`, and the
+shared create/update options include `PCR Microfluidic`. ANNX, PCR and this
+variant use the established MNT/TB report presentation: inherited site font,
+container width, two-column blue metadata panels, full-width tabs, white
+shadowed section cards, blue headings, and gray bordered tables. No global
+theme or other test viewer is changed.
+
 The canonical platform identifiers are `ANNX` and `PCR`. Parser modules follow
 the existing `parsers/<test>.py` convention. Both are registered in the existing
 controller `PARSERS` dictionary, used by both POST creation and PUT replacement.

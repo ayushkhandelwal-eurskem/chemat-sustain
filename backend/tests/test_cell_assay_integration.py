@@ -12,10 +12,10 @@ from api.services.test import TestService
 from test_cell_assay_parsers import make_workbook
 
 
-@pytest.mark.parametrize("test_type", ["ANNX", "PCR"])
+@pytest.mark.parametrize("test_type", ["ANNX", "PCR", "PCR-Microfludic"])
 @pytest.mark.asyncio
 async def test_create_replace_and_retrieve_assay(tmp_path, monkeypatch, test_type):
-    path = make_workbook(tmp_path / "assay.xlsx", test_type)
+    path = make_workbook(tmp_path / "assay.xlsx", "PCR" if test_type == "PCR-Microfludic" else test_type)
     deleted = []
     monkeypatch.setattr(controller, "save_uploaded_file", lambda *args, **kwargs: str(path))
     monkeypatch.setattr(controller, "delete_file", deleted.append)

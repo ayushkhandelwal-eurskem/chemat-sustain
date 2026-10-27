@@ -35,6 +35,7 @@ class Measurement:
 
 class CellAssayParser:
     test_type = ""
+    workbook_acronyms: tuple[str, ...] = ()
 
     def __init__(self, file_path: str):
         self.warnings: list[str] = []
@@ -46,7 +47,8 @@ class CellAssayParser:
                 raise ValueError("Expected one 'Test conditions' or 'Test_conditions' sheet.")
             self.ws = matches[0]
             acronym = self.lookup("short_name_or_acronym")
-            if normalize_key(acronym) != normalize_key(self.test_type):
+            accepted = self.workbook_acronyms or (self.test_type,)
+            if normalize_key(acronym) not in {normalize_key(name) for name in accepted}:
                 raise ValueError(f"Expected {self.test_type} workbook; test acronym is {acronym!r}.")
         except Exception:
             self.close()

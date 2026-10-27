@@ -46,6 +46,8 @@ from parsers.tbm import parse_excel_tbm
 from parsers.rotifier import parse_excel_rotifier
 from parsers.waterflea import parse_excel_waterflea
 from parsers.algae import parse_excel_algae
+from parsers.annx import parse_excel_annx
+from parsers.pcr import parse_excel_pcr
 
 logging.getLogger("multipart.multipart").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -80,6 +82,8 @@ PARSERS: Dict[str, Callable[[str], dict]] = {
     "Rotifier": parse_excel_rotifier,
     "WaterFlea": parse_excel_waterflea,
     "Algae": parse_excel_algae,
+    "ANNX": parse_excel_annx,
+    "PCR": parse_excel_pcr,
 }
 
 ALLOWED_EXTENSIONS = (".xlsx", ".xls")

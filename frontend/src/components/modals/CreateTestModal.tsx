@@ -54,6 +54,8 @@ export const testTypes: { value: string; label: string }[] = [
   { value: 'Rotifier',       label: 'Rotifier' },
   { value: 'WaterFlea',      label: 'Water Flea' },
   { value: 'Algae',          label: 'Algae' },
+  { value: 'ANNX',           label: 'ANNX — Annexin V/DAPI Apoptosis' },
+  { value: 'PCR',            label: 'PCR — Real-Time PCR' },
 ];
 
 export const workPackages = ['WP2', 'WP3', 'WP4'];

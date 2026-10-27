@@ -22,6 +22,8 @@ import MNTDataViewer from "@/components/tests/mnt/page";
 import RotifierDataViewer from "@/components/tests/rotifier/page";
 import WaterFleaDataViewer from "@/components/tests/waterplea/page";
 import AlgaeDataViewer from "@/components/tests/algae/page";
+import ANNXDataViewer from "@/components/tests/annx/page";
+import PCRDataViewer from "@/components/tests/pcr/page";
 
 interface ViewerProps {
   work_package: string;
@@ -50,6 +52,8 @@ const SPECIALISED_VIEWERS: Record<string, ComponentType<ViewerProps>> = {
   rotifier: RotifierDataViewer,
   waterflea: WaterFleaDataViewer,
   algae: AlgaeDataViewer,
+  annx: ANNXDataViewer,
+  pcr: PCRDataViewer,
 };
 
 const RoleAwareTestViewer: FC<ViewerProps> = (props) => {

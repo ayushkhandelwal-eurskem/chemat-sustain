@@ -55,6 +55,9 @@ export default function UpdateTestModal({
 
   useEffect(() => {
     if (test) {
+      // Excel replacement belongs to the selected record, never a previous edit.
+      setFile(null);
+      setError(null);
       setWorkPackageName(test.work_package_name);
       setElementCmsId(test.element_cms_id);
       setTestName(test.test_name);
@@ -68,7 +71,7 @@ export default function UpdateTestModal({
       });
       setTestResult(String(test.test_result));
     }
-  }, [test]);
+  }, [test, isOpen]);
 
   const handleToggleChange = (key: ReleaseKey) => {
     setRelease((prev) => ({

@@ -227,7 +227,7 @@ const UniversalImagesTab: FC<UniversalImagesTabProps> = ({
                       onError={() => handleImageError(image.id)}
                     />
                     {/* Zoom Overlay */}
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                       <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </>
@@ -268,7 +268,7 @@ const UniversalImagesTab: FC<UniversalImagesTabProps> = ({
       {/* Lightbox Modal */}
       {selectedImage && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
           onClick={closeLightbox}
         >
           {/* Close Button */}
@@ -283,7 +283,7 @@ const UniversalImagesTab: FC<UniversalImagesTabProps> = ({
           {images.filter(img => !imageLoadErrors.has(img.id)).length > 1 && (
             <>
               <button
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition p-2 rounded-full bg-black bg-opacity-50 hover:bg-opacity-70"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition p-2 rounded-full bg-black/50 hover:bg-black/70"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigateLightbox('prev');
@@ -292,7 +292,7 @@ const UniversalImagesTab: FC<UniversalImagesTabProps> = ({
                 <ChevronLeft size={32} />
               </button>
               <button
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition p-2 rounded-full bg-black bg-opacity-50 hover:bg-opacity-70"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition p-2 rounded-full bg-black/50 hover:bg-black/70"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigateLightbox('next');
@@ -315,7 +315,7 @@ const UniversalImagesTab: FC<UniversalImagesTabProps> = ({
             />
 
             {/* Image Info Bar */}
-            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-4 flex justify-between items-center">
+            <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-4 flex justify-between items-center">
               <div>
                 <h3 className="font-semibold">{selectedImage.title}</h3>
                 <p className="text-sm text-gray-300">
@@ -333,7 +333,7 @@ const UniversalImagesTab: FC<UniversalImagesTabProps> = ({
           </div>
 
           {/* Image Counter */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black bg-opacity-50 px-3 py-1 rounded-full">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full">
             {selectedIndex + 1} / {images.length}
           </div>
         </div>

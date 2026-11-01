@@ -15,6 +15,7 @@ from utils.custom_router import APIRouter
 from utils.auth import get_current_user, get_user_by_role
 from utils.db import get_db
 from utils import test_images as store
+from utils.workbook_charts import extract_workbook_charts
 from api.models.test import Test
 from api.schemas.user import Role
 
@@ -52,17 +53,23 @@ async def images_for_test(work_package: str, element: str, test_name: str,
         raise HTTPException(404, "Test not found")
     # Parse only if this caller has at least one released image category.
     if not any(can_read(test, user, category) for category in RELEASE):
-        return {"test_id": test.id, "images": [], "warnings": []}
+        return {"test_id": test.id, "images": [], "charts": [], "warnings": []}
     try:
         await run_in_threadpool(store.extract_workbook_images, test.id, test.file_path)
     except Exception:
         # Manual images remain usable if an old workbook is corrupt or absent.
         logger.warning("Workbook image extraction failed for test %s", test.id, exc_info=True)
+    if can_read(test, user, "final"):
+        try:
+            await run_in_threadpool(extract_workbook_charts, test.id, test.file_path)
+        except Exception:
+            logger.warning("Workbook chart extraction failed for test %s", test.id, exc_info=True)
     manifest = await run_in_threadpool(store.list_images, test.id)
     admin = user.role == Role.admin
     return {"test_id": test.id, "images": [public_image(test.id, image) for image in manifest["images"]
             if not image.get("hidden") and (admin or can_read(test, user, image["category"]))],
-            "warnings": manifest.get("warnings", []) if admin else []}
+            "charts": manifest.get("charts", []) if can_read(test, user, "final") else [],
+            "warnings": manifest.get("warnings", []) + manifest.get("chart_warnings", []) if admin else []}
 
 
 @router.get("/{test_id}/{image_id}/file")

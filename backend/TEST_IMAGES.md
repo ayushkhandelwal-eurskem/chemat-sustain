@@ -22,8 +22,18 @@ are assigned automatically. A conditions-sheet logo is never moved into results.
 Captions and nearest replicate identifiers are read from nearby workbook cells;
 administrators can correct the title/category. No image-content inference is made.
 
-Only actual embedded raster pictures supported by openpyxl/Pillow are imported.
-Excel charts, drawing objects, externally linked pictures and screenshots not
+Native Excel clustered column and standard line charts on recognized final-results
+sheets are also read and rendered as interactive graphs in Final Results, separate
+from the image gallery. Series values, labels, axis titles/limits and custom vertical
+error bars come from the workbook; formulas are not evaluated. References outside
+the graph's final-results sheet are rejected so unreleased sections cannot leak
+through chart data. Unsupported chart types/features produce administrator warnings
+rather than being silently converted to misleading graphs. Styling is not an exact
+Excel reproduction. Graphs share the final-results release flag, and refresh lazily
+for existing workbooks; no scientific-data reparse is required.
+
+Only actual embedded raster pictures supported by openpyxl/Pillow are imported as
+images. Drawing objects, externally linked pictures and screenshots not
 embedded in the workbook cannot be extracted by this implementation. Uploaded
 PNG/JPEG/WebP/GIF/BMP/TIFF images are decoded and saved as PNG (first GIF/TIFF
 frame only), with a 15 MB input/output limit and 25-megapixel limit. Up to 100

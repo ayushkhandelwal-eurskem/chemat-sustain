@@ -114,3 +114,20 @@ def test_workbook_auto_import_and_manual_overrides(image_api):
 def test_external_workbook_path_is_not_read(image_api):
     store.extract_workbook_images(7,"/etc/passwd")
     assert store.list_images(7)["images"]==[]
+
+
+def test_graphs_obey_final_result_release(image_api):
+    client, test, user, _ = image_api
+    with store.locked_manifest(7) as (_, manifest):
+        manifest["charts"] = [{"id": "final-graph", "title": "Final chart"}]
+    params = {"work_package": "WP3", "element": "CMS_1c_AuNP", "test_name": "ANNX"}
+    assert len(client.get("/test-images", params=params).json()["charts"]) == 1
+    user.role = Role.public_viewer
+    assert client.get("/test-images", params=params).status_code == 404
+    test.is_public = True
+    test.release_raw_data = True
+    assert client.get("/test-images", params=params).json()["charts"] == []
+    test.release_final_results = True
+    assert len(client.get("/test-images", params=params).json()["charts"]) == 1
+    test.release_final_results = False
+    assert client.get("/test-images", params=params).json()["charts"] == []

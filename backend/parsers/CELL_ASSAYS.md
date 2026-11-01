@@ -66,8 +66,11 @@ not bypassed. The update modal imports the create modal's shared test options.
 
 Viewers provide conditions, raw, processed, final and optional statistics tabs,
 replicate/endpoint selectors, charts with reported SD, and complete CSV exports.
-Source previews paginate at 50 nonempty rows; measurement previews cap at 200
-and charts at 100 points without truncating downloaded data. CSV formula-like
+ANNX and PCR-Microfludic tables display all source and measurement rows in normal
+page flow, without pagination or nested scrolling; cells wrap to the report
+width. The standard PCR source preview still paginates at 50 nonempty rows and
+its measurement preview caps at 200. Charts cap at 100 points without truncating
+downloaded data. CSV formula-like
 text is escaped to prevent spreadsheet formula execution.
 
 ## Validation

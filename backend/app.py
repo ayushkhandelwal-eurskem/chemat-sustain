@@ -117,12 +117,14 @@ app.include_router(access_admin_router)
 
 from api.controllers.file_navigator import router as file_navigator_router
 from api.controllers.test import router as test_router
+from api.controllers.test_images import router as test_images_router
 from api.controllers.user import router as user_router
 from api.router_protocol_files import router as protocol_files_router
 from api.router_tree import router as tree_router
 from api.router_tree_admin import router as tree_admin_router
 
 app.include_router(test_router, prefix="/tests", tags=["Tests"])
+app.include_router(test_images_router)
 app.include_router(file_navigator_router, prefix="/files", tags=["File Navigator"])
 app.include_router(user_router, prefix="/users", tags=["User Management"])
 app.include_router(tree_router, tags=["Tree"])

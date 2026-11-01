@@ -1,4 +1,5 @@
 "use client";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
 import { api } from "@/lib/axios";
 import { FC, useEffect, useState } from "react";
 import { Download } from "lucide-react";
@@ -1634,6 +1635,7 @@ const MTTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             </div>
           </div>
         )}
+        <TestImageGallery workPackage={work_package} element={element} test={test} category={activeTab} />
       </div>
     </div >
   );

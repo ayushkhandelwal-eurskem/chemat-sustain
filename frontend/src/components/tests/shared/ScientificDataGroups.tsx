@@ -7,6 +7,7 @@ import type { Category, Measurement, Scalar, SourceTable } from "@/lib/scientifi
 import { resolveScientificImages } from "@/lib/images/testImageConfig";
 import type { TestType } from "@/lib/images/testImageConfig";
 import UniversalImagesTab from "./UniversalImagesTab";
+import TestImageGallery from "./TestImageGallery";
 
 interface Props {
   category: Category;
@@ -50,6 +51,8 @@ export function ScientificImages({ workPackage, element, test, category, sources
   workPackage: string; element: string; test: string; category: Category; sources: SourceTable[];
 }) {
   const images = [...new Map(sources.flatMap(source => resolveScientificImages(workPackage, element, test, category, source)).map(image => [image.id, image])).values()];
-  if (!images.length) return null;
-  return <UniversalImagesTab workPackage={workPackage} element={element} testType={test as TestType} apiImages={images} />;
+  return <>
+    {images.length > 0 && <UniversalImagesTab workPackage={workPackage} element={element} testType={test as TestType} apiImages={images} />}
+    <TestImageGallery workPackage={workPackage} element={element} test={test} category={category} />
+  </>;
 }

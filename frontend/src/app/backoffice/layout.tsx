@@ -32,6 +32,7 @@ export default function BackofficeLayout({ children }: BackofficeLayoutProps) {
   }
 
   const sidebarItems = [
+    { name: 'Test Images', href: '/backoffice/images', icon: <span aria-hidden="true">▧</span> },
     {
       name: 'Dashboard',
       href: '/backoffice',

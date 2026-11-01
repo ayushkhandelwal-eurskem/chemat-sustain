@@ -1,4 +1,5 @@
 "use client";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
 import React, { FC, useEffect, useState } from "react";
 import { api } from "@/lib/axios";
 import { Download } from "lucide-react";
@@ -1074,6 +1075,7 @@ const HRSTEMDataViewer: FC<PageProps> = ({ work_package, element, test, file }) 
             ) : null}
           </div>
         )}
+        <TestImageGallery workPackage={work_package} element={element} test={test} category={activeTab} />
       </div>
     </div>
   );

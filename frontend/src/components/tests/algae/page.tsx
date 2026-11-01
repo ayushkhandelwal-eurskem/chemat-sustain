@@ -1,4 +1,5 @@
 "use client";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
 import React, { FC, useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/axios";
 import { Download, ChevronDown, ChevronUp, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
@@ -947,6 +948,7 @@ const AlgaeDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
           )}
         </>
       )}
+        <TestImageGallery workPackage={work_package} element={element} test={test} category={activeTab} />
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 "use client";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
 import React, { FC, useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/axios";
 import {
@@ -888,6 +889,7 @@ const WaterFleaDataViewer: FC<PageProps> = ({
             )}
           </>
         )}
+        <TestImageGallery workPackage={work_package} element={element} test={test} category={activeTab} />
       </div>
     </div>
   );

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Download, ChevronDown } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ErrorBar, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "@/lib/axios";
-import ScientificDataGroups, { ScientificImages } from "@/components/tests/shared/ScientificDataGroups";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
+import { AnnexinFinal, AnnexinReplicates, AnnexinStatistics } from "./AnnexinTables";
 import type { Category } from "@/lib/scientificRecognition";
 
 interface CellAssayViewerProps {
@@ -91,40 +91,6 @@ function SourceGrid({ source }: { source?: SourceTable }) {
     </div>
     <p className="text-sm text-gray-500">{source.rows.length} nonempty rows · all rows displayed</p>
   </section>;
-}
-
-function Measurements({ values }: { values: Measurement[] }) {
-  const [endpoint, setEndpoint] = useState("");
-  const endpoints = Array.from(new Set(values.map(value => value.endpoint)));
-  const selected = endpoints.includes(endpoint) ? endpoint : endpoints[0];
-  const visible = values.filter(value => value.endpoint === selected);
-  const summaries = visible.filter(value => !value.replication);
-  const chartData = (summaries.length ? summaries : visible).filter(value => typeof value.value === "number")
-    .map(value => ({ ...value, label: value.replication ? `${value.treatment} · ${value.replication}` : value.treatment }));
-  if (!values.length) return null;
-  return <section className="space-y-4">
-    <div className="flex flex-wrap items-center gap-3"><label className="font-medium" htmlFor="assay-endpoint">Scientific endpoint</label>
-      <select id="assay-endpoint" className="max-w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5" value={selected} onChange={event => setEndpoint(event.target.value)}>{endpoints.map(value => <option key={value}>{value}</option>)}</select>
-      <button className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm" onClick={() => downloadCsv("measurements", [
-        ["Endpoint", "Treatment", "Replication", "Value", "Unit", "SD (as reported)", "Gate", "Source cell"],
-        ...values.map(value => [value.endpoint, value.treatment, value.replication ?? null, value.value, value.unit, value.sd ?? null, value.gate ?? null, value.source_cell]),
-      ])}><Download size={16} /> All measurements CSV</button></div>
-    <p className="text-sm text-gray-600">{visible[0]?.unit}. Error bars show workbook-reported SD where available; no values are recalculated.</p>
-    {chartData.length > 0 && chartData.length <= 100 && <div className="h-80 w-full"><ResponsiveContainer width="100%" height="100%">
-      <BarChart data={chartData} margin={{ top: 10, right: 20, bottom: 55, left: 10 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" angle={-15} textAnchor="end" height={70} /><YAxis /><Tooltip />
-        <Bar dataKey="value" name={visible[0]?.unit} fill="#3b82f6"><ErrorBar dataKey="sd" width={5} stroke="#1e293b" /></Bar>
-      </BarChart></ResponsiveContainer></div>}
-  </section>;
-}
-
-function ReplicateBlocks({ blocks, category, conditions, finalValues }: { blocks: DataBlock[]; category: Category; conditions?: SourceTable; finalValues: Measurement[] }) {
-  const [replication, setReplication] = useState("");
-  const block = blocks.find(item => item.replication === replication) ?? blocks[0];
-  if (!block) return <p className="p-4 text-gray-500">No replicate data available.</p>;
-  return <div className="space-y-6"><label className="flex flex-wrap items-center gap-3 font-medium">Replication
-    <select className="max-w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5" value={block.replication} onChange={event => setReplication(event.target.value)}>{blocks.map(item => <option key={item.replication}>{item.replication}</option>)}</select></label>
-    <Measurements key={block.replication} values={block.measurements ?? []} />
-    <ScientificDataGroups category={category} values={block.measurements} records={block.records} source={block.source} conditions={conditions} finalValues={finalValues} SourceGrid={SourceGrid} downloadCsv={downloadCsv} /></div>;
 }
 
 export default function ANNXDataViewer({ work_package, element, test }: CellAssayViewerProps) {
@@ -220,11 +186,11 @@ export default function ANNXDataViewer({ work_package, element, test }: CellAssa
             </details>
           </> : <section className="bg-white rounded-lg shadow-md p-6 mb-8 space-y-6 min-w-0">
             <h2 className="text-xl font-bold text-blue-800">{reportTitle}</h2>
-            {currentTab === "raw" && <ReplicateBlocks category="raw" conditions={data.test_details?.source} finalValues={data.final_results?.measurements ?? []} blocks={Array.isArray(safeRawBlocks) ? safeRawBlocks : []} />}
-            {currentTab === "processed" && <ReplicateBlocks category="processed" conditions={data.test_details?.source} finalValues={data.final_results?.measurements ?? []} blocks={data.processed_data?.blocks ?? []} />}
-            {currentTab === "final" && <><Measurements values={data.final_results?.measurements ?? []} /><ScientificDataGroups category="final" values={data.final_results?.measurements} source={data.final_results?.source} conditions={data.test_details?.source} finalValues={data.final_results?.measurements} SourceGrid={SourceGrid} downloadCsv={downloadCsv} /></>}
-            {currentTab === "statistics" && <><p className="text-sm text-gray-600">Workbook-reported ANOVA, significance levels and post-hoc comparisons, including original endpoint headings and group mappings.</p><ScientificDataGroups category="statistics" source={data.statistical_analysis?.source} conditions={data.test_details?.source} finalValues={data.final_results?.measurements} SourceGrid={SourceGrid} downloadCsv={downloadCsv} /></>}
-            {currentTab !== "conditions" && <ScientificImages workPackage={work_package} element={element} test={test} category={currentTab as Category} sources={currentTab === "raw" ? (Array.isArray(safeRawBlocks) ? safeRawBlocks.map(b => b.source) : []) : currentTab === "processed" ? (data.processed_data?.blocks ?? []).map(b => b.source) : [currentTab === "final" ? data.final_results?.source : data.statistical_analysis?.source].filter((source): source is SourceTable => !!source)} />}
+            {currentTab === "raw" && <AnnexinReplicates SourceGrid={SourceGrid} downloadCsv={downloadCsv} blocks={Array.isArray(safeRawBlocks) ? safeRawBlocks : []} />}
+            {currentTab === "processed" && <AnnexinReplicates SourceGrid={SourceGrid} downloadCsv={downloadCsv} blocks={data.processed_data?.blocks ?? []} />}
+            {currentTab === "final" && <AnnexinFinal values={data.final_results?.measurements ?? []} source={data.final_results?.source} SourceGrid={SourceGrid} downloadCsv={downloadCsv} workPackage={work_package} element={element} test={test} />}
+            {currentTab === "statistics" && <AnnexinStatistics source={data.statistical_analysis?.source} endpoints={[...new Set((data.final_results?.measurements ?? []).map(m=>m.endpoint))]} SourceGrid={SourceGrid} downloadCsv={downloadCsv} />}
+            {currentTab !== "final" && <TestImageGallery workPackage={work_package} element={element} test={test} category={currentTab as Category} />}
           </section>}
         </div>
       </div>

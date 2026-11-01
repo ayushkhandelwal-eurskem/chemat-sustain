@@ -1,4 +1,5 @@
 "use client";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
 import React, {
   FC,
   useEffect,
@@ -1160,6 +1161,7 @@ const SIMSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
         {!loading && !error && !data && (
           <p className="text-center text-gray-500">No data available.</p>
         )}
+        <TestImageGallery workPackage={work_package} element={element} test={test} category={activeTab} />
       </div>
     </div>
   );

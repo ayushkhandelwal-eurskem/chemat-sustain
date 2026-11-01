@@ -1,4 +1,5 @@
 "use client";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
 import React, { FC, useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/axios";
 import {
@@ -1459,6 +1460,7 @@ const RotifierDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             )}
           </>
         )}
+        <TestImageGallery workPackage={work_package} element={element} test={test} category={activeTab} />
       </div>
     </div>
   );

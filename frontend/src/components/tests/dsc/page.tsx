@@ -1,4 +1,5 @@
 "use client";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
 import React, { FC, useEffect, useState, useMemo, useCallback } from "react";
 import { api } from "@/lib/axios";
 import {
@@ -288,6 +289,7 @@ const DSCDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             </>) : <p className="text-center text-gray-500">No final results.</p>}
           </div>
         )}
+        <TestImageGallery workPackage={work_package} element={element} test={test} category={activeTab} />
       </div>
     </div>
   );

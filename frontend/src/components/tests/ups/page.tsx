@@ -1,4 +1,5 @@
 "use client";
+import TestImageGallery from "@/components/tests/shared/TestImageGallery";
 import React, { FC, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/axios";
 import { Download } from "lucide-react";
@@ -666,6 +667,7 @@ const UPSDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
             </div>
           </div>
         )}
+        <TestImageGallery workPackage={work_package} element={element} test={test} category={activeTab} />
       </div>
     </div>
   );

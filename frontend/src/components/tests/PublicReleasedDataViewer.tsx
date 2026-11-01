@@ -3,6 +3,7 @@
 import { ComponentType, FC, useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { api } from "@/lib/axios";
+import TestImageGallery from "./shared/TestImageGallery";
 
 interface ViewerProps {
   work_package: string;
@@ -363,6 +364,7 @@ const PublicReleasedDataViewer: FC<PublicReleasedDataViewerProps> = ({
                   </button>
                 </div>
                 <ReleasedValue value={data[currentSection.key]} />
+                <TestImageGallery workPackage={work_package} element={element} test={test} category={currentSection.key} />
               </section>
             )}
           </>

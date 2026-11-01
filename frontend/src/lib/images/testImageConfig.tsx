@@ -19,6 +19,9 @@
    ============================================================================== */
 
 /* ============================ Types ============================ */
+import assetManifest from "./assetManifest.json";
+import type { Category, SourceTable } from "@/lib/scientificRecognition";
+
 export interface TestImage {
   id: string;
   url: string;
@@ -46,11 +49,17 @@ export type TestType =
   | 'hr_stem' 
   | 'mtt' 
   | 'uv_vis' 
-  | 'zeta';
+  | 'zeta'
+  | 'pcr'
+  | 'annx'
+  | 'pcr_microfludic';
 
 /* ============================ Test Configurations ============================ */
 // Add new test types here - this is the ONLY place you need to update
 export const TEST_IMAGE_CONFIGS: Record<TestType, TestImageConfig> = {
+  pcr: { testType: 'pcr', testLabel: 'PCR', images: [] },
+  annx: { testType: 'annx', testLabel: 'Annexin V', images: [] },
+  pcr_microfludic: { testType: 'pcr_microfludic', testLabel: 'PCR-Microfludic', images: [] },
   sims: {
     testType: 'sims',
     testLabel: 'SIMS',
@@ -182,7 +191,7 @@ export const IMAGE_TYPE_COLORS: Record<string, string> = {
  */
 export const normalizeCmsId = (cmsId: string): string => {
   // Match pattern: optional "CMS_" + number + "a" + optional "_suffix"
-  const match = cmsId.match(/^(?:cms_?)?(\d+a)/i);
+  const match = cmsId.match(/^(?:cms_?)?(\d+[a-z])(?:_|$)/i);
   if (match) {
     return match[1].toLowerCase();
   }
@@ -254,7 +263,7 @@ export const getImageTypeBadgeColor = (type: string): string => {
  */
 export const isValidCmsId = (cmsId: string): boolean => {
   // Match: optional "CMS_" + number + "a" + optional "_anything"
-  const match = cmsId.match(/^(?:cms_?)?(\d+)a(?:_\w+)?$/i);
+  const match = cmsId.match(/^(?:cms_?)?(\d+)[a-z](?:_\w+)?$/i);
   if (!match) return false;
   const num = parseInt(match[1], 10);
   return num >= 1 && num <= 30;
@@ -305,6 +314,41 @@ export const getTestImagesWithOverrides = (
     return override;
   }
   
-  // Fall back to generated URLs
-  return getTestImages(workPackage, cmsId, testType);
+  // Prefer verified real paths; legacy generated naming remains a fallback for
+  // viewers that already depend on it.
+  const existing = resolveScientificImages(workPackage, cmsId, testType);
+  return existing.length ? existing : getTestImages(workPackage, cmsId, testType);
 };
+
+/** One resolver for every category. Category/endpoint associations require
+ * explicit filename tokens or byte-identical embedded image matches; an
+ * unlabelled image is never guessed to be a biological result.
+ */
+export function resolveScientificImages(
+  workPackage: string, cmsId: string, testType: string,
+  category?: Category, source?: SourceTable, endpoint?: string,
+): TestImage[] {
+  const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const wp = normalized(workPackage), cms = normalizeCmsId(cmsId);
+  const test = normalized(testType);
+  const aliases = test === "annx" ? ["annx", "anx", "annexinv"] : [test];
+  const categoryPatterns: Record<Category, RegExp> = {
+    raw: /raw|output|acquisition|gating|dot.?plot/i,
+    processed: /processed|normalized|derived/i,
+    final: /final|result|summary/i,
+    statistics: /statistic|anova|post.?hoc|t.?test/i,
+  };
+  return assetManifest.flatMap(asset => {
+    const segments = asset.path.split("/");
+    const matchedEmbedded = source?.embedded_images?.some(image => image.sha256 === asset.sha256);
+    const matchesIdentity = segments.some(s => normalized(s) === wp) && segments.some(s => normalizeCmsId(s) === cms) && (segments.some(s => aliases.includes(normalized(s))) || aliases.some(alias => segments.at(-1)?.toLowerCase().split(/[^a-z0-9]+/).includes(alias)));
+    // Identical logos are reused across workbooks; a hash alone must never
+    // associate an image from a different experiment/material/test.
+    if (!matchesIdentity) return [];
+    if (category && !matchedEmbedded && !categoryPatterns[category].test(asset.path)) return [];
+    if (endpoint && !matchedEmbedded && !normalized(asset.path).includes(normalized(endpoint))) return [];
+    return [{ id: asset.path, url: `/images/${segments.map(encodeURIComponent).join("/")}`,
+      title: segments.at(-1)!.replace(/\.[^.]+$/, ""), type: category ?? "source",
+      description: matchedEmbedded ? `Exact embedded workbook image match — ${source?.sheet_name}` : asset.path }];
+  });
+}

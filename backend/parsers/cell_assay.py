@@ -4,6 +4,7 @@ Source tables retain coordinates, cached values and formulas. Scientific values
 are never recalculated: openpyxl is not an Excel calculation engine.
 """
 import csv
+import hashlib
 import logging
 import math
 import re
@@ -121,8 +122,18 @@ class CellAssayParser:
                 cells.append(entry)
             if cells:
                 rows.append({"row": row[0].row, "cells": cells})
+        images = []
+        for image in formulas._images:
+            anchor = getattr(image.anchor, "_from", None)
+            if not hasattr(image, "_source_sha256"):
+                image._source_sha256 = hashlib.sha256(image._data()).hexdigest()
+            images.append({"sha256": image._source_sha256,
+                           "anchor_row": anchor.row + 1 if anchor else None,
+                           "anchor_column": anchor.col + 1 if anchor else None,
+                           "sheet_name": ws.title})
         return {"sheet_name": ws.title, "rows": rows,
-                "merged_ranges": [str(r) for r in ws.merged_cells.ranges]}
+                "merged_ranges": [str(r) for r in ws.merged_cells.ranges],
+                "embedded_images": images}
 
     def extract_details(self):
         wp_fields = {"wp_name": "project_work_package", "partner": "partner_conducting",

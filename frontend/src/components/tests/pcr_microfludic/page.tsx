@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Download, ChevronDown } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ErrorBar, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "@/lib/axios";
+import ScientificDataGroups, { ScientificImages } from "@/components/tests/shared/ScientificDataGroups";
+import type { Category } from "@/lib/scientificRecognition";
 
 interface CellAssayViewerProps {
   work_package: string;
@@ -112,27 +114,17 @@ function Measurements({ values }: { values: Measurement[] }) {
       <BarChart data={chartData} margin={{ top: 10, right: 20, bottom: 55, left: 10 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" angle={-15} textAnchor="end" height={70} /><YAxis /><Tooltip />
         <Bar dataKey="value" name={visible[0]?.unit} fill="#3b82f6"><ErrorBar dataKey="sd" width={5} stroke="#1e293b" /></Bar>
       </BarChart></ResponsiveContainer></div>}
-    <div className="w-full"><table className="w-full table-fixed bg-white border border-gray-200 [&_th]:break-words [&_td]:break-words"><thead className="bg-gray-100"><tr>{["Treatment", "Replication", "Value", "SD", "Gate", "Source"].map(label => <th className="py-2 px-4 border" key={label}>{label}</th>)}</tr></thead>
-      <tbody>{visible.map((value, index) => <tr className="border-t" key={`${value.source_cell}-${index}`}>
-        <td className="py-2 px-4 border">{value.treatment}</td><td className="py-2 px-4 border">{value.replication ?? "Summary"}</td><td className="py-2 px-4 border">{String(value.value ?? "—")}</td><td className="py-2 px-4 border">{value.sd ?? "—"}</td><td className="py-2 px-4 border">{value.gate ?? "—"}</td><td className="py-2 px-4 border">{value.source_cell}</td>
-      </tr>)}</tbody></table></div>
   </section>;
 }
 
-function ReplicateBlocks({ blocks }: { blocks: DataBlock[] }) {
+function ReplicateBlocks({ blocks, category, conditions, finalValues }: { blocks: DataBlock[]; category: Category; conditions?: SourceTable; finalValues: Measurement[] }) {
   const [replication, setReplication] = useState("");
   const block = blocks.find(item => item.replication === replication) ?? blocks[0];
   if (!block) return <p className="p-4 text-gray-500">No replicate data available.</p>;
   return <div className="space-y-6"><label className="flex flex-wrap items-center gap-3 font-medium">Replication
     <select className="max-w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5" value={block.replication} onChange={event => setReplication(event.target.value)}>{blocks.map(item => <option key={item.replication}>{item.replication}</option>)}</select></label>
     <Measurements key={block.replication} values={block.measurements ?? []} />
-    {!!block.records?.length && <div className="space-y-3"><p className="text-sm text-gray-600">{block.records.length} cytometry records, including population gates, counts, %Total, %Gated and channel statistics. Complete values and original export labels are below.</p>
-      <button className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm" onClick={() => {
-        const records = block.records ?? [];
-        const columns = Array.from(new Set(records.flatMap(record => Object.keys(record))));
-        downloadCsv(`${block.replication}_cytometry`, [columns, ...records.map(record => columns.map(column => record[column] ?? null))]);
-      }}><Download size={16} /> Complete cytometry records CSV</button></div>}
-    <SourceGrid key={block.source.sheet_name} source={block.source} /></div>;
+    <ScientificDataGroups category={category} values={block.measurements} records={block.records} source={block.source} conditions={conditions} finalValues={finalValues} SourceGrid={SourceGrid} downloadCsv={downloadCsv} /></div>;
 }
 
 export default function PCRMicrofludicDataViewer({ work_package, element, test }: CellAssayViewerProps) {
@@ -228,10 +220,11 @@ export default function PCRMicrofludicDataViewer({ work_package, element, test }
             </details>
           </> : <section className="bg-white rounded-lg shadow-md p-6 mb-8 space-y-6 min-w-0">
             <h2 className="text-xl font-bold text-blue-800">{reportTitle}</h2>
-            {currentTab === "raw" && <ReplicateBlocks blocks={Array.isArray(safeRawBlocks) ? safeRawBlocks : []} />}
-            {currentTab === "processed" && <ReplicateBlocks blocks={data.processed_data?.blocks ?? []} />}
-            {currentTab === "final" && <><Measurements values={data.final_results?.measurements ?? []} /><SourceGrid source={data.final_results?.source} /></>}
-            {currentTab === "statistics" && <><p className="text-sm text-gray-600">Workbook-reported ANOVA, significance levels and post-hoc comparisons, including original endpoint headings and group mappings.</p><SourceGrid source={data.statistical_analysis?.source} /></>}
+            {currentTab === "raw" && <ReplicateBlocks category="raw" conditions={data.test_details?.source} finalValues={data.final_results?.measurements ?? []} blocks={Array.isArray(safeRawBlocks) ? safeRawBlocks : []} />}
+            {currentTab === "processed" && <ReplicateBlocks category="processed" conditions={data.test_details?.source} finalValues={data.final_results?.measurements ?? []} blocks={data.processed_data?.blocks ?? []} />}
+            {currentTab === "final" && <><Measurements values={data.final_results?.measurements ?? []} /><ScientificDataGroups category="final" values={data.final_results?.measurements} source={data.final_results?.source} conditions={data.test_details?.source} finalValues={data.final_results?.measurements} SourceGrid={SourceGrid} downloadCsv={downloadCsv} /></>}
+            {currentTab === "statistics" && <><p className="text-sm text-gray-600">Workbook-reported ANOVA, significance levels and post-hoc comparisons, including original endpoint headings and group mappings.</p><ScientificDataGroups category="statistics" source={data.statistical_analysis?.source} conditions={data.test_details?.source} finalValues={data.final_results?.measurements} SourceGrid={SourceGrid} downloadCsv={downloadCsv} /></>}
+            {currentTab !== "conditions" && <ScientificImages workPackage={work_package} element={element} test={test} category={currentTab as Category} sources={currentTab === "raw" ? (Array.isArray(safeRawBlocks) ? safeRawBlocks.map(b => b.source) : []) : currentTab === "processed" ? (data.processed_data?.blocks ?? []).map(b => b.source) : [currentTab === "final" ? data.final_results?.source : data.statistical_analysis?.source].filter((source): source is SourceTable => !!source)} />}
           </section>}
         </div>
       </div>

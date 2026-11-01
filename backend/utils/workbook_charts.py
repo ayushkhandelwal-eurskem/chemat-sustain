@@ -1,6 +1,7 @@
 """Read native final-result Excel charts without evaluating workbook formulas."""
 import math
 import os
+import re
 from pathlib import Path
 
 import openpyxl
@@ -27,14 +28,20 @@ def source_values(source, workbook, sheet_name):
     for kind in ("numRef", "strRef"):
         reference = getattr(source, kind, None)
         if reference is not None:
-            name, (left, top, right, bottom) = range_to_tuple(reference.f)
-            # Never expose data from an unreleased raw/conditions sheet through
-            # a final-result chart, nor follow external workbook references.
-            if name != sheet_name or (right - left + 1) * (bottom - top + 1) > MAX_POINTS:
-                raise ValueError("Chart reference is outside its final-results sheet or too large")
-            if left != right and top != bottom:
-                raise ValueError("Chart references must be a single row or column")
-            return [cell.value for row in workbook[name].iter_rows(min_row=top, max_row=bottom, min_col=left, max_col=right) for cell in row]
+            formula = reference.f
+            if not isinstance(formula, str):
+                raise ValueError("Missing chart reference")
+            # Excel writes sparse series as parenthesized unions. Split only
+            # outside quoted sheet names (which may themselves contain commas).
+            if formula.startswith("(") and formula.endswith(")"):
+                formula = formula[1:-1]
+            parts = re.split(r",(?=(?:[^']*'[^']*')*[^']*$)", formula)
+            values = []
+            for part in parts:
+                values.extend(reference_values(part.strip(), workbook, sheet_name))
+                if len(values) > MAX_POINTS:
+                    raise ValueError("Too many chart points")
+            return values
     for kind in ("numLit", "strLit"):
         literal = getattr(source, kind, None)
         if literal is not None:
@@ -47,6 +54,16 @@ def source_values(source, workbook, sheet_name):
                     values[point.idx] = point.v
             return values
     raise ValueError("Unsupported chart data source")
+
+
+def reference_values(formula, workbook, sheet_name):
+    name, (left, top, right, bottom) = range_to_tuple(formula)
+    # Never expose data from unreleased sheets or external workbooks.
+    if name != sheet_name or (right - left + 1) * (bottom - top + 1) > MAX_POINTS:
+        raise ValueError("Chart reference is outside its final-results sheet or too large")
+    if left != right and top != bottom:
+        raise ValueError("Chart references must be a single row or column")
+    return [cell.value for row in workbook[name].iter_rows(min_row=top, max_row=bottom, min_col=left, max_col=right) for cell in row]
 
 
 def parse_chart(chart, workbook, sheet, index):
@@ -98,7 +115,7 @@ def extract_workbook_charts(test_id, file_path):
     root = Path(os.environ.get("TENANT_DATA_ROOT", "data")).resolve()
     if not path.is_relative_to(root) or not path.is_file():
         return
-    stamp = f"v1:{path}:{path.stat().st_mtime_ns}:{path.stat().st_size}"
+    stamp = f"v2:{path}:{path.stat().st_mtime_ns}:{path.stat().st_size}"
     with locked_manifest(test_id) as (_, manifest):
         if manifest.get("charts_stamp") == stamp:
             return

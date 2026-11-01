@@ -4,7 +4,8 @@ from openpyxl.chart.data_source import NumDataSource, NumRef
 from openpyxl.chart.error_bar import ErrorBars
 
 from utils.test_images import list_images
-from utils.workbook_charts import extract_workbook_charts
+from utils.workbook_charts import extract_workbook_charts, source_values
+import pytest
 
 
 def workbook_chart(root, external=False):
@@ -61,3 +62,28 @@ def test_chart_external_path_is_not_read(tmp_path, monkeypatch):
     monkeypatch.setenv("TENANT_DATA_ROOT", str(tmp_path))
     extract_workbook_charts(7, "/etc/passwd")
     assert "charts" not in list_images(7)
+
+
+def test_sparse_chart_references_preserve_order_and_reject_cross_sheet():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Final results"
+    sheet["C2"] = 0
+    sheet["G2"] = 12
+    source = NumDataSource(numRef=NumRef(f="('Final results'!$G$2,'Final results'!$C$2)"))
+    assert source_values(source, workbook, sheet.title) == [12, 0]
+    source.numRef.f = "('Final results'!$C$2,'Raw data'!$G$2)"
+    with pytest.raises(ValueError):
+        source_values(source, workbook, sheet.title)
+    workbook.close()
+
+
+def test_sparse_chart_quoted_sheet_with_comma():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Final, results"
+    sheet["A1"] = 1
+    sheet["C1"] = 2
+    source = NumDataSource(numRef=NumRef(f="('Final, results'!$A$1,'Final, results'!$C$1)"))
+    assert source_values(source, workbook, sheet.title) == [1, 2]
+    workbook.close()

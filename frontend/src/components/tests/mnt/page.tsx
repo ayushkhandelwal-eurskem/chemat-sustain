@@ -14,7 +14,7 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 const degC = (s: string) => (s ?? "").replace(/oC/g, "°C");
 const dot = (s: string) => (s ?? "").replace(/,/g, ".");
-const fmt = (v: any, d = 2) => { if (v == null || v === "") return ""; if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(d); return String(v); };
+const fmt = (v: any, d = 2) => { if (v == null || v === "") return "—"; if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(d); return String(v); };
 const csvEsc = (v: string) => `"${v.replace(/"/g, '""')}"`;
 function dlCSV(id: string, fn: string) { const t = document.getElementById(id); if (!t) return; let csv = "data:text/csv;charset=utf-8,"; t.querySelectorAll("tr").forEach(r => { csv += Array.from(r.querySelectorAll("th,td")).map(c => csvEsc(c.textContent ?? "")).join(",") + "\r\n"; }); const a = document.createElement("a"); a.href = encodeURI(csv); a.download = `${fn}.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
 
@@ -267,36 +267,6 @@ const MNTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               </table></div>
             </div>
 
-            {/* Final Results Chart 1: N, uN, %uN/N */}
-            {(() => { const grps = fr.group_labels ?? []; const cd = grps.map((g: string) => ({ group: g, N: fr.overall_mean?.[`${g}_N`] ?? 0, N_sd: fr.overall_sd?.[`${g}_N`] ?? 0, uN: fr.overall_mean?.[`${g}_uN`] ?? 0, uN_sd: fr.overall_sd?.[`${g}_uN`] ?? 0, pct: fr.overall_mean?.[`${g}_%uN/N`] ?? 0, pct_sd: fr.overall_sd?.[`${g}_%uN/N`] ?? 0, isNC: g === "KN" || g === "NC", isPC: g === "KP" || g.startsWith("PC") })); return cd.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-md font-semibold mb-3">Overall: N, μN, %μN/N by Group</h3>
-                <ResponsiveContainer width="100%" height={380}>
-                  <BarChart data={cd} margin={{ top: 15, right: 30, left: 20, bottom: 30 }}>
-                    <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="group" /><YAxis />
-                    <Tooltip content={({ active, payload, label }: any) => { if (!active || !payload?.length) return null; return (<div className="bg-white border border-gray-300 rounded shadow-md p-3 text-sm"><p className="font-semibold mb-1">{label}</p>{payload.map((p: any, i: number) => <p key={i} style={{ color: p.color }}>{p.name}: {fmt(p.value, 2)} (SD: {fmt(p.payload[`${p.dataKey}_sd`], 2)})</p>)}</div>); }} />
-                    <Bar dataKey="N" fill="#e5e7eb" name="N"><ErrorBar dataKey="N_sd" width={3} strokeWidth={1.5} stroke="#666" /></Bar>
-                    <Bar dataKey="uN" fill="#9ca3af" name="μN"><ErrorBar dataKey="uN_sd" width={3} strokeWidth={1.5} stroke="#666" /></Bar>
-                    <Bar dataKey="pct" fill="#86efac" name="%μN/N"><ErrorBar dataKey="pct_sd" width={3} strokeWidth={1.5} stroke="#666" /></Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ); })()}
-
-            {/* Final Results Chart 2: uN, %uN/N only (zoomed) */}
-            {(() => { const grps = fr.group_labels ?? []; const cd2 = grps.map((g: string) => ({ group: g, uN: fr.overall_mean?.[`${g}_uN`] ?? 0, uN_sd: fr.overall_sd?.[`${g}_uN`] ?? 0, pct: fr.overall_mean?.[`${g}_%uN/N`] ?? 0, pct_sd: fr.overall_sd?.[`${g}_%uN/N`] ?? 0 })); return cd2.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-md font-semibold mb-3">Overall: μN and %μN/N by Group (Zoomed)</h3>
-                <ResponsiveContainer width="100%" height={380}>
-                  <BarChart data={cd2} margin={{ top: 15, right: 30, left: 20, bottom: 30 }}>
-                    <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="group" /><YAxis />
-                    <Tooltip content={({ active, payload, label }: any) => { if (!active || !payload?.length) return null; return (<div className="bg-white border border-gray-300 rounded shadow-md p-3 text-sm"><p className="font-semibold mb-1">{label}</p>{payload.map((p: any, i: number) => <p key={i} style={{ color: p.color }}>{p.name}: {fmt(p.value, 4)} (SD: {fmt(p.payload[`${p.dataKey}_sd`], 4)})</p>)}</div>); }} />
-                    <Bar dataKey="uN" fill="#9ca3af" name="μN"><ErrorBar dataKey="uN_sd" width={3} strokeWidth={1.5} stroke="#666" /></Bar>
-                    <Bar dataKey="pct" fill="#86efac" name="%μN/N"><ErrorBar dataKey="pct_sd" width={3} strokeWidth={1.5} stroke="#666" /></Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ); })()}
           </Collapse>
 
           {/* Summary Table */}
@@ -306,19 +276,6 @@ const MNTDataViewer: FC<PageProps> = ({ work_package, element, test }) => {
               <thead><tr className="bg-gray-100"><th className="py-2 px-3 border text-left">Group</th><th className="py-2 px-3 border text-right">Conc (μg/mL)</th><th className="py-2 px-3 border text-right">Conc (particles)</th><th className="py-2 px-3 border text-right">%μN/N</th><th className="py-2 px-3 border text-right">SD</th></tr></thead>
               <tbody>{fr.summary?.map((row: any, i: number) => <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : ""}><td className="py-2 px-3 border font-medium">{row.label}</td><td className="py-2 px-3 border text-right">{row.conc_ug}</td><td className="py-2 px-3 border text-right">{row.conc_part}</td><td className="py-2 px-3 border text-right">{fmt(row.pct_uN_N, 4)}</td><td className="py-2 px-3 border text-right">{fmt(row.sd, 4)}</td></tr>)}</tbody>
             </table></div>
-
-            {/* Bar chart of %uN/N */}
-            {fr.summary?.length > 0 && (
-              <ResponsiveContainer width="100%" height={380}>
-                <BarChart data={fr.summary.map((s: any) => ({ group: s.label, mean: s.pct_uN_N ?? 0, sd: s.sd ?? 0 }))} margin={{ top: 15, right: 30, left: 20, bottom: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="group" label={{ value: "Treatment Group", position: "insideBottom", offset: -15 }} />
-                  <YAxis label={{ value: "%μN/N", angle: -90, position: "insideLeft" }} />
-                  <Tooltip content={({ active, payload, label }: any) => { if (!active || !payload?.length) return null; const d = payload[0]?.payload; return (<div className="bg-white border border-gray-300 rounded shadow-md p-3 text-sm"><p className="font-semibold mb-1">{label}</p><p>%μN/N: {fmt(d?.mean, 4)}</p><p className="text-red-600">SD: {fmt(d?.sd, 4)}</p></div>); }} />
-                  <Bar dataKey="mean" fill="#2563eb" name="%μN/N"><ErrorBar dataKey="sd" width={4} strokeWidth={2} stroke="#dc2626" /></Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
 
             <AcceptanceBanner text={fr.acceptance_1?.text} result={fr.acceptance_1?.result} />
             <AcceptanceBanner text={fr.acceptance_2?.text} result={fr.acceptance_2?.result} />

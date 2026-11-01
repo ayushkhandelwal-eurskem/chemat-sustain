@@ -31,6 +31,15 @@ through chart data. Unsupported chart types/features produce administrator warni
 rather than being silently converted to misleading graphs. Styling is not an exact
 Excel reproduction. Graphs share the final-results release flag, and refresh lazily
 for existing workbooks; no scientific-data reparse is required.
+Non-adjacent series references (Excel unions) are supported, including PCR and
+MNT templates; every referenced range must still belong to the final-results sheet.
+
+PCR and PCR-Microfludic share the same workbook-oriented renderer: gene-by-treatment
+raw/processed tables, per-experiment final tables, reported Mean/SD, final-sheet
+comparisons, and endpoint-specific statistics with original ANOVA/Tukey headers.
+Instrument exports, coordinates and calculation details remain collapsed. MNT
+retains its experiment, overall Mean/SD, summary and acceptance tables; final graphs
+now use the workbook chart definitions rather than duplicate reconstructed graphs.
 
 Only actual embedded raster pictures supported by openpyxl/Pillow are imported as
 images. Drawing objects, externally linked pictures and screenshots not
